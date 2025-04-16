@@ -1,25 +1,3 @@
-:root {
-  --primary-color: #3a6df0;
-  --text-color: #1f1c2e;
-  --text-secondary: #4a4a4a;
-  --border-color: #e0e0e0;
-  --bg-color: #f9fafb;
-  --card-bg: #ffffff;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  line-height: 1.6;
-}
-
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -61,21 +39,4 @@ body {
 
 .read-the-docs {
   color: #888;
-}
-
-.app {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
-.app-container {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.app-content {
-  flex: 1;
 }
