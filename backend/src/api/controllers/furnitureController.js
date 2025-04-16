@@ -1,5 +1,5 @@
 import Furniture from '../../models/Furniture.js';
-import { uploadFile, getSignedFileUrl, deleteFile } from '../../services/s3Service.js';
+import { uploadFile, getSignedFileUrl } from '../../services/s3Service.js';
 import multer from 'multer';
 import path from 'path';
 
@@ -24,25 +24,29 @@ const upload = multer({
 // Middleware to handle file uploads (to be used in routes)
 export const uploadModelMiddleware = upload.fields([
   { name: 'model', maxCount: 1 },
-  { name: 'thumbnail', maxCount: 1 }
+  { name: 'thumbnail', maxCount: 1 },
+  { name: 'textures', maxCount: 10 }
 ]);
 
-// Create new furniture item with 3D model
-export const createFurniture = async (req, res, next) => {
+// Create new furniture
+export const createFurniture = async (req, res) => {
   try {
-    if (!req.files || !req.files.model || !req.files.thumbnail) {
-      return res.status(400).json({ message: 'Model and thumbnail files are required' });
+    // Check if all required files are present
+    if (!req.files || !req.files.model || !req.files.model[0]) {
+      return res.status(400).json({ 
+        success: false,
+        message: '3D model file is required'
+      });
     }
     
     const { 
-      name, description, category, price, 
-      width, length, height, manufacturer 
+      name, description, price, quantity,
+      width, length, height
     } = req.body;
     
-    // Upload model file to S3
+    // Upload the model file to S3
     const modelFile = req.files.model[0];
-    const modelExtension = path.extname(modelFile.originalname);
-    const modelKey = `furniture/models/${Date.now()}-${name.replace(/\s+/g, '-')}${modelExtension}`;
+    const modelKey = `furniture/models/${Date.now()}-${modelFile.originalname}`;
     
     const modelUploadResult = await uploadFile(
       modelKey, 
@@ -50,34 +54,57 @@ export const createFurniture = async (req, res, next) => {
       modelFile.mimetype
     );
     
-    // Upload thumbnail image to S3
-    const thumbnailFile = req.files.thumbnail[0];
-    const thumbExtension = path.extname(thumbnailFile.originalname);
-    const thumbnailKey = `furniture/thumbnails/${Date.now()}-${name.replace(/\s+/g, '-')}${thumbExtension}`;
-    
-    const thumbnailUploadResult = await uploadFile(
-      thumbnailKey, 
-      thumbnailFile.buffer,
-      thumbnailFile.mimetype
-    );
-    
-    // Create new furniture record in MongoDB
-    const furniture = new Furniture({
+    // Initialize furniture data
+    const furnitureData = {
       name,
       description,
-      category,
       price: Number(price),
+      quantity: Number(quantity),
       dimensions: {
         width: Number(width),
         length: Number(length),
         height: Number(height)
       },
       modelUrl: modelUploadResult.url,
-      thumbnailUrl: thumbnailUploadResult.url,
-      manufacturer,
-      status: 'active'
-    });
+      textures: []
+    };
     
+    // Upload thumbnail if provided
+    if (req.files.thumbnail && req.files.thumbnail[0]) {
+      const thumbnailFile = req.files.thumbnail[0];
+      const thumbnailKey = `furniture/thumbnails/${Date.now()}-${thumbnailFile.originalname}`;
+      
+      const thumbnailUploadResult = await uploadFile(
+        thumbnailKey,
+        thumbnailFile.buffer,
+        thumbnailFile.mimetype
+      );
+      
+      furnitureData.thumbnailUrl = thumbnailUploadResult.url;
+    }
+    
+    // Process textures if provided
+    if (req.files.textures && req.files.textures.length > 0) {
+      const texturePromises = req.files.textures.map(async (textureFile, index) => {
+        const textureKey = `furniture/textures/${Date.now()}-${textureFile.originalname}`;
+        const textureUploadResult = await uploadFile(
+          textureKey,
+          textureFile.buffer,
+          textureFile.mimetype
+        );
+        
+        return {
+          name: textureFile.originalname.split('.')[0],
+          textureUrl: textureUploadResult.url,
+          isDefault: index === 0
+        };
+      });
+      
+      furnitureData.textures = await Promise.all(texturePromises);
+    }
+    
+    // Create and save the furniture document
+    const furniture = new Furniture(furnitureData);
     await furniture.save();
     
     res.status(201).json({
@@ -86,48 +113,73 @@ export const createFurniture = async (req, res, next) => {
     });
     
   } catch (error) {
-    next(error);
+    console.error('Error creating furniture:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error creating furniture'
+    });
   }
 };
 
 // Get all furniture items
-export const getAllFurniture = async (req, res, next) => {
+export const getAllFurniture = async (req, res) => {
   try {
-    const furniture = await Furniture.find({ status: 'active' });
+    const furniture = await Furniture.find();
+    
     res.status(200).json({
       success: true,
       count: furniture.length,
       data: furniture
     });
   } catch (error) {
-    next(error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching furniture'
+    });
   }
 };
 
-// Get single furniture item by ID
-export const getFurnitureById = async (req, res, next) => {
+// Get furniture by ID
+export const getFurnitureById = async (req, res) => {
   try {
     const furniture = await Furniture.findById(req.params.id);
     
     if (!furniture) {
-      return res.status(404).json({ message: 'Furniture not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Furniture not found'
+      });
     }
     
-    // Generate temporary signed URL for the 3D model (useful if your S3 bucket is private)
-    const signedModelUrl = await getSignedFileUrl(
-      furniture.modelUrl.split('/').pop(),
-      3600 // 1 hour expiry
+    // Generate signed URL for the 3D model
+    const modelKey = furniture.modelUrl.split('/').pop();
+    const signedModelUrl = await getSignedFileUrl(`furniture/models/${modelKey}`);
+    
+    // Generate signed URLs for textures
+    const texturesWithSignedUrls = await Promise.all(
+      furniture.textures.map(async (texture) => {
+        const textureKey = texture.textureUrl.split('/').pop();
+        const signedTextureUrl = await getSignedFileUrl(`furniture/textures/${textureKey}`);
+        
+        return {
+          ...texture.toObject(),
+          signedTextureUrl
+        };
+      })
     );
     
     res.status(200).json({
       success: true,
       data: {
         ...furniture.toObject(),
-        signedModelUrl
+        signedModelUrl,
+        textures: texturesWithSignedUrls
       }
     });
-    
   } catch (error) {
-    next(error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching furniture'
+    });
   }
 };

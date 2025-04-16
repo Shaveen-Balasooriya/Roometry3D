@@ -1,4 +1,19 @@
-import mongoose from 'mongoose'
+import mongoose from 'mongoose';
+
+const textureSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  textureUrl: {
+    type: String,
+    required: true
+  },
+  isDefault: {
+    type: Boolean,
+    default: false
+  }
+});
 
 const furnitureSchema = new mongoose.Schema({
   name: {
@@ -10,14 +25,14 @@ const furnitureSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  category: {
-    type: String,
-    required: true,
-    enum: ['seating', 'tables', 'storage', 'beds', 'lighting', 'decor', 'other']
-  },
   price: {
     type: Number,
     required: true
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    default: 0
   },
   dimensions: {
     width: { type: Number, required: true },
@@ -29,24 +44,25 @@ const furnitureSchema = new mongoose.Schema({
     required: true
   },
   thumbnailUrl: {
-    type: String,
-    required: true
+    type: String
   },
-  manufacturer: {
-    type: String,
-    required: true
-  },
-  status: {
-    type: String,
-    enum: ['active', 'inactive'],
-    default: 'active'
-  },
+  textures: [textureSchema],
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
-})
+});
 
-const Furniture = mongoose.model('Furniture', furnitureSchema)
+// Pre-save hook to update the updatedAt field
+furnitureSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
 
-export default Furniture
+const Furniture = mongoose.model('Furniture', furnitureSchema);
+
+export default Furniture;
