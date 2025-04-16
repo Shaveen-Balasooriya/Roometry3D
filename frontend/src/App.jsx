@@ -1,20 +1,19 @@
-import { useState } from 'react'
-import './styles/App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import AddFurniture from './pages/AddFurniture';
+import './styles/App.css';
+import './styles/index.css';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <div className="app">
-      <h1>Roometry3D</h1>
-      <p>3D Room Design Made Simple</p>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
+    <Router>
+      <div className="app-container">
+        <Routes>
+          <Route path="/" element={<AddFurniture />} />
+        </Routes>
       </div>
-    </div>
-  )
+    </Router>
+  );
 }
 
-export default App
+export default App;
