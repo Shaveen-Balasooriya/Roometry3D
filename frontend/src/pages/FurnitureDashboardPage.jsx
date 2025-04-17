@@ -1,0 +1,62 @@
+import React, { useEffect, useState } from 'react'
+import FurnitureCard from './components/FurnitureCard'
+import Loading from '../components/Loading'
+import Popup from '../components/Popup'
+
+export default function FurnitureDashboardPage() {
+  const [furniture, setFurniture] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [popup, setPopup] = useState({ open: false, type: 'error', message: '' })
+
+  useEffect(() => {
+    async function fetchFurniture() {
+      setLoading(true)
+      try {
+        const response = await fetch('http://localhost:3001/api/furniture')
+        if (!response.ok) {
+          throw new Error('Failed to fetch furniture')
+        }
+        const items = await response.json()
+        setFurniture(items)
+      } catch (err) {
+        setPopup({ open: true, type: 'error', message: 'Failed to load furniture: ' + err.message })
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchFurniture()
+  }, [])
+
+  // Callback function to remove item from state
+  const handleDeleteSuccess = (deletedId) => {
+    setFurniture(currentFurniture => currentFurniture.filter(item => item.id !== deletedId))
+    // Show success message on the dashboard after successful deletion
+    setPopup({ open: true, type: 'success', message: 'Furniture item deleted successfully.' })
+  }
+
+  return (
+    <div className="app-container">
+      <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
+      <main className="main-content" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+        <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)' }}>Furniture Dashboard</h2>
+        {loading ? (
+          <Loading />
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
+            {furniture.length === 0 ? (
+              <div>No furniture found.</div>
+            ) : (
+              furniture.map(item => (
+                <FurnitureCard
+                  key={item.id}
+                  furniture={item}
+                  onDeleteSuccess={handleDeleteSuccess}
+                />
+              ))
+            )}
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
