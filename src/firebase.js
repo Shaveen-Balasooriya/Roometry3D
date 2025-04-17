@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
+import { getStorage } from 'firebase/storage'
 // Remove or comment out the next line if you don't need analytics
 // import { getAnalytics } from 'firebase/analytics'
 
@@ -15,7 +16,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 const db = getFirestore(app)
+const storage = getStorage(app)
 // Only initialize analytics if needed and in production
 // const analytics = getAnalytics(app)
 
-export { db /*, analytics */ }
+export { db, storage /*, analytics */ }
