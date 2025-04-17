@@ -4,6 +4,8 @@ import './App.css'
 import AddFurniturePage from './pages/AddFurniturePage'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import FurnitureDashboardPage from './pages/FurnitureDashboardPage'
+import UpdateFurniturePage from './pages/UpdateFurniturePage' // Import the new page
 
 function Home() {
   return (
@@ -32,6 +34,22 @@ export default function App() {
             <Navbar />
             <main className="main-content">
               <AddFurniturePage />
+            </main>
+            <Footer />
+          </div>
+        } />
+        <Route path="/furniture-dashboard" element={
+          <div className="app-container">
+            <Navbar />
+            <FurnitureDashboardPage />
+            <Footer />
+          </div>
+        } />
+        <Route path="/update-furniture/:id" element={
+          <div className="app-container">
+            <Navbar />
+            <main className="main-content">
+              <UpdateFurniturePage />
             </main>
             <Footer />
           </div>

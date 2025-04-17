@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import Loading from '../../components/Loading'
-import Popup from '../../components/Popup'
+import React, { useState, useEffect, useCallback } from 'react';
+import Loading from '../../components/Loading';
+import Popup from '../../components/Popup';
 
 const initialState = {
   name: '',
@@ -14,7 +14,7 @@ const initialState = {
   wallMountable: false,
   objFile: null,
   textures: [],
-}
+};
 
 const categories = [
   'Living Room',
@@ -26,218 +26,280 @@ const categories = [
   'Outdoor',
   'Kids',
   'Other'
-]
+];
 
-export default function FurnitureForm({ onChange }) {
-  const [form, setForm] = useState(initialState)
-  const [errors, setErrors] = useState({})
-  const [isObjDragging, setIsObjDragging] = useState(false)
-  const [isTextureDragging, setIsTextureDragging] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [popup, setPopup] = useState({ open: false, type: 'success', message: '' })
+export default function FurnitureForm({ initialData = null, onChange, onUpdateSuccess }) {
+  const [form, setForm] = useState(initialState);
+  const [errors, setErrors] = useState({});
+  const [isObjDragging, setIsObjDragging] = useState(false);
+  const [isTextureDragging, setIsTextureDragging] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [popup, setPopup] = useState({ open: false, type: 'success', message: '' });
+
+  useEffect(() => {
+    if (initialData) {
+      const dataForState = {
+        ...initialData,
+        price: initialData.price?.toString() || '',
+        quantity: initialData.quantity?.toString() || '',
+        height: initialData.height?.toString() || '',
+        width: initialData.width?.toString() || '',
+        length: initialData.length?.toString() || '',
+        objFile: null,
+        textures: [],
+      };
+      setForm(dataForState);
+      onChange(dataForState);
+    } else {
+      setForm(initialState);
+      onChange(initialState);
+    }
+    setErrors({});
+  }, [initialData, onChange]);
 
   const validateField = (name, value) => {
     switch (name) {
       case 'name':
-        return value.trim() ? '' : 'Name is required'
+        return value.trim() ? '' : 'Name is required';
       case 'price':
-        return value && !isNaN(value) && Number(value) >= 0 ? '' : 'Price must be a positive number'
+        return value && !isNaN(value) && Number(value) >= 0 ? '' : 'Price must be a positive number';
       case 'quantity':
-        return value && !isNaN(value) && Number(value) >= 0 ? '' : 'Quantity must be a positive number'
+        return value && !isNaN(value) && Number(value) >= 0 ? '' : 'Quantity must be a positive number';
       case 'height':
       case 'width':
       case 'length':
-        return value && !isNaN(value) && Number(value) > 0 ? '' : `${name.charAt(0).toUpperCase() + name.slice(1)} must be greater than 0`
+        return value && !isNaN(value) && Number(value) > 0 ? '' : `${name.charAt(0).toUpperCase() + name.slice(1)} must be greater than 0`;
       default:
-        return ''
+        return '';
     }
-  }
+  };
 
-  const handleChange = (e) => {
-    const { name, value, type, checked, files } = e.target
+  const handleChange = useCallback((e) => {
+    const { name, value, type, checked, files } = e.target;
 
     if (e.key === 'Enter') {
-      e.preventDefault()
+      e.preventDefault();
     }
 
-    let newValue = value
-    let fieldErrors = { ...errors }
+    let newValue = value;
+    let fieldErrors = { ...errors };
 
     if (type === 'checkbox') {
-      newValue = checked
+      newValue = checked;
     } else if (type === 'file') {
-      e.preventDefault()
+      e.preventDefault();
 
       if (name === 'objFile') {
-        const file = files[0]
+        const file = files[0];
         if (file && file.name.toLowerCase().endsWith('.obj')) {
-          newValue = file
-          delete fieldErrors.objFile
+          newValue = file;
+          delete fieldErrors.objFile;
         } else if (file) {
-          newValue = form.objFile
-          fieldErrors.objFile = 'Invalid file type. Please select a .obj file.'
+          newValue = form.objFile;
+          fieldErrors.objFile = 'Invalid file type. Please select a .obj file.';
         } else {
-          newValue = null
+          newValue = null;
         }
       } else if (name === 'textures') {
         const imageFiles = Array.from(files).filter(file =>
           file.type.startsWith('image/')
-        )
-        newValue = imageFiles
+        );
+        newValue = imageFiles;
       }
     } else {
-      const fieldError = validateField(name, value)
+      const fieldError = validateField(name, value);
       if (fieldError) {
-        fieldErrors[name] = fieldError
+        fieldErrors[name] = fieldError;
       } else {
-        delete fieldErrors[name]
+        delete fieldErrors[name];
       }
-      setErrors(fieldErrors)
     }
 
-    const updatedForm = { ...form, [name]: newValue }
-    setForm(updatedForm)
-    onChange(updatedForm)
-    setErrors(fieldErrors)
-  }
+    setForm(prevForm => {
+      const updatedForm = { ...prevForm, [name]: newValue };
+      onChange(updatedForm);
+      return updatedForm;
+    });
+    setErrors(fieldErrors);
+  }, [errors, form.objFile, onChange]);
 
-  const handleObjDragOver = (e) => { e.preventDefault(); setIsObjDragging(true); }
-  const handleObjDragLeave = () => { setIsObjDragging(false); }
+  const handleObjDragOver = (e) => { e.preventDefault(); setIsObjDragging(true); };
+  const handleObjDragLeave = () => { setIsObjDragging(false); };
 
-  const handleTextureDragOver = (e) => { e.preventDefault(); setIsTextureDragging(true); }
-  const handleTextureDragLeave = () => { setIsTextureDragging(false); }
+  const handleTextureDragOver = (e) => { e.preventDefault(); setIsTextureDragging(true); };
+  const handleTextureDragLeave = () => { setIsTextureDragging(false); };
 
   const handleDrop = (e, fieldName) => {
-    e.preventDefault()
-    let updatedForm = { ...form }
-    let fieldErrors = { ...errors }
+    e.preventDefault();
+    let updatedForm = { ...form };
+    let fieldErrors = { ...errors };
 
     if (fieldName === 'objFile') {
-      setIsObjDragging(false)
-      const file = e.dataTransfer.files[0]
+      setIsObjDragging(false);
+      const file = e.dataTransfer.files[0];
       if (file && file.name.toLowerCase().endsWith('.obj')) {
-        updatedForm = { ...form, objFile: file }
-        delete fieldErrors.objFile
+        updatedForm = { ...form, objFile: file };
+        delete fieldErrors.objFile;
       } else if (file) {
-        fieldErrors.objFile = 'Invalid file type. Please drop a .obj file.'
+        fieldErrors.objFile = 'Invalid file type. Please drop a .obj file.';
       }
     } else if (fieldName === 'textures') {
-      setIsTextureDragging(false)
+      setIsTextureDragging(false);
       const imageFiles = Array.from(e.dataTransfer.files).filter(file =>
         file.type.startsWith('image/')
-      )
+      );
       if (imageFiles.length > 0) {
-        updatedForm = { ...form, textures: imageFiles }
+        updatedForm = { ...form, textures: imageFiles };
       }
     }
-    setForm(updatedForm)
-    onChange(updatedForm)
-    setErrors(fieldErrors)
-  }
+    setForm(updatedForm);
+    onChange(updatedForm);
+    setErrors(fieldErrors);
+  };
 
-  const removeObjFile = (e) => {
-    e.stopPropagation()
-    const updatedForm = { ...form, objFile: null }
-    setForm(updatedForm)
-    onChange(updatedForm)
-    const fieldErrors = { ...errors }
-    delete fieldErrors.objFile
-    setErrors(fieldErrors)
-  }
+  const removeObjFile = useCallback((e) => {
+    e.stopPropagation();
+    setForm(prevForm => {
+      const updatedForm = { ...prevForm, objFile: null };
+      onChange(updatedForm);
+      return updatedForm;
+    });
+    setErrors(prevErrors => {
+      const newErrors = { ...prevErrors };
+      delete newErrors.objFile;
+      return newErrors;
+    });
+  }, [onChange]);
 
-  const removeAllTextures = (e) => {
-    e.stopPropagation()
-    const updatedForm = { ...form, textures: [] }
-    setForm(updatedForm)
-    onChange(updatedForm)
-  }
+  const removeAllTextures = useCallback((e) => {
+    e.stopPropagation();
+    setForm(prevForm => {
+      const updatedForm = { ...prevForm, textures: [] };
+      onChange(updatedForm);
+      return updatedForm;
+    });
+  }, [onChange]);
 
-  const handleReset = () => {
-    setForm(initialState)
-    setErrors({})
-    setIsSubmitting(false)
-    onChange(initialState)
-  }
+  const handleReset = useCallback(() => {
+    if (initialData) {
+      const dataForState = {
+        ...initialData,
+        price: initialData.price?.toString() || '',
+        quantity: initialData.quantity?.toString() || '',
+        height: initialData.height?.toString() || '',
+        width: initialData.width?.toString() || '',
+        length: initialData.length?.toString() || '',
+        objFile: null,
+        textures: [],
+      };
+      setForm(dataForState);
+      onChange(dataForState);
+    } else {
+      setForm(initialState);
+      onChange(initialState);
+    }
+    setErrors({});
+    setIsSubmitting(false);
+  }, [initialData, onChange]);
+
+  const handleClearForm = useCallback(() => {
+    setForm(initialState);
+    setErrors({});
+    setIsSubmitting(false);
+    onChange(initialState);
+  }, [onChange]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+    e.preventDefault();
+    setIsSubmitting(true);
 
-    const fieldErrors = {}
+    const fieldErrors = {};
     Object.entries(form).forEach(([key, value]) => {
-      if (key !== 'objFile' && key !== 'textures' && key !== 'wallMountable') {
-        const error = validateField(key, value)
+      if (key !== 'objFile' && key !== 'textures' && key !== 'wallMountable' && key !== 'id' && key !== 'createdAt' && key !== 'objFileUrl' && key !== 'textureUrls' && key !== 'modelEndpoint') {
+        const error = validateField(key, value);
         if (error) {
-          fieldErrors[key] = error
+          fieldErrors[key] = error;
         }
       }
-    })
+    });
 
-    if (!form.objFile) {
-      fieldErrors.objFile = '3D model is required'
+    if (!initialData && !form.objFile) {
+      fieldErrors.objFile = '3D model is required';
     }
 
-    setErrors(fieldErrors)
+    setErrors(fieldErrors);
 
     if (Object.keys(fieldErrors).length === 0) {
       try {
-        const formData = new FormData()
-        // Append all fields except textures (handled below)
+        const formData = new FormData();
         Object.entries(form).forEach(([key, value]) => {
-          if (key === 'textures' || key === 'objFile') return
-          formData.append(key, value)
-        })
-        // Append the OBJ file
-        if (form.objFile) {
-          formData.append('objFile', form.objFile)
+          if (key !== 'objFile' && key !== 'textures' && key !== 'id' && key !== 'createdAt' && key !== 'objFileUrl' && key !== 'textureUrls' && key !== 'modelEndpoint') {
+            formData.append(key, value);
+          }
+        });
+
+        if (form.objFile instanceof File) {
+          formData.append('objFile', form.objFile);
         }
-        // Append textures (multiple)
         if (form.textures && form.textures.length > 0) {
-          form.textures.forEach((file, idx) => {
-            formData.append('textures', file)
-          })
+          form.textures.forEach((file) => {
+            if (file instanceof File) {
+              formData.append('textures', file);
+            }
+          });
         }
-        // Optionally add wallMountable as string
-        formData.append('wallMountable', form.wallMountable ? 'true' : 'false')
 
-        console.log('Submitting FormData:', formData); // Log the data being sent
+        const isUpdate = !!initialData;
+        const url = isUpdate ? `http://localhost:3001/api/furniture/${initialData.id}` : 'http://localhost:3001/api/furniture';
+        const method = isUpdate ? 'PUT' : 'POST';
 
-        // Send POST request to backend API endpoint
-        const response = await fetch('http://localhost:3001/api/furniture', {
-          method: 'POST',
+        console.log(`Submitting ${method} request to ${url}`);
+
+        const response = await fetch(url, {
+          method: method,
           body: formData,
-        })
+        });
 
-        console.log('Backend Response Status:', response.status); // Log response status
-        const responseBody = await response.text(); // Read body as text first
-        console.log('Backend Response Body:', responseBody); // Log response body
+        console.log('Backend Response Status:', response.status);
+        const responseBody = await response.text();
+        console.log('Backend Response Body:', responseBody);
 
         if (!response.ok) {
-          // Try parsing as JSON if possible, otherwise use the text body
           let errorData;
           try {
             errorData = JSON.parse(responseBody);
           } catch (parseError) {
             errorData = { message: responseBody || 'Unknown error' };
           }
-          setPopup({ open: true, type: 'error', message: errorData.message || 'Failed to upload furniture data' })
-          setIsSubmitting(false)
-          return
+          const action = isUpdate ? 'update' : 'upload';
+          setPopup({ open: true, type: 'error', message: errorData.message || `Failed to ${action} furniture data` });
+          setIsSubmitting(false);
+          return;
         }
 
-        setPopup({ open: true, type: 'success', message: 'Furniture item submitted and uploaded!' })
-        setIsSubmitting(false)
-        handleReset()
+        if (isUpdate) {
+          setPopup({ open: true, type: 'success', message: 'Furniture item updated successfully!' });
+          if (onUpdateSuccess) {
+            onUpdateSuccess();
+          }
+        } else {
+          setPopup({ open: true, type: 'success', message: 'Furniture item added successfully!' });
+          handleClearForm();
+        }
+
       } catch (err) {
-        console.error('Error submitting form:', err); // Log the full error
-        setPopup({ open: true, type: 'error', message: err.message || 'Error uploading furniture' })
-        setIsSubmitting(false)
+        console.error('Error submitting form:', err);
+        setPopup({ open: true, type: 'error', message: err.message || 'Error processing request' });
+      } finally {
+        setIsSubmitting(false);
       }
     } else {
-      console.log('Form validation errors:', fieldErrors); // Log validation errors
-      setIsSubmitting(false)
+      console.log('Form validation errors:', fieldErrors);
+      setIsSubmitting(false);
     }
-  }
+  };
+
+  const isUpdateMode = !!initialData;
 
   return (
     <>
@@ -250,7 +312,7 @@ export default function FurnitureForm({ onChange }) {
       <div className="form-scroll-inner">
         <form className="furniture-form" onSubmit={handleSubmit} autoComplete="off">
           {isSubmitting && <Loading overlay />}
-          <h2>Add New Furniture</h2>
+          <h2>{isUpdateMode ? 'Update Furniture' : 'Add New Furniture'}</h2>
 
           <div className="form-section-title">Basic Information</div>
           <div className="form-group">
@@ -399,7 +461,7 @@ export default function FurnitureForm({ onChange }) {
 
           <div className="form-section-title">3D Model & Textures</div>
           <div className="form-group">
-            <label htmlFor="objFileInput">3D Model (.obj)</label>
+            <label htmlFor="objFileInput">3D Model (.obj) {isUpdateMode && '(Leave blank to keep existing)'}</label>
             <div
               id="objFileDropArea"
               className={`file-input-wrapper ${isObjDragging ? 'dragging' : ''} ${errors.objFile ? 'error' : ''}`}
@@ -428,7 +490,7 @@ export default function FurnitureForm({ onChange }) {
                   </div>
                 ) : (
                   <div className="file-placeholder">
-                    <span>Drop .obj file or click to browse</span>
+                    <span>{isUpdateMode ? 'Drop new .obj or click to replace' : 'Drop .obj file or click to browse'}</span>
                   </div>
                 )}
               </div>
@@ -437,7 +499,7 @@ export default function FurnitureForm({ onChange }) {
           </div>
 
           <div className="form-group">
-            <label htmlFor="texturesInput">Texture Files (Images)</label>
+            <label htmlFor="texturesInput">Texture Files (Images) {isUpdateMode && '(Replaces existing)'}</label>
             <div
               id="textureDropArea"
               className={`file-input-wrapper ${isTextureDragging ? 'dragging' : ''}`}
@@ -460,13 +522,13 @@ export default function FurnitureForm({ onChange }) {
                 {form.textures && form.textures.length > 0 ? (
                   <div className="file-info">
                     <span className="file-name">
-                      {form.textures.length} texture(s) selected
-                      <button type="button" onClick={removeAllTextures} className="remove-file-btn" title="Remove all textures">&times;</button>
+                      {form.textures.length} new texture(s) selected
+                      <button type="button" onClick={removeAllTextures} className="remove-file-btn" title="Remove all new textures">&times;</button>
                     </span>
                   </div>
                 ) : (
                   <div className="file-placeholder">
-                    <span>Drop texture images or click to browse</span>
+                    <span>{isUpdateMode ? 'Drop new textures or click to replace' : 'Drop texture images or click to browse'}</span>
                   </div>
                 )}
               </div>
@@ -474,24 +536,36 @@ export default function FurnitureForm({ onChange }) {
           </div>
 
           <div className="form-actions">
-            <button
-              type="button"
-              className="button-secondary"
-              onClick={handleReset}
-              disabled={isSubmitting}
-            >
-              Reset Form
-            </button>
+            {isUpdateMode && (
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={handleReset}
+                disabled={isSubmitting}
+              >
+                Revert Changes
+              </button>
+            )}
+            {!isUpdateMode && (
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={handleClearForm}
+                disabled={isSubmitting}
+              >
+                Reset Form
+              </button>
+            )}
             <button
               type="submit"
               className="button-primary"
-              disabled={isSubmitting}
+              disabled={isSubmitting || Object.keys(errors).length > 0}
             >
-              {isSubmitting ? <Loading size={20} /> : 'Add Furniture'}
+              {isSubmitting ? <Loading size={20} /> : (isUpdateMode ? 'Update Furniture' : 'Add Furniture')}
             </button>
           </div>
         </form>
       </div>
     </>
-  )
+  );
 }

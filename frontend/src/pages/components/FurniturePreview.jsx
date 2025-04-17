@@ -1,38 +1,55 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Environment, Bounds } from '@react-three/drei'
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader'
-import * as THREE from 'three'
+import React, { useRef, useEffect, useState, useMemo, Suspense } from 'react'; // Added Suspense
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Environment, Bounds } from '@react-three/drei';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
+import * as THREE from 'three';
+import Loading from '../../components/Loading'; // Import Loading
 
-const ModelLoader = React.memo(function ModelLoader({ objFile, textureUrl, dimensions }) {
-  const [object, setObject] = useState(null)
-  const loaderRef = useRef(new OBJLoader())
-
+// Keep ModelLoader mostly the same, but ensure it handles Blob URLs correctly
+const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimensions }) {
+  const [object, setObject] = useState(null);
+  const loaderRef = useRef(new OBJLoader());
   const { width = 1, height = 1, length = 1 } = dimensions || {};
 
   useEffect(() => {
-    setObject(null);
-    if (!objFile) {
-      return;
+    let currentMaterial = null;
+    let cancelled = false;
+    setObject(null); // Reset object on change
+
+    if (!objBlob) {
+      return; // Exit if no blob is provided
     }
 
-    let currentMaterial = null;
-
-    const reader = new FileReader()
-    reader.onload = (e) => {
+    async function loadObjFromBlob() {
       try {
-        const parsedObj = loaderRef.current.parse(e.target.result)
+        const objText = await objBlob.text();
+        if (cancelled) return;
 
+        const parsedObj = loaderRef.current.parse(objText);
+
+        // --- Scaling Logic (same as before, consider centering as well) ---
         const box = new THREE.Box3().setFromObject(parsedObj);
         const originalSize = box.getSize(new THREE.Vector3());
+        const originalCenter = box.getCenter(new THREE.Vector3());
 
-        const scaleX = (originalSize.x > 0 && width > 0) ? width / originalSize.x : 1;
-        const scaleY = (originalSize.y > 0 && height > 0) ? height / originalSize.y : 1;
-        const scaleZ = (originalSize.z > 0 && length > 0) ? length / originalSize.z : 1;
+        // Use max dimension scaling for uniform scaling based on target dimensions
+        const maxObjDim = Math.max(originalSize.x, originalSize.y, originalSize.z, 0.001);
+        const maxTargetDim = Math.max(width, height, length, 0.001);
+        const scale = maxTargetDim / maxObjDim;
 
-        parsedObj.scale.set(scaleX, scaleY, scaleZ);
+        parsedObj.scale.set(scale, scale, scale);
+
+        // Recalculate bounds and center after scaling
+        const scaledBox = new THREE.Box3().setFromObject(parsedObj);
+        const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+
+        // Apply translation to center the model
+        parsedObj.position.sub(scaledCenter);
+        // --- End Scaling & Centering ---
+
 
         const applyMaterial = (material) => {
+          if (cancelled) return; // Check cancellation before applying
           if (currentMaterial) {
             if (currentMaterial.map) currentMaterial.map.dispose();
             currentMaterial.dispose();
@@ -45,77 +62,154 @@ const ModelLoader = React.memo(function ModelLoader({ objFile, textureUrl, dimen
               child.material.needsUpdate = true;
             }
           });
-          setObject(parsedObj);
+          setObject(parsedObj); // Set the final object
         };
 
+        // --- Texture Loading Logic (same as before, using textureUrl) ---
         if (textureUrl) {
           const textureLoader = new THREE.TextureLoader();
           textureLoader.load(
             textureUrl,
             (mapTexture) => {
+              if (cancelled) return;
               mapTexture.wrapS = mapTexture.wrapT = THREE.RepeatWrapping;
+              mapTexture.encoding = THREE.sRGBEncoding; // Use sRGB for color textures
               mapTexture.needsUpdate = true;
-              applyMaterial(new THREE.MeshStandardMaterial({ map: mapTexture }));
+              applyMaterial(new THREE.MeshStandardMaterial({
+                  map: mapTexture,
+                  side: THREE.DoubleSide, // Render both sides
+                  metalness: 0.1, // Adjust as needed
+                  roughness: 0.8  // Adjust as needed
+              }));
             },
-            undefined,
-            (err) => {
+            undefined, // Progress callback (optional)
+            (err) => { // Error callback
+              if (cancelled) return;
               console.error('Error loading texture:', err);
-              applyMaterial(new THREE.MeshStandardMaterial({ color: '#999999' }));
+              applyMaterial(new THREE.MeshStandardMaterial({
+                  color: '#999999', // Fallback color
+                  side: THREE.DoubleSide,
+                  metalness: 0.1,
+                  roughness: 0.8
+              }));
             }
           );
         } else {
-          applyMaterial(new THREE.MeshStandardMaterial({ color: '#999999' }));
+          // Apply default material if no textureUrl
+           applyMaterial(new THREE.MeshStandardMaterial({
+               color: '#999999',
+               side: THREE.DoubleSide,
+               metalness: 0.1,
+               roughness: 0.8
+           }));
         }
+        // --- End Texture Loading ---
 
       } catch (error) {
-        console.error("Error parsing OBJ file:", error)
-        setObject(null)
+        if (!cancelled) {
+          console.error("Error processing OBJ blob:", error);
+          setObject(null); // Clear object on error
+        }
       }
     }
-    reader.onerror = (error) => {
-      console.error("Error reading file:", error)
-      setObject(null)
-    }
-    reader.readAsText(objFile)
 
+    loadObjFromBlob();
+
+    // Cleanup function
     return () => {
+      cancelled = true; // Mark as cancelled
       if (currentMaterial) {
         if (currentMaterial.map) currentMaterial.map.dispose();
         currentMaterial.dispose();
       }
+      // No need to explicitly dispose geometry/object here if managed by parent/React
     };
-  }, [objFile, textureUrl, width, height, length])
+  }, [objBlob, textureUrl, width, height, length]); // Dependencies
 
-  return object ? <primitive object={object} /> : null
+  // Render the primitive if object exists
+  return object ? <primitive object={object} /> : null;
 });
 
-export default function FurniturePreview({ objFile, textures, dimensions }) {
+
+// Added initialObjUrl, initialTextureUrls props
+export default function FurniturePreview({ objFile, textures, dimensions, initialObjUrl = null, initialTextureUrls = [] }) {
   const [selectedTextureIndex, setSelectedTextureIndex] = useState(0);
-  const [textureUrls, setTextureUrls] = useState([]);
-  const prevUrlsRef = useRef([]);
+  const [localTextureUrls, setLocalTextureUrls] = useState([]); // URLs from user-uploaded textures
+  const [initialObjBlob, setInitialObjBlob] = useState(null); // Fetched initial OBJ
+  const [isLoadingInitialObj, setIsLoadingInitialObj] = useState(false);
+  const prevLocalUrlsRef = useRef([]);
 
+  // Effect to create/revoke URLs for user-uploaded textures
   useEffect(() => {
-    // Create new URLs for current textures
     const validTextures = textures?.filter(t => t instanceof Blob) || [];
-    const newUrls = validTextures.map(textureFile => URL.createObjectURL(textureFile));
-    setTextureUrls(newUrls);
-    setSelectedTextureIndex(0);
+    if (validTextures.length > 0) {
+      const newUrls = validTextures.map(textureFile => URL.createObjectURL(textureFile));
+      setLocalTextureUrls(newUrls);
+      setSelectedTextureIndex(0); // Reset index when new textures are added
 
-    // Revoke previous URLs after new ones are set
-    const prevUrls = prevUrlsRef.current;
-    prevUrls.forEach(url => URL.revokeObjectURL(url));
-    prevUrlsRef.current = newUrls;
+      // Revoke previous local URLs
+      prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      prevLocalUrlsRef.current = newUrls;
+    } else {
+      // If user removes all textures, clear local URLs
+      prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      prevLocalUrlsRef.current = [];
+      setLocalTextureUrls([]);
+      setSelectedTextureIndex(0); // Reset index
+    }
 
-    // On unmount, revoke all current URLs
+    // Cleanup on unmount
     return () => {
-      prevUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-      prevUrlsRef.current = [];
+      prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      prevLocalUrlsRef.current = [];
     };
-  }, [textures]);
+  }, [textures]); // Rerun only when user-provided textures change
 
+  // Effect to fetch the initial OBJ model if provided and no user file exists
+  useEffect(() => {
+    let isActive = true;
+    if (initialObjUrl && !objFile) { // Only fetch if initial URL exists and no user file
+      setIsLoadingInitialObj(true);
+      setInitialObjBlob(null); // Clear previous blob
+      fetch(initialObjUrl)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to fetch initial OBJ file');
+          return res.blob();
+        })
+        .then(blob => {
+          if (isActive) {
+            setInitialObjBlob(blob);
+          }
+        })
+        .catch(err => {
+          if (isActive) {
+            console.error("Error fetching initial OBJ blob:", err);
+            setInitialObjBlob(null);
+          }
+        })
+        .finally(() => {
+          if (isActive) {
+            setIsLoadingInitialObj(false);
+          }
+        });
+    } else {
+      setInitialObjBlob(null); // Clear initial blob if user provides a file or no initial URL
+      setIsLoadingInitialObj(false);
+    }
+    return () => { isActive = false; };
+  }, [initialObjUrl, objFile]); // Rerun if initial URL changes or user adds/removes objFile
+
+  // Determine which source to use for preview
+  const displayObjBlob = objFile instanceof Blob ? objFile : initialObjBlob;
+  const displayTextureUrls = localTextureUrls.length > 0 ? localTextureUrls : initialTextureUrls;
+
+  // Determine the current texture URL based on the selected index and available URLs
   const currentTextureUrl = useMemo(() => {
-    return textureUrls[selectedTextureIndex] || null;
-  }, [textureUrls, selectedTextureIndex]);
+    return displayTextureUrls[selectedTextureIndex] || null;
+  }, [displayTextureUrls, selectedTextureIndex]);
+
+  const showLoading = isLoadingInitialObj && !objFile;
+  const canPreview = !!displayObjBlob;
 
   return (
     <div className="furniture-preview" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
@@ -127,48 +221,64 @@ export default function FurniturePreview({ objFile, textures, dimensions }) {
           marginRight: 0,
           width: '100%',
           boxSizing: 'border-box',
+          display: 'flex', // Added for centering loading/empty states
+          alignItems: 'center', // Added
+          justifyContent: 'center', // Added
         }}
       >
-        {objFile && (
+        {showLoading ? (
+           <div style={{ textAlign: 'center', color: 'var(--text-light)' }}>
+             <Loading size={40} />
+             <p style={{ marginTop: '10px' }}>Loading Initial Model...</p>
+           </div>
+        ) : canPreview ? (
           <Canvas
             style={{ background: '#9ACBD0', width: '100%', height: '100%', display: 'block' }}
             camera={{ position: [0, 1, 5], fov: 50 }}
-            frameloop="demand"
-            dpr={[1, 2]}
+            frameloop="demand" // Use demand to only render on changes/controls
+            dpr={[1, 2]} // Pixel ratio
+            shadows // Enable shadows
           >
-            <ambientLight intensity={0.5} />
-            <directionalLight position={[2.5, 8, 5]} intensity={1} castShadow />
-            <directionalLight position={[-2.5, -8, -5]} intensity={0.3} />
+            <ambientLight intensity={0.6} />
+            <directionalLight position={[3, 5, 4]} intensity={1.0} castShadow />
+            <directionalLight position={[-3, -5, -4]} intensity={0.4} />
             <Environment preset="city" />
 
-            <Bounds fit clip observe margin={1.5}>
-              <ModelLoader
-                objFile={objFile}
-                textureUrl={currentTextureUrl}
-                dimensions={dimensions}
-              />
-            </Bounds>
+            <Suspense fallback={
+              <mesh position={[0,0,0]}>
+                 <boxGeometry args={[1, 1, 1]} />
+                 <meshStandardMaterial color="orange" />
+              </mesh>
+            }>
+              <Bounds fit clip observe margin={1.5}>
+                <ModelLoader
+                  objBlob={displayObjBlob} // Pass the determined blob
+                  textureUrl={currentTextureUrl} // Pass the determined texture URL
+                  dimensions={dimensions}
+                />
+              </Bounds>
+            </Suspense>
 
             <OrbitControls
               makeDefault
               minDistance={0.5}
-              maxDistance={10}
+              maxDistance={15} // Increased max distance
               enableDamping={true}
               dampingFactor={0.1}
             />
           </Canvas>
-        )}
-        {!objFile && (
+        ) : (
           <div className="empty-preview">
-            <span>Upload a 3D model to see preview</span>
+            <span>{initialObjUrl ? 'Could not load initial model' : 'Upload a 3D model to see preview'}</span>
           </div>
         )}
       </div>
-      {objFile && textureUrls.length > 1 && (
+      {/* Texture Switcher - uses displayTextureUrls */}
+      {canPreview && displayTextureUrls.length > 1 && (
         <div className="texture-controls">
           <h3>Available Textures</h3>
           <div className="texture-switcher">
-            {textureUrls.map((url, index) => (
+            {displayTextureUrls.map((url, index) => (
               <button
                 key={index}
                 className={index === selectedTextureIndex ? 'selected' : ''}
@@ -182,5 +292,5 @@ export default function FurniturePreview({ objFile, textures, dimensions }) {
         </div>
       )}
     </div>
-  )
+  );
 }
