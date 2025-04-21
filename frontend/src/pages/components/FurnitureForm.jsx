@@ -104,7 +104,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
         const imageFiles = Array.from(files).filter(file =>
           file.type.startsWith('image/')
         );
-        newValue = imageFiles;
+        newValue = imageFiles.length > 0 ? imageFiles : form.textures;
       }
     } else {
       const fieldError = validateField(name, value);
@@ -115,13 +115,11 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
       }
     }
 
-    setForm(prevForm => {
-      const updatedForm = { ...prevForm, [name]: newValue };
-      onChange(updatedForm);
-      return updatedForm;
-    });
+    const updatedFormState = { ...form, [name]: newValue };
+    setForm(updatedFormState);
+    onChange(updatedFormState);
     setErrors(fieldErrors);
-  }, [errors, form.objFile, onChange]);
+  }, [errors, form, onChange]);
 
   const handleObjDragOver = (e) => { e.preventDefault(); setIsObjDragging(true); };
   const handleObjDragLeave = () => { setIsObjDragging(false); };
@@ -159,26 +157,22 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
 
   const removeObjFile = useCallback((e) => {
     e.stopPropagation();
-    setForm(prevForm => {
-      const updatedForm = { ...prevForm, objFile: null };
-      onChange(updatedForm);
-      return updatedForm;
-    });
+    const updatedFormState = { ...form, objFile: null };
+    setForm(updatedFormState);
+    onChange(updatedFormState);
     setErrors(prevErrors => {
       const newErrors = { ...prevErrors };
       delete newErrors.objFile;
       return newErrors;
     });
-  }, [onChange]);
+  }, [form, onChange]);
 
   const removeAllTextures = useCallback((e) => {
     e.stopPropagation();
-    setForm(prevForm => {
-      const updatedForm = { ...prevForm, textures: [] };
-      onChange(updatedForm);
-      return updatedForm;
-    });
-  }, [onChange]);
+    const updatedFormState = { ...form, textures: [] };
+    setForm(updatedFormState);
+    onChange(updatedFormState);
+  }, [form, onChange]);
 
   const handleReset = useCallback(() => {
     if (initialData) {
