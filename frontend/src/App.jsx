@@ -5,7 +5,10 @@ import AddFurniturePage from './pages/AddFurniturePage'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import FurnitureDashboardPage from './pages/FurnitureDashboardPage'
-import UpdateFurniturePage from './pages/UpdateFurniturePage' // Import the new page
+import UpdateFurniturePage from './pages/UpdateFurniturePage'
+import UserManagementPage from './pages/AddUserPage'
+import UsersDashboardPage from './pages/UsersDashboardPage'
+import EditUserPage from './pages/EditUserPage'
 
 function Home() {
   return (
@@ -51,6 +54,27 @@ export default function App() {
             <main className="main-content">
               <UpdateFurniturePage />
             </main>
+            <Footer />
+          </div>
+        } />
+        <Route path="/add-user" element={
+          <div className="app-container">
+            <Navbar />
+            <UserManagementPage />
+            <Footer />
+          </div>
+        } />
+        <Route path="/users-dashboard" element={
+          <div className="app-container">
+            <Navbar />
+            <UsersDashboardPage />
+            <Footer />
+          </div>
+        } />
+        <Route path="/edit-user/:id" element={
+          <div className="app-container">
+            <Navbar />
+            <EditUserPage />
             <Footer />
           </div>
         } />

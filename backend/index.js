@@ -345,6 +345,148 @@ app.get('/api/furniture', async (req, res) => {
   }
 });
 
+// Add this new endpoint for user creation
+app.post('/api/users', async (req, res) => {
+  console.log('Received user creation request:', req.body);
+  try {
+    const { name, email, password, userType } = req.body;
+    
+    if (!name || !email || !password || !userType) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Create the user in Firebase Authentication
+    // Passing the plain text password here is correct.
+    // Firebase Auth will hash and salt it securely.
+    const userRecord = await admin.auth().createUser({
+      email: email,
+      password: password, // Pass the plain text password directly
+      displayName: name,
+    });
+
+    console.log('User created in Firebase Auth:', userRecord.uid);
+
+    // Store additional user data in Firestore
+    const userDocRef = db.collection('users').doc(userRecord.uid);
+    await userDocRef.set({
+      name: name,
+      email: email,
+      userType: userType,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLogin: null
+    });
+
+    console.log('User document created in Firestore');
+    
+    // Return success response with user data (excluding password)
+    res.status(201).json({
+      id: userRecord.uid,
+      name,
+      email,
+      userType,
+      createdAt: new Date() // Approximate creation time for response
+    });
+  } catch (err) {
+    // Enhanced error logging: Log the full error object
+    console.error('Detailed error creating user:', JSON.stringify(err, null, 2)); 
+    
+    // Handle Firebase-specific errors
+    if (err.code === 'auth/email-already-exists') {
+      return res.status(400).json({ message: 'Email already in use' });
+    } else if (err.code === 'auth/invalid-email') {
+      return res.status(400).json({ message: 'Invalid email format' });
+    } else if (err.code === 'auth/weak-password') {
+      return res.status(400).json({ message: 'Password is too weak' });
+    }
+    
+    // Generic 500 error for other issues
+    res.status(500).json({ message: 'Failed to create user', details: err.message });
+  }
+});
+
+// Get all users (for dashboard)
+app.get('/api/users', async (req, res) => {
+  try {
+    const snapshot = await db.collection('users').get();
+    const users = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        email: data.email,
+        userType: data.userType,
+        createdAt: data.createdAt || null,
+      };
+    });
+    res.json(users);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Failed to fetch users', details: err.message });
+  }
+});
+
+// Get a single user by ID
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const doc = await db.collection('users').doc(req.params.id).get();
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const data = doc.data();
+    res.json({
+      id: doc.id,
+      name: data.name,
+      email: data.email,
+      userType: data.userType,
+      createdAt: data.createdAt || null,
+    });
+  } catch (err) {
+    console.error('Error fetching user:', err);
+    res.status(500).json({ message: 'Failed to fetch user', details: err.message });
+  }
+});
+
+// Update user by ID (name and/or password)
+app.put('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, password } = req.body;
+  try {
+    const docRef = db.collection('users').doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    // Update displayName in Firebase Auth if name is changed
+    if (name) {
+      await admin.auth().updateUser(id, { displayName: name });
+      await docRef.update({ name });
+    }
+    // Only update password if provided
+    if (password && password.length >= 6) {
+      await admin.auth().updateUser(id, { password });
+    }
+    res.json({ message: 'User updated successfully' });
+  } catch (err) {
+    console.error('Error updating user:', err);
+    res.status(500).json({ message: 'Failed to update user', details: err.message });
+  }
+});
+
+// Delete a user by ID
+app.delete('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Delete from Firebase Auth
+    await admin.auth().deleteUser(id).catch(() => { /* If not found in Auth, ignore */ });
+    // Delete from Firestore
+    await db.collection('users').doc(id).delete();
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({ message: 'Failed to delete user', details: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Backend listening on port ${PORT}`);
