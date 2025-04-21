@@ -1,0 +1,81 @@
+.confirmation-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6); /* Darker overlay */
+  z-index: 10000; /* Ensure it's above other content */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  backdrop-filter: blur(3px); /* Optional blur effect */
+}
+
+.confirmation-popup-content {
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 2rem 2.5rem;
+  box-shadow: var(--shadow);
+  max-width: 450px;
+  width: 100%;
+  text-align: center;
+  animation: popup-scale-in 0.2s ease-out;
+}
+
+@keyframes popup-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.confirmation-popup-message {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 1.8rem;
+  color: var(--text); /* Use main text color */
+}
+
+.confirmation-popup-actions {
+  display: flex;
+  justify-content: center; /* Center buttons */
+  gap: 1rem; /* Space between buttons */
+}
+
+/* Use existing button styles if possible, or define specific ones */
+.confirmation-popup-actions button {
+  /* Inherit from global button styles or define here */
+  padding: 0.7rem 1.5rem;
+  font-size: 0.95rem;
+  min-width: 100px;
+}
+
+/* Ensure button styles from App.css apply or redefine if needed */
+/* Example: Re-apply basic button styles if needed */
+.confirmation-popup-actions .button-secondary {
+  background: var(--surface-lighter);
+  color: var(--text-light);
+  border: 1px solid var(--border);
+}
+.confirmation-popup-actions .button-secondary:hover {
+   background: var(--primary-dark);
+   color: var(--accent);
+   border-color: var(--accent);
+}
+
+.confirmation-popup-actions .button-primary {
+  /* Styles for primary button (often used for confirm) */
+  /* background: var(--primary-dark); */ /* This might be overridden by inline style for danger */
+  /* color: var(--surface); */
+}
+.confirmation-popup-actions .button-primary:hover {
+  /* background: var(--accent); */ /* Adjust hover for danger */
+  opacity: 0.85;
+}
