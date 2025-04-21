@@ -114,7 +114,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
         delete fieldErrors[name];
       }
     }
-
     const updatedFormState = { ...form, [name]: newValue };
     setForm(updatedFormState);
     onChange(updatedFormState);

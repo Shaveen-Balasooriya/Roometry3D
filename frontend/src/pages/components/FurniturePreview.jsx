@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useMemo, Suspense, useCallback } from 'react'; // Added useCallback
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, Bounds } from '@react-three/drei';
@@ -31,6 +32,7 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
 
         const parsedObj = loaderRef.current.parse(objText);
 
+        // --- Scaling Logic (same as before, consider centering as well) ---
         const box = new THREE.Box3().setFromObject(parsedObj);
         const originalSize = box.getSize(new THREE.Vector3());
         const originalCenter = box.getCenter(new THREE.Vector3());
@@ -43,7 +45,6 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
         const scaleY = targetHeight / originalHeight;
         const scaleZ = targetLength / originalLength;
 
-        parsedObj.scale.set(scaleX, scaleY, scaleZ);
 
         const scaledBox = new THREE.Box3().setFromObject(parsedObj);
         const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
@@ -64,9 +65,10 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
               child.material.needsUpdate = true;
             }
           });
-          setObject(parsedObj);
+          setObject(parsedObj); // Set the final object
         };
 
+        // --- Texture Loading Logic (same as before, using textureUrl) ---
         if (textureUrl) {
           const textureLoader = new THREE.TextureLoader();
           textureLoader.load(
@@ -103,6 +105,7 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
               roughness: 0.8
           }));
         }
+        // --- End Texture Loading ---
 
       } catch (error) {
         if (!cancelled) {
@@ -114,12 +117,16 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
 
     loadObjFromBlob();
 
+    loadObjFromBlob();
+
+    // Cleanup function
     return () => {
       cancelled = true;
       if (currentMaterial) {
         if (currentMaterial.map) currentMaterial.map.dispose();
         currentMaterial.dispose();
       }
+      // No need to explicitly dispose geometry/object here if managed by parent/React
     };
   }, [objBlob, textureUrl, targetWidth, targetHeight, targetLength]);
 
@@ -137,6 +144,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
   const [isContextLost, setIsContextLost] = useState(false);
   const [forceUpdateKey, setForceUpdateKey] = useState(0);
 
+  // Effect to create/revoke URLs for user-uploaded textures
   useEffect(() => {
     const validTextures = textures?.filter(t => t instanceof Blob) || [];
     if (validTextures.length > 0) {
@@ -157,7 +165,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
       prevLocalUrlsRef.current = [];
     };
-  }, [textures]);
+  }, [textures]); // Rerun only when user-provided textures change
 
   useEffect(() => {
     let isActive = true;
