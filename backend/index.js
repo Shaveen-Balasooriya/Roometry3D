@@ -404,6 +404,89 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
+// Get all users (for dashboard)
+app.get('/api/users', async (req, res) => {
+  try {
+    const snapshot = await db.collection('users').get();
+    const users = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        email: data.email,
+        userType: data.userType,
+        createdAt: data.createdAt || null,
+      };
+    });
+    res.json(users);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Failed to fetch users', details: err.message });
+  }
+});
+
+// Get a single user by ID
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const doc = await db.collection('users').doc(req.params.id).get();
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const data = doc.data();
+    res.json({
+      id: doc.id,
+      name: data.name,
+      email: data.email,
+      userType: data.userType,
+      createdAt: data.createdAt || null,
+    });
+  } catch (err) {
+    console.error('Error fetching user:', err);
+    res.status(500).json({ message: 'Failed to fetch user', details: err.message });
+  }
+});
+
+// Update user by ID (name and/or password)
+app.put('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, password } = req.body;
+  try {
+    const docRef = db.collection('users').doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    // Update displayName in Firebase Auth if name is changed
+    if (name) {
+      await admin.auth().updateUser(id, { displayName: name });
+      await docRef.update({ name });
+    }
+    // Only update password if provided
+    if (password && password.length >= 6) {
+      await admin.auth().updateUser(id, { password });
+    }
+    res.json({ message: 'User updated successfully' });
+  } catch (err) {
+    console.error('Error updating user:', err);
+    res.status(500).json({ message: 'Failed to update user', details: err.message });
+  }
+});
+
+// Delete a user by ID
+app.delete('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Delete from Firebase Auth
+    await admin.auth().deleteUser(id).catch(() => { /* If not found in Auth, ignore */ });
+    // Delete from Firestore
+    await db.collection('users').doc(id).delete();
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({ message: 'Failed to delete user', details: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Backend listening on port ${PORT}`);

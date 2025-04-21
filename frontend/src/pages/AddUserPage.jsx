@@ -1,7 +1,7 @@
 import React from 'react';
 import UserForm from './components/UserForm';
 
-export default function UserManagementPage() {
+export default function AddUserPage() {
   const handleUserCreationSuccess = (userData) => {
     console.log('User created successfully:', userData);
     // Future feature - could refresh a list of users here
@@ -26,7 +26,7 @@ export default function UserManagementPage() {
           fontSize: '2.1rem',
           fontWeight: 700,
           textAlign: 'center'
-        }}>User Management</h2>
+        }}>Add User</h2>
         <div
           style={{
             width: '100%',
