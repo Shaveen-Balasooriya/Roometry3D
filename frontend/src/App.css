@@ -344,6 +344,11 @@ header .subtitle {
   padding-left: 0.5rem;
 }
 
+.form-group.full {
+  flex: 1 1 100%;
+  width: 100%;
+}
+
 .furniture-form label {
   display: block;
   font-size: 0.93rem;
@@ -359,6 +364,7 @@ header .subtitle {
 
 .furniture-form input[type="text"],
 .furniture-form input[type="number"],
+.furniture-form input[type="password"],
 .furniture-form textarea,
 .furniture-form select,
 .file-input-wrapper .file-input-display {
@@ -376,6 +382,20 @@ header .subtitle {
   line-height: 1.5;
   min-height: 44px;
   box-sizing: border-box;
+}
+
+.furniture-form input.disabled,
+.furniture-form textarea.disabled,
+.furniture-form select.disabled {
+  background-color: var(--surface-lighter);
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.helper-text {
+  color: var(--text-light);
+  font-size: 0.88rem;
+  margin-top: 0.4rem;
 }
 
 .furniture-form textarea {
@@ -400,6 +420,7 @@ header .subtitle {
 
 .furniture-form input[type="text"]:hover,
 .furniture-form input[type="number"]:hover,
+.furniture-form input[type="password"]:hover,
 .furniture-form textarea:hover,
 .furniture-form select:hover,
 .file-input-wrapper:hover .file-input-display {
@@ -408,6 +429,7 @@ header .subtitle {
 
 .furniture-form input[type="text"]:focus,
 .furniture-form input[type="number"]:focus,
+.furniture-form input[type="password"]:focus,
 .furniture-form textarea:focus,
 .furniture-form select:focus,
 .file-input-wrapper .file-input-native:focus + .file-input-display {

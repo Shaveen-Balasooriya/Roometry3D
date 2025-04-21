@@ -345,6 +345,65 @@ app.get('/api/furniture', async (req, res) => {
   }
 });
 
+// Add this new endpoint for user creation
+app.post('/api/users', async (req, res) => {
+  console.log('Received user creation request:', req.body);
+  try {
+    const { name, email, password, userType } = req.body;
+    
+    if (!name || !email || !password || !userType) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Create the user in Firebase Authentication
+    // Passing the plain text password here is correct.
+    // Firebase Auth will hash and salt it securely.
+    const userRecord = await admin.auth().createUser({
+      email: email,
+      password: password, // Pass the plain text password directly
+      displayName: name,
+    });
+
+    console.log('User created in Firebase Auth:', userRecord.uid);
+
+    // Store additional user data in Firestore
+    const userDocRef = db.collection('users').doc(userRecord.uid);
+    await userDocRef.set({
+      name: name,
+      email: email,
+      userType: userType,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLogin: null
+    });
+
+    console.log('User document created in Firestore');
+    
+    // Return success response with user data (excluding password)
+    res.status(201).json({
+      id: userRecord.uid,
+      name,
+      email,
+      userType,
+      createdAt: new Date() // Approximate creation time for response
+    });
+  } catch (err) {
+    // Enhanced error logging: Log the full error object
+    console.error('Detailed error creating user:', JSON.stringify(err, null, 2)); 
+    
+    // Handle Firebase-specific errors
+    if (err.code === 'auth/email-already-exists') {
+      return res.status(400).json({ message: 'Email already in use' });
+    } else if (err.code === 'auth/invalid-email') {
+      return res.status(400).json({ message: 'Invalid email format' });
+    } else if (err.code === 'auth/weak-password') {
+      return res.status(400).json({ message: 'Password is too weak' });
+    }
+    
+    // Generic 500 error for other issues
+    res.status(500).json({ message: 'Failed to create user', details: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Backend listening on port ${PORT}`);
