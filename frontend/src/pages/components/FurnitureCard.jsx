@@ -255,9 +255,9 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
   return (
     <div
       style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-sm)',
+        background: '#FFFFFF',
+        border: '2px solid #4382FF',
+        borderRadius: '8px',
         boxShadow: 'var(--shadow-sm)',
         padding: '1.5rem 1.2rem 1.2rem 1.2rem',
         margin: '0.5rem',
@@ -281,16 +281,16 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
         confirmButtonClass="button-primary"
       />
 
-      <div style={{ marginBottom: '0.5rem' }}>
-        <span style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--accent)' }}>{name}</span>
-        <span style={{ float: 'right', color: 'var(--primary-light)', fontWeight: 500, fontSize: '1rem' }}>€{price}</span>
+      <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'  }}>
+        <span style={{fontWeight: 600, fontSize: '20px', color: '#1A365D'  }}>{name}</span>
+        <span style={{ color: '#2C5282', fontWeight: 600, fontSize: '18px' }}>${price}</span>
       </div>
-      <div style={{ color: 'var(--text-light)', fontSize: '0.97rem', marginBottom: '0.2rem' }}>{category}</div>
+      <div style={{  color: '#3182CE', fontSize: '14px', marginBottom: '0.2rem', fontWeight: 400 }}>{category}</div>
       <div
         style={{
           width: '100%',
           height: 140,
-          background: 'var(--primary-dark)',
+          background: '#DBEAFE',
           borderRadius: 8,
           marginBottom: 8,
           display: 'flex',
@@ -300,7 +300,7 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
         }}
       >
         {showLoading ? (
-          <div style={{ color: 'var(--text-lighter)', fontSize: 13, textAlign: 'center' }}>
+          <div style={{  color: '#4A5568', fontSize: 13, textAlign: 'center'}}>
             <Loading size={30} />
             <div style={{ marginTop: '5px', opacity: 0.8 }}>Loading Preview...</div>
           </div>
@@ -310,6 +310,7 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
               width: '100%',
               height: '100%',
               borderRadius: 8,
+              border: '1px solid #4382FF'
             }}
             gl={{ antialias: true, alpha: false, preserveDrawingBuffer: false }}
             dpr={[1, 1.5]}
@@ -317,7 +318,7 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
             shadows
             camera={{ fov: 45, near: 0.1, far: 50 }}
           >
-            <color attach="background" args={['#9ACBD0']} />
+            <color attach="background" aargs={['#DBEAFE']} />
             <ambientLight intensity={0.6} />
             <directionalLight
               position={[3, 5, 4]}
@@ -339,24 +340,24 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
             </Suspense>
           </Canvas>
         ) : (
-          <div style={{ color: 'var(--text-lighter)', fontSize: 13, width: '100%', textAlign: 'center' }}>
+          <div style={{ color: '#4A5568', fontSize: 13, width: '100%', textAlign: 'center' }}>
             <span style={{ opacity: 0.7 }}>No 3D Preview</span>
           </div>
         )}
       </div>
       {textureUrls.length > 1 && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 4, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 4, justifyContent: 'flex-start' }}>
           {textureUrls.map((url, idx) => (
             <button
               key={idx}
               onClick={() => setSelectedTextureIndex(idx)}
               style={{
-                border: idx === selectedTextureIndex ? '2px solid var(--accent)' : '1.5px solid var(--border)',
-                borderRadius: 6,
+                border: idx === selectedTextureIndex ? '2px solid #1A365D' : '1px solid #D1D5DB',
+                borderRadius: '4px',
                 padding: 0,
                 background: 'var(--surface-lighter)',
-                width: 32,
-                height: 32,
+                width: 24,
+                height: 24,
                 cursor: 'pointer',
                 outline: 'none',
                 boxShadow: idx === selectedTextureIndex ? '0 0 0 2px var(--primary-dark)' : undefined,
@@ -370,27 +371,44 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
           ))}
         </div>
       )}
-      <div style={{ fontSize: '0.93rem', marginBottom: 2 }}>
-        <strong>Dimensions:</strong> {height}m (H) × {width}m (W) × {length}m (L)
+      <div style={{ fontSize: '12px', marginBottom: '8px', display: 'grid', gridTemplateColumns: '40% 60%' }}>
+        <span style={{ fontWeight: 600, color: '#1A365D', textAlign: 'left' }}>Dimensions:</span>
+        <span style={{ color: '#4A5568', textAlign: 'left' }}>{height}m (H) × {width}m (W) × {length}m (L)</span>
       </div>
-      <div style={{ fontSize: '0.93rem', marginBottom: 2 }}>
-        <strong>Quantity:</strong> {quantity}
+      <div style={{ fontSize: '12px', marginBottom: '8px', display: 'grid', gridTemplateColumns: '40% 60%' }}>
+        <span style={{ fontWeight: 600, color: '#1A365D', textAlign: 'left' }}>Quantity:</span>
+        <span style={{ color: '#4A5568', textAlign: 'left' }}>{quantity}</span>
       </div>
-      <div style={{ fontSize: '0.93rem', marginBottom: 2 }}>
-        <strong>Wall Mountable:</strong> {wallMountable ? 'Yes' : 'No'}
+      <div style={{ fontSize: '12px', marginBottom: '8px', display: 'grid', gridTemplateColumns: '40% 60%' }}>
+        <span style={{ fontWeight: 600, color: '#1A365D', textAlign: 'left' }}>Wall Mountable:</span>
+        <span style={{ color: '#4A5568', textAlign: 'left' }}>{wallMountable ? 'Yes' : 'No'}</span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
         <button
           onClick={handleEdit}
-          className="button-secondary"
-          style={{ minWidth: '80px', padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+          style={{
+             minWidth: '80px', 
+            padding: '0.5rem 1rem', 
+            fontSize: '0.9rem',
+            background: '#3B82F6',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer' }}
         >
           Edit
         </button>
         <button
           onClick={handleDelete}
-          className="button-primary"
-          style={{ minWidth: '80px', padding: '0.5rem 1rem', fontSize: '0.9rem', background: 'var(--error)', borderColor: 'var(--error)' }}
+          style={{
+            minWidth: '80px', 
+            padding: '0.5rem 1rem', 
+            fontSize: '0.9rem', 
+            background: '#EF4444',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'}}
           disabled={isDeleting}
         >
           {isDeleting ? <Loading size={18} /> : 'Delete'}

@@ -12,23 +12,7 @@ import EditUserPage from './pages/EditUserPage'
 import LoginPage from './pages/LoginPage'
 import ProfilePage from './pages/ProfilePage'
 import AuthGuard from './components/AuthGuard'
-
-function Home() {
-  return (
-    <div className="app-container">
-      <Navbar />
-      <main className="main-content" style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ color: 'var(--primary)', marginBottom: '1.5rem' }}>Welcome to Roometry 3D Admin</h2>
-          <p style={{ color: 'var(--text-light)', marginBottom: '2rem' }}>
-            Use the navigation bar to add furniture or manage your content.
-          </p>
-        </div>
-      </main>
-      <Footer />
-    </div>
-  )
-}
+import HomePage from './pages/HomePage'
 
 // Unauthorized page component
 function Unauthorized() {
@@ -57,7 +41,12 @@ export default function App() {
         
         {/* Protected routes - require any authenticated user */}
         <Route element={<AuthGuard allowedRoles={[]} />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={
+            <div className="app-container">
+              <Navbar />
+              <HomePage /> 
+              <Footer />
+            </div>} />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
         
