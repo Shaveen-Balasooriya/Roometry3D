@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth, getUserRole } from '../services/firebase';
@@ -14,12 +14,10 @@ export default function Navbar() {
   const location = useLocation();
   const mobileMenuRef = useRef(null);
   const userDropdownRef = useRef(null);
-  const userButtonRef = useRef(null);
 
   // Close mobile menu when location changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
-    setIsDropdownOpen(false);
   }, [location]);
 
   // Check for user authentication status and role
@@ -49,37 +47,30 @@ export default function Navbar() {
     };
   }, []);
 
-  // Handle clicks outside of dropdown and mobile menu
-  const handleClickOutside = useCallback((event) => {
-    // Close user dropdown when clicking outside
-    if (
-      isDropdownOpen && 
-      userDropdownRef.current && 
-      !userDropdownRef.current.contains(event.target) &&
-      userButtonRef.current && 
-      !userButtonRef.current.contains(event.target)
-    ) {
-      setIsDropdownOpen(false);
+  // Close dropdown and mobile menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      // Close user dropdown when clicking outside
+      if (isDropdownOpen && 
+          userDropdownRef.current && 
+          !userDropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+      
+      // Close mobile menu when clicking outside (but not on very small screens)
+      if (isMobileMenuOpen && 
+          mobileMenuRef.current && 
+          !mobileMenuRef.current.contains(event.target) &&
+          window.innerWidth > 480) {
+        setIsMobileMenuOpen(false);
+      }
     }
     
-    // Close mobile menu when clicking outside (but not on very small screens)
-    if (
-      isMobileMenuOpen && 
-      mobileMenuRef.current && 
-      !mobileMenuRef.current.contains(event.target) &&
-      window.innerWidth > 480
-    ) {
-      setIsMobileMenuOpen(false);
-    }
-  }, [isDropdownOpen, isMobileMenuOpen]);
-
-  // Add event listener for clicks outside
-  useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [handleClickOutside]);
+  }, [isDropdownOpen, isMobileMenuOpen]);
 
   // Handle escape key press
   useEffect(() => {
@@ -95,11 +86,6 @@ export default function Navbar() {
       document.removeEventListener('keydown', handleEscKey);
     };
   }, []);
-
-  // Toggle dropdown with proper focus management
-  const toggleDropdown = () => {
-    setIsDropdownOpen(prev => !prev);
-  };
 
   const handleLogout = async () => {
     try {
@@ -146,36 +132,6 @@ export default function Navbar() {
     };
   }, [isMobileMenuOpen]);
 
-  // Filter navigation links based on user role
-  const getNavLinks = () => {
-    const baseLinks = [
-      { to: "/", label: "Home" },
-    ];
-    
-    // Add role-specific links
-    if (userRole === 'admin') {
-      baseLinks.push(
-        { to: "/add-furniture", label: "Add Furniture" },
-        { to: "/furniture-dashboard", label: "Manage Furniture" },
-        { to: "/add-user", label: "Add User" },
-        { to: "/users-dashboard", label: "Users Dashboard" }
-      );
-    } else if (userRole === 'designer') {
-      baseLinks.push(
-        { to: "/furniture-dashboard", label: "Browse Furniture" },
-        { to: "/my-projects", label: "My Projects" }
-      );
-    } else if (userRole === 'client') {
-      baseLinks.push(
-        { to: "/my-projects", label: "My Projects" }
-      );
-    }
-    
-    return baseLinks;
-  };
-
-  const navLinks = getNavLinks();
-
   return (
     <nav className={`navbar ${isScrolled ? 'scrolled' : ''}`} role="navigation">
       <div className="navbar-content">
@@ -201,23 +157,34 @@ export default function Navbar() {
           className={`navbar-links ${isMobileMenuOpen ? 'open' : ''}`}
           aria-hidden={!isMobileMenuOpen && window.innerWidth <= 768}
         >
-          {navLinks.map((link, index) => (
-            <Link 
-              key={index} 
-              to={link.to} 
-              className={location.pathname === link.to ? 'active' : ''}
-            >
-              {link.label}
-            </Link>
-          ))}
+          <Link to="/" className={location.pathname === '/' ? 'active' : ''}>Home</Link>
+          
+          {/* Project Management Links - visible to all authenticated users */}
+          <Link to="/my-projects" className={location.pathname === '/my-projects' ? 'active' : ''}>Projects</Link>
+          <Link to="/create-project" className={location.pathname === '/create-project' ? 'active' : ''}>Create Project</Link>
+          
+          {/* Furniture Management Links - visible to designers and admins */}
+          {userRole && (userRole === 'admin' || userRole === 'designer') && (
+            <>
+              <Link to="/add-furniture" className={location.pathname === '/add-furniture' ? 'active' : ''}>Add Furniture</Link>
+              <Link to="/furniture-dashboard" className={location.pathname === '/furniture-dashboard' ? 'active' : ''}>Manage Furniture</Link>
+            </>
+          )}
+          
+          {/* User Management Links - visible only to admins */}
+          {userRole === 'admin' && (
+            <>
+              <Link to="/add-user" className={location.pathname === '/add-user' ? 'active' : ''}>Add User</Link>
+              <Link to="/users-dashboard" className={location.pathname === '/users-dashboard' ? 'active' : ''}>Users Dashboard</Link>
+            </>
+          )}
         </div>
         
         {user ? (
           <div className="user-menu" ref={userDropdownRef}>
             <button 
-              ref={userButtonRef}
               className="user-info"
-              onClick={toggleDropdown}
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               aria-expanded={isDropdownOpen}
               aria-label="User menu"
             >
@@ -227,11 +194,7 @@ export default function Navbar() {
             </button>
             
             {isDropdownOpen && (
-              <div 
-                className="user-dropdown" 
-                role="menu"
-                aria-labelledby="user-menu-button"
-              >
+              <div className="user-dropdown" role="menu">
                 <div className="dropdown-item user-role">
                   {userRole && (
                     <>
@@ -242,18 +205,9 @@ export default function Navbar() {
                 </div>
                 <div className="dropdown-divider" role="separator"></div>
                 <Link to="/profile" className="dropdown-item" role="menuitem">My Profile</Link>
-                {userRole === 'client' && (
-                  <Link to="/my-projects" className="dropdown-item" role="menuitem">My Projects</Link>
-                )}
-                {userRole === 'designer' && (
-                  <Link to="/my-projects" className="dropdown-item" role="menuitem">My Projects</Link>
-                )}
+                <Link to="/my-projects" className="dropdown-item" role="menuitem">My Projects</Link>
                 <div className="dropdown-divider" role="separator"></div>
-                <button 
-                  className="dropdown-item logout" 
-                  onClick={handleLogout} 
-                  role="menuitem"
-                >
+                <button className="dropdown-item logout" onClick={handleLogout} role="menuitem">
                   Logout
                 </button>
               </div>

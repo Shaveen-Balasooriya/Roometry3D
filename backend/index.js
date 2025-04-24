@@ -5,7 +5,19 @@ const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-app.use(cors());
+
+// Load CORS configuration from file
+const corsConfig = require('./cors-config.json');
+
+// Apply CORS configuration
+app.use(cors({
+  origin: corsConfig[0].origin,
+  methods: corsConfig[0].method,
+  allowedHeaders: corsConfig[0].allowHeaders,
+  credentials: corsConfig[0].allowCredentials,
+  maxAge: corsConfig[0].maxAgeSeconds
+}));
+
 app.use(express.json());
 
 // --- Replace Firebase client SDK with Admin SDK ---
@@ -905,6 +917,64 @@ app.put('/api/projects/:id', uploadProject.single('objFile'), async (req, res) =
   } catch (err) {
     console.error('Error updating project:', err);
     res.status(500).json({ message: 'Failed to update project', details: err.message });
+  }
+});
+
+// Project model proxy endpoint to handle CORS issues with direct Firebase Storage URLs
+app.get('/api/projects/:projectId/model', authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const projectId = req.params.projectId;
+    
+    // Get project data to verify access
+    const projectDoc = await db.collection('projects').doc(projectId).get();
+    
+    if (!projectDoc.exists) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    const projectData = projectDoc.data();
+    
+    // Check if user has access to this project
+    const userRole = req.user.role;
+    const isAdmin = userRole === 'admin';
+    const isDesigner = userRole === 'designer' && projectData.designerId === userId;
+    const isClient = userRole === 'client' && projectData.clientId === userId;
+    
+    if (!isAdmin && !isDesigner && !isClient) {
+      return res.status(403).json({ message: 'Access denied to this project' });
+    }
+    
+    // Get the model file from Firebase Storage
+    const file = bucket.file(`projects/${projectId}/model.obj`);
+    
+    // Check if file exists
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).json({ message: 'Model file not found' });
+    }
+
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    
+    // Stream the file
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="model-${projectId}.obj"`);
+    
+    file.createReadStream()
+      .on('error', (error) => {
+        console.error('Error streaming model file:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ message: 'Error streaming model file' });
+        }
+      })
+      .pipe(res);
+    
+  } catch (error) {
+    console.error('Error serving model file:', error);
+    res.status(500).json({ message: 'Failed to retrieve model file', details: error.message });
   }
 });
 
