@@ -51,7 +51,7 @@ export default function EditProjectPage() {
 
   const handleProjectUpdated = () => {
     // Navigate to the project details page after successful update
-    navigate(`/projects/${id}`);
+    navigate(`/view-project/${id}`);
   };
 
   if (loading) {
