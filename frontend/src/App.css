@@ -9,13 +9,19 @@
   --text: #006A71;         /* Main text color (darkest accent) */
   --text-light: #48A6A7;   /* Lighter accent for secondary text */
   --text-lighter: #9ACBD0; /* Even lighter accent for placeholders */
+  --text-dark: #006A71;    /* Darker text for emphasis */
+  --text-medium: #48A6A7;  /* Medium weight text */
   --border: #9ACBD0;       /* Border color */
+  --border-light: rgba(154, 203, 208, 0.5); /* Lighter border */
   --radius: 16px;
   --radius-sm: 8px;
   --shadow: 0 4px 24px rgba(0,106,113,0.10);
   --shadow-sm: 0 2px 8px rgba(0,106,113,0.07);
   --error: #ef4444;
+  --error-rgb: 239, 68, 68;
   --success: #22c55e;
+  --success-rgb: 34, 197, 94;
+  --primary-rgb: 154, 203, 208;
 }
 
 /* Base Styles */

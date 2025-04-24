@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Base rules
+    match /{document=**} {
+      // Deny access by default
+      allow read, write: if false;
+    }
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user has admin role
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == "admin";
+    }
+    
+    // Check if user has designer role
+    function isDesigner() {
+      return isAuthenticated() && request.auth.token.role == "designer";
+    }
+    
+    // Check if user is specific client
+    function isClient() {
+      return isAuthenticated() && request.auth.token.role == "client";
+    }
+    
+    // Check if document belongs to the current user
+    function belongsToUser() {
+      return isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // User collection rules
+    match /users/{userId} {
+      // Anyone can read basic user info
+      allow read: if isAuthenticated();
+      // Only admins can create or update users
+      allow create, update: if isAdmin();
+      // Users can read and update their own documents
+      allow read, update: if request.auth.uid == userId;
+    }
+    
+    // Furniture collection rules
+    match /furniture/{furnitureId} {
+      // Authenticated users can read furniture data
+      allow read: if isAuthenticated();
+      // Only admins can create, update or delete furniture
+      allow create, update, delete: if isAdmin();
+      // Designers can update furniture
+      allow update: if isDesigner();
+    }
+    
+    // Projects collection rules
+    match /projects/{projectId} {
+      // Admins can do anything
+      allow read, write: if isAdmin();
+      // Designers can read all projects and update assigned projects
+      allow read: if isDesigner();
+      allow update: if isDesigner() && resource.data.designerId == request.auth.uid;
+      // Clients can read their own projects
+      allow read: if isClient() && resource.data.clientId == request.auth.uid;
+    }
+  }
+}

@@ -9,6 +9,8 @@ import UpdateFurniturePage from './pages/UpdateFurniturePage'
 import UserManagementPage from './pages/AddUserPage'
 import UsersDashboardPage from './pages/UsersDashboardPage'
 import EditUserPage from './pages/EditUserPage'
+import LoginPage from './pages/LoginPage'
+import AuthGuard from './components/AuthGuard'
 
 function Home() {
   return (
@@ -27,57 +29,88 @@ function Home() {
   )
 }
 
+// Unauthorized page component
+function Unauthorized() {
+  return (
+    <div className="app-container">
+      <Navbar />
+      <main className="main-content" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ color: 'var(--error)', marginBottom: '1.5rem' }}>Access Denied</h2>
+          <p style={{ color: 'var(--text-light)', marginBottom: '2rem' }}>
+            You don't have permission to access this page. Please contact an administrator.
+          </p>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/add-furniture" element={
-          <div className="app-container">
-            <Navbar />
-            <main className="main-content">
-              <AddFurniturePage />
-            </main>
-            <Footer />
-          </div>
-        } />
-        <Route path="/furniture-dashboard" element={
-          <div className="app-container">
-            <Navbar />
-            <FurnitureDashboardPage />
-            <Footer />
-          </div>
-        } />
-        <Route path="/update-furniture/:id" element={
-          <div className="app-container">
-            <Navbar />
-            <main className="main-content">
-              <UpdateFurniturePage />
-            </main>
-            <Footer />
-          </div>
-        } />
-        <Route path="/add-user" element={
-          <div className="app-container">
-            <Navbar />
-            <UserManagementPage />
-            <Footer />
-          </div>
-        } />
-        <Route path="/users-dashboard" element={
-          <div className="app-container">
-            <Navbar />
-            <UsersDashboardPage />
-            <Footer />
-          </div>
-        } />
-        <Route path="/edit-user/:id" element={
-          <div className="app-container">
-            <Navbar />
-            <EditUserPage />
-            <Footer />
-          </div>
-        } />
+        {/* Public route */}
+        <Route path="/login" element={<LoginPage />} />
+        
+        {/* Protected routes - require any authenticated user */}
+        <Route element={<AuthGuard allowedRoles={[]} />}>
+          <Route path="/" element={<Home />} />
+        </Route>
+        
+        {/* Routes accessible to clients, designers and admin */}
+        <Route element={<AuthGuard allowedRoles={['client', 'designer', 'admin']} />}>
+          <Route path="/furniture-dashboard" element={
+            <div className="app-container">
+              <Navbar />
+              <FurnitureDashboardPage />
+              <Footer />
+            </div>
+          } />
+          <Route path="/update-furniture/:id" element={
+            <div className="app-container">
+              <Navbar />
+              <main className="main-content">
+                <UpdateFurniturePage />
+              </main>
+              <Footer />
+            </div>
+          } />
+          <Route path="/add-furniture" element={
+            <div className="app-container">
+              <Navbar />
+              <main className="main-content">
+                <AddFurniturePage />
+              </main>
+              <Footer />
+            </div>
+          } />
+          <Route path="/add-user" element={
+            <div className="app-container">
+              <Navbar />
+              <UserManagementPage />
+              <Footer />
+            </div>
+          } />
+          <Route path="/users-dashboard" element={
+            <div className="app-container">
+              <Navbar />
+              <UsersDashboardPage />
+              <Footer />
+            </div>
+          } />
+          <Route path="/edit-user/:id" element={
+            <div className="app-container">
+              <Navbar />
+              <EditUserPage />
+              <Footer />
+            </div>
+          } />
+        </Route>
+        
+        {/* Unauthorized route */}
+        <Route path="/unauthorized" element={<Unauthorized />} />
       </Routes>
     </Router>
   )

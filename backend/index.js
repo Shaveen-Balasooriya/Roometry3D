@@ -22,6 +22,217 @@ const db = admin.firestore();
 const bucket = admin.storage().bucket();
 // --- End Admin SDK setup ---
 
+// Authentication Middleware
+const authenticateUser = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      req.user = decodedToken;
+      next();
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+  } catch (error) {
+    console.error('Authentication error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Role-based access control middleware
+const requireRole = (roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: No user found' });
+    }
+
+    const userRole = req.user.role || null;
+    
+    if (!userRole || !roles.includes(userRole)) {
+      return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
+    }
+    
+    next();
+  };
+};
+
+// Verify a user's authentication status and get profile
+app.get('/api/auth/verify', authenticateUser, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const userDoc = await db.collection('users').doc(uid).get();
+    
+    if (!userDoc.exists) {
+      return res.status(404).json({ message: 'User profile not found' });
+    }
+    
+    const userData = userDoc.data();
+    
+    res.json({
+      authenticated: true,
+      uid: uid,
+      email: req.user.email,
+      role: req.user.role || null,
+      name: userData.name,
+      userType: userData.userType,
+      lastLogin: userData.lastLogin ? userData.lastLogin.toDate() : null
+    });
+    
+    // Update last login time
+    await userDoc.ref.update({
+      lastLogin: admin.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error verifying authentication:', error);
+    res.status(500).json({ message: 'Failed to verify authentication' });
+  }
+});
+
+// Self-register endpoint (no auth required)
+app.post('/api/auth/register', async (req, res) => {
+  console.log('Received self-registration request:', req.body);
+  try {
+    const { name, email, password } = req.body;
+    
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Check if user already exists
+    try {
+      const userRecord = await admin.auth().getUserByEmail(email);
+      if (userRecord) {
+        return res.status(400).json({ message: 'Email is already in use' });
+      }
+    } catch (error) {
+      // Error code auth/user-not-found means we can proceed with creation
+      if (error.code !== 'auth/user-not-found') {
+        throw error;
+      }
+    }
+
+    // Create the user in Firebase Authentication
+    const userRecord = await admin.auth().createUser({
+      email: email,
+      password: password,
+      displayName: name,
+      emailVerified: false
+    });
+
+    console.log('User created in Firebase Auth:', userRecord.uid);
+
+    // Set custom claims for role-based access (default to client)
+    await admin.auth().setCustomUserClaims(userRecord.uid, {
+      role: 'client'
+    });
+
+    // Store additional user data in Firestore
+    const userDocRef = db.collection('users').doc(userRecord.uid);
+    await userDocRef.set({
+      name: name,
+      email: email,
+      userType: 'client',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLogin: null
+    });
+
+    console.log('User document created in Firestore');
+    
+    // Send verification email
+    const verificationLink = await admin.auth().generateEmailVerificationLink(email);
+    
+    // Return success response with user data (excluding sensitive info)
+    res.status(201).json({
+      message: 'User registered successfully. Please verify your email.',
+      user: {
+        id: userRecord.uid,
+        name,
+        email,
+        userType: 'client',
+        createdAt: new Date()
+      }
+    });
+  } catch (err) {
+    console.error('Detailed error registering user:', JSON.stringify(err, null, 2));
+    
+    if (err.code === 'auth/email-already-exists') {
+      return res.status(400).json({ message: 'Email already in use' });
+    } else if (err.code === 'auth/invalid-email') {
+      return res.status(400).json({ message: 'Invalid email format' });
+    } else if (err.code === 'auth/weak-password') {
+      return res.status(400).json({ message: 'Password is too weak' });
+    }
+    
+    res.status(500).json({ message: 'Failed to register user', details: err.message });
+  }
+});
+
+// Change a user's role (admin only)
+app.put('/api/users/:id/role', authenticateUser, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    
+    if (!role || !['admin', 'designer', 'client'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role specified' });
+    }
+    
+    // Update role in custom claims
+    await admin.auth().setCustomUserClaims(id, { role });
+    
+    // Update role in Firestore
+    await db.collection('users').doc(id).update({
+      userType: role
+    });
+    
+    res.json({ message: 'User role updated successfully' });
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({ message: 'Failed to update user role' });
+  }
+});
+
+// Reset a user's password (admin only)
+app.post('/api/users/:id/reset-password', authenticateUser, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { temporaryPassword } = req.body;
+    
+    if (!temporaryPassword || temporaryPassword.length < 6) {
+      return res.status(400).json({ message: 'Invalid temporary password' });
+    }
+    
+    // Update user's password
+    await admin.auth().updateUser(id, {
+      password: temporaryPassword
+    });
+    
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    res.status(500).json({ message: 'Failed to reset password' });
+  }
+});
+
+// Apply authentication middleware to sensitive routes
+app.use('/api/furniture', authenticateUser);
+app.use('/api/users', authenticateUser);
+app.use('/api/projects', authenticateUser);
+
+// Apply role-based access control to admin routes
+app.post('/api/furniture', requireRole(['admin']));
+app.put('/api/furniture/:id', requireRole(['admin', 'designer']));
+app.delete('/api/furniture/:id', requireRole(['admin']));
+app.post('/api/users', requireRole(['admin']));
+app.delete('/api/users/:id', requireRole(['admin']));
+
 // Helper function to extract storage path from signed URL
 const getStoragePathFromUrl = (url) => {
   if (!url) return null;
@@ -345,7 +556,7 @@ app.get('/api/furniture', async (req, res) => {
   }
 });
 
-// Add this new endpoint for user creation
+// Update existing user creation endpoint
 app.post('/api/users', async (req, res) => {
   console.log('Received user creation request:', req.body);
   try {
@@ -355,16 +566,24 @@ app.post('/api/users', async (req, res) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
+    // Validate userType
+    if (!['admin', 'client', 'designer'].includes(userType)) {
+      return res.status(400).json({ message: 'Invalid user type' });
+    }
+
     // Create the user in Firebase Authentication
-    // Passing the plain text password here is correct.
-    // Firebase Auth will hash and salt it securely.
     const userRecord = await admin.auth().createUser({
       email: email,
-      password: password, // Pass the plain text password directly
+      password: password,
       displayName: name,
     });
 
     console.log('User created in Firebase Auth:', userRecord.uid);
+
+    // Set custom claims for role-based access
+    await admin.auth().setCustomUserClaims(userRecord.uid, {
+      role: userType
+    });
 
     // Store additional user data in Firestore
     const userDocRef = db.collection('users').doc(userRecord.uid);
@@ -378,19 +597,18 @@ app.post('/api/users', async (req, res) => {
 
     console.log('User document created in Firestore');
     
-    // Return success response with user data (excluding password)
+    // Return success response with user data
     res.status(201).json({
       id: userRecord.uid,
       name,
       email,
       userType,
-      createdAt: new Date() // Approximate creation time for response
+      createdAt: new Date()
     });
   } catch (err) {
-    // Enhanced error logging: Log the full error object
-    console.error('Detailed error creating user:', JSON.stringify(err, null, 2)); 
+    // Error handling code remains the same
+    console.error('Detailed error creating user:', JSON.stringify(err, null, 2));
     
-    // Handle Firebase-specific errors
     if (err.code === 'auth/email-already-exists') {
       return res.status(400).json({ message: 'Email already in use' });
     } else if (err.code === 'auth/invalid-email') {
@@ -399,7 +617,6 @@ app.post('/api/users', async (req, res) => {
       return res.status(400).json({ message: 'Password is too weak' });
     }
     
-    // Generic 500 error for other issues
     res.status(500).json({ message: 'Failed to create user', details: err.message });
   }
 });
@@ -484,6 +701,196 @@ app.delete('/api/users/:id', async (req, res) => {
   } catch (err) {
     console.error('Error deleting user:', err);
     res.status(500).json({ message: 'Failed to delete user', details: err.message });
+  }
+});
+
+// Set up multer for file uploads
+const storage = multer.memoryStorage();
+const uploadProject = multer({ storage });
+
+// Create a new project
+app.post('/api/projects', uploadProject.single('objFile'), async (req, res) => {
+  try {
+    const { name, description, clientId, designerId, status = 'draft' } = req.body;
+    
+    if (!name || !description || !clientId || !designerId) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+    
+    // Create project document in Firestore
+    const projectRef = db.collection('projects').doc();
+    const projectId = projectRef.id;
+    
+    let objFileUrl = null;
+    
+    // Handle OBJ file upload if present
+    if (req.file) {
+      const objFileName = `projects/${projectId}/model.obj`;
+      const objFileUpload = bucket.file(objFileName);
+      
+      await objFileUpload.save(req.file.buffer, {
+        metadata: {
+          contentType: 'application/octet-stream',
+        }
+      });
+      
+      // Get signed URL for the file (valid for 7 days)
+      const [url] = await objFileUpload.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+      
+      objFileUrl = url;
+    }
+    
+    // Store project data
+    await projectRef.set({
+      name,
+      description,
+      clientId,
+      designerId,
+      status,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      objFileUrl
+    });
+    
+    // Add project reference to client's projects
+    const clientProjectRef = db.collection('user_projects').doc(clientId);
+    await clientProjectRef.set({
+      projects: admin.firestore.FieldValue.arrayUnion(projectId)
+    }, { merge: true });
+    
+    // Add project reference to designer's projects
+    const designerProjectRef = db.collection('user_projects').doc(designerId);
+    await designerProjectRef.set({
+      projects: admin.firestore.FieldValue.arrayUnion(projectId)
+    }, { merge: true });
+    
+    res.status(201).json({
+      id: projectId,
+      name,
+      description,
+      clientId,
+      designerId,
+      status,
+      objFileUrl,
+      createdAt: new Date()
+    });
+  } catch (err) {
+    console.error('Error creating project:', err);
+    res.status(500).json({ message: 'Failed to create project', details: err.message });
+  }
+});
+
+// Get all projects for a user
+app.get('/api/users/:userId/projects', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Get user's project references
+    const userProjectsDoc = await db.collection('user_projects').doc(userId).get();
+    
+    if (!userProjectsDoc.exists || !userProjectsDoc.data().projects) {
+      return res.json([]);
+    }
+    
+    const projectIds = userProjectsDoc.data().projects;
+    
+    // Get full project details
+    const projectPromises = projectIds.map(async (projectId) => {
+      const projectDoc = await db.collection('projects').doc(projectId).get();
+      if (!projectDoc.exists) return null;
+      
+      const projectData = projectDoc.data();
+      return {
+        id: projectDoc.id,
+        ...projectData,
+        createdAt: projectData.createdAt?.toDate(),
+        updatedAt: projectData.updatedAt?.toDate()
+      };
+    });
+    
+    const projects = (await Promise.all(projectPromises)).filter(Boolean);
+    
+    res.json(projects);
+  } catch (err) {
+    console.error('Error fetching user projects:', err);
+    res.status(500).json({ message: 'Failed to fetch projects', details: err.message });
+  }
+});
+
+// Get project by ID
+app.get('/api/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const doc = await db.collection('projects').doc(id).get();
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    const projectData = doc.data();
+    
+    res.json({
+      id: doc.id,
+      ...projectData,
+      createdAt: projectData.createdAt?.toDate(),
+      updatedAt: projectData.updatedAt?.toDate()
+    });
+  } catch (err) {
+    console.error('Error fetching project:', err);
+    res.status(500).json({ message: 'Failed to fetch project', details: err.message });
+  }
+});
+
+// Update a project
+app.put('/api/projects/:id', uploadProject.single('objFile'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, status } = req.body;
+    
+    const projectRef = db.collection('projects').doc(id);
+    const doc = await projectRef.get();
+    
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    const updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    
+    if (name) updateData.name = name;
+    if (description) updateData.description = description;
+    if (status) updateData.status = status;
+    
+    // Handle OBJ file update if present
+    if (req.file) {
+      const objFileName = `projects/${id}/model.obj`;
+      const objFileUpload = bucket.file(objFileName);
+      
+      await objFileUpload.save(req.file.buffer, {
+        metadata: {
+          contentType: 'application/octet-stream',
+        }
+      });
+      
+      // Get signed URL for the file (valid for 7 days)
+      const [url] = await objFileUpload.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+      
+      updateData.objFileUrl = url;
+    }
+    
+    await projectRef.update(updateData);
+    
+    res.json({ message: 'Project updated successfully' });
+  } catch (err) {
+    console.error('Error updating project:', err);
+    res.status(500).json({ message: 'Failed to update project', details: err.message });
   }
 });
 
