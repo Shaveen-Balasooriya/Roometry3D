@@ -12,10 +12,10 @@ const corsConfig = require('./cors-config.json');
 // Apply CORS configuration
 app.use(cors({
   origin: corsConfig[0].origin,
-  methods: corsConfig[0].method,
-  allowedHeaders: corsConfig[0].allowHeaders,
-  credentials: corsConfig[0].allowCredentials,
-  maxAge: corsConfig[0].maxAgeSeconds
+  methods: corsConfig[0].methods,
+  allowedHeaders: corsConfig[0].allowedHeaders,
+  credentials: corsConfig[0].credentials,
+  maxAge: corsConfig[0].maxAge
 }));
 
 app.use(express.json());
@@ -920,7 +920,57 @@ app.put('/api/projects/:id', uploadProject.single('objFile'), async (req, res) =
   }
 });
 
-// Project model proxy endpoint to handle CORS issues with direct Firebase Storage URLs
+// Delete a project
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if project exists
+    const projectRef = db.collection('projects').doc(id);
+    const doc = await projectRef.get();
+    
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    // Get project data
+    const projectData = doc.data();
+    
+    // Remove from user_projects collections
+    if (projectData.clientId) {
+      await db.collection('user_projects').doc(projectData.clientId).update({
+        projects: admin.firestore.FieldValue.arrayRemove(id)
+      });
+    }
+    
+    if (projectData.designerId) {
+      await db.collection('user_projects').doc(projectData.designerId).update({
+        projects: admin.firestore.FieldValue.arrayRemove(id)
+      });
+    }
+    
+    // Delete 3D model file if exists
+    if (projectData.objFileUrl) {
+      try {
+        const objFileName = `projects/${id}/model.obj`;
+        await bucket.file(objFileName).delete();
+      } catch (fileErr) {
+        console.error('Error deleting project file:', fileErr);
+        // Continue with deletion even if file delete fails
+      }
+    }
+    
+    // Delete project document
+    await projectRef.delete();
+    
+    res.json({ message: 'Project deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting project:', err);
+    res.status(500).json({ message: 'Failed to delete project', details: err.message });
+  }
+});
+
+// Project model endpoint - serve the 3D model file
 app.get('/api/projects/:projectId/model', authenticateUser, async (req, res) => {
   try {
     const userId = req.user.uid;
