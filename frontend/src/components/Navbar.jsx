@@ -106,7 +106,7 @@ export default function Navbar() {
 
   // Get role display info
   const getRoleDisplay = (role) => {
-    if (!role) return { icon: '👤', text: 'User' };
+    if (!role) return { text: 'User' };
     
     switch(role.toLowerCase()) {
       case 'admin':

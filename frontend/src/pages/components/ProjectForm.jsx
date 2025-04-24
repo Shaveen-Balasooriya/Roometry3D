@@ -127,7 +127,12 @@ export default function ProjectForm({ onSuccess, initialData = null, editMode = 
       }
       
       // Get authentication token
-      const idToken = await auth.currentUser.getIdToken();
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('You must be logged in to perform this action');
+      }
+      
+      const idToken = await user.getIdToken();
       
       let response;
       if (editMode) {

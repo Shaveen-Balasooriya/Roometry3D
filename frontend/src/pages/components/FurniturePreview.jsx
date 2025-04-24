@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState, useMemo, Suspense, useCallback } from 'react'; // Added useCallback
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, Bounds } from '@react-three/drei';
@@ -6,6 +5,7 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import * as THREE from 'three';
 import Loading from '../../components/Loading'; // Import Loading
 import ErrorBoundary from '../../components/ErrorBoundary'; // Import ErrorBoundary
+import { auth } from '../../services/firebase'; // Import auth
 
 // ModelLoader component
 const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimensions }) {
@@ -172,27 +172,41 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
     if (initialObjUrl && !objFile) {
       setIsLoadingInitialObj(true);
       setInitialObjBlob(null);
-      fetch(initialObjUrl)
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to fetch initial OBJ file');
-          return res.blob();
-        })
-        .then(blob => {
+      
+      const fetchInitialObj = async () => {
+        try {
+          // Get current user's auth token
+          const user = auth.currentUser;
+          if (!user) {
+            throw new Error('You must be logged in to access this model');
+          }
+          
+          const idToken = await user.getIdToken();
+          
+          const response = await fetch(initialObjUrl, {
+            headers: {
+              'Authorization': `Bearer ${idToken}`
+            }
+          });
+          
+          if (!response.ok) throw new Error('Failed to fetch initial OBJ file');
+          const blob = await response.blob();
           if (isActive) {
             setInitialObjBlob(blob);
           }
-        })
-        .catch(err => {
+        } catch (err) {
           if (isActive) {
             console.error("Error fetching initial OBJ blob:", err);
             setInitialObjBlob(null);
           }
-        })
-        .finally(() => {
+        } finally {
           if (isActive) {
             setIsLoadingInitialObj(false);
           }
-        });
+        }
+      };
+      
+      fetchInitialObj();
     } else {
       setInitialObjBlob(null);
       setIsLoadingInitialObj(false);

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import FurnitureCard from './components/FurnitureCard'
 import Loading from '../components/Loading'
 import Popup from '../components/Popup'
+import { auth } from '../services/firebase'
 
 export default function FurnitureDashboardPage() {
   const [furniture, setFurniture] = useState([])
@@ -12,13 +13,28 @@ export default function FurnitureDashboardPage() {
     async function fetchFurniture() {
       setLoading(true)
       try {
-        const response = await fetch('http://localhost:3001/api/furniture')
+        // Get the current user's auth token
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('You must be logged in to access this page');
+        }
+        
+        const idToken = await user.getIdToken();
+        
+        const response = await fetch('http://localhost:3001/api/furniture', {
+          headers: {
+            'Authorization': `Bearer ${idToken}`
+          }
+        })
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch furniture')
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Failed to fetch furniture');
         }
         const items = await response.json()
         setFurniture(items)
       } catch (err) {
+        console.error('Error fetching furniture:', err);
         setPopup({ open: true, type: 'error', message: 'Failed to load furniture: ' + err.message })
       } finally {
         setLoading(false)

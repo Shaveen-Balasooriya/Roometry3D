@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import UserForm from './components/UserForm';
 import Loading from '../components/Loading';
 import Popup from '../components/Popup';
+import { auth } from '../services/firebase';
 
 export default function EditUserPage() {
   const { id } = useParams();
@@ -15,7 +16,20 @@ export default function EditUserPage() {
     async function fetchUser() {
       setLoading(true);
       try {
-        const response = await fetch(`http://localhost:3001/api/users/${id}`);
+        // Get the current user's auth token
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('You must be logged in to access this page');
+        }
+        
+        const idToken = await user.getIdToken();
+        
+        const response = await fetch(`http://localhost:3001/api/users/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${idToken}`
+          }
+        });
+        
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.message || 'Failed to fetch user');
@@ -29,6 +43,7 @@ export default function EditUserPage() {
           userType: data.userType || 'admin'
         });
       } catch (err) {
+        console.error('Error fetching user:', err);
         setPopup({ open: true, type: 'error', message: err.message });
       } finally {
         setLoading(false);

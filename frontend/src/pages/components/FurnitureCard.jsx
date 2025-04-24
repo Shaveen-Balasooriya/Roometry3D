@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom' // Import useNavigate
 import Loading from '../../components/Loading'
 import Popup from '../../components/Popup'
 import ConfirmationPopup from '../../components/ConfirmationPopup'
+import { auth } from '../../services/firebase'
 
 function ModelPreview({ objFile, textureUrl, dimensions }) {
   const [object, setObject] = useState(null)
@@ -158,27 +159,40 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
     setObjBlob(null)
     if (modelEndpoint) {
       setIsLoadingBlob(true)
-      fetch(`http://localhost:3001${modelEndpoint}`)
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to fetch OBJ file')
-          return res.blob()
-        })
-        .then(blob => {
+      const fetchModel = async () => {
+        try {
+          // Get the current user's auth token
+          const user = auth.currentUser;
+          if (!user) {
+            throw new Error('You must be logged in to access this model');
+          }
+          
+          const idToken = await user.getIdToken();
+          
+          const response = await fetch(`http://localhost:3001${modelEndpoint}`, {
+            headers: {
+              'Authorization': `Bearer ${idToken}`
+            }
+          });
+          
+          if (!response.ok) throw new Error('Failed to fetch OBJ file')
+          const blob = await response.blob();
           if (isActive) {
             setObjBlob(blob)
           }
-        })
-        .catch((err) => {
+        } catch (err) {
           console.error("Error fetching blob:", err)
           if (isActive) {
             setObjBlob(null)
           }
-        })
-        .finally(() => {
+        } finally {
           if (isActive) {
             setIsLoadingBlob(false)
           }
-        })
+        }
+      };
+      
+      fetchModel();
     } else {
       setIsLoadingBlob(false)
     }
@@ -192,8 +206,19 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
     setIsDeleting(true)
     setPopup({ open: false, type: '', message: '' })
     try {
+      // Get the current user's auth token
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('You must be logged in to delete furniture');
+      }
+      
+      const idToken = await user.getIdToken();
+      
       const response = await fetch(`http://localhost:3001/api/furniture/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${idToken}`
+        }
       })
 
       if (!response.ok) {

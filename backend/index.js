@@ -35,6 +35,18 @@ const authenticateUser = async (req, res, next) => {
     try {
       const decodedToken = await admin.auth().verifyIdToken(token);
       req.user = decodedToken;
+      
+      // Fetch user data from Firestore to ensure we have the correct role
+      const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        // Use either the role from claims or the userType from Firestore
+        req.user.role = decodedToken.role || userData.userType;
+        console.log(`User authenticated: ${decodedToken.email}, Role: ${req.user.role}`);
+      } else {
+        console.log(`User authenticated but no Firestore record found: ${decodedToken.uid}`);
+      }
+      
       next();
     } catch (error) {
       console.error('Token verification failed:', error);
@@ -54,11 +66,13 @@ const requireRole = (roles) => {
     }
 
     const userRole = req.user.role || null;
+    console.log(`Checking role access - User role: ${userRole}, Required roles: ${roles.join(', ')}`);
     
-    if (!userRole || !roles.includes(userRole)) {
+    if (!userRole || !roles.some(role => role.toLowerCase() === userRole.toLowerCase())) {
       return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
     }
     
+    console.log(`Access granted to ${req.user.email} with role ${userRole}`);
     next();
   };
 };

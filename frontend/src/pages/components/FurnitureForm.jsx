@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Loading from '../../components/Loading';
 import Popup from '../../components/Popup';
+import { auth } from '../../services/firebase'; // Import auth
 
 const initialState = {
   name: '',
@@ -248,8 +249,19 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
 
         console.log(`Submitting ${method} request to ${url}`);
 
+        // Get current user's auth token
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('You must be logged in to perform this action');
+        }
+        
+        const idToken = await user.getIdToken();
+
         const response = await fetch(url, {
           method: method,
+          headers: {
+            'Authorization': `Bearer ${idToken}`
+          },
           body: formData,
         });
 

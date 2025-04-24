@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Loading from '../components/Loading';
 import Popup from '../components/Popup';
 import ConfirmationPopup from '../components/ConfirmationPopup';
+import { auth } from '../services/firebase';
 
 export default function UsersDashboardPage() {
   const [users, setUsers] = useState([]);
@@ -18,11 +19,29 @@ export default function UsersDashboardPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/users');
-      if (!response.ok) throw new Error('Failed to fetch users');
+      // Get the current user's auth token
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('You must be logged in to access this page');
+      }
+      
+      const idToken = await user.getIdToken();
+      
+      const response = await fetch('http://localhost:3001/api/users', {
+        headers: {
+          'Authorization': `Bearer ${idToken}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to fetch users');
+      }
+      
       const items = await response.json();
       setUsers(items);
     } catch (err) {
+      console.error('Error fetching users:', err);
       setPopup({ open: true, type: 'error', message: 'Failed to load users: ' + err.message });
     } finally {
       setLoading(false);
@@ -43,9 +62,21 @@ export default function UsersDashboardPage() {
     if (!user) return;
     setLoading(true);
     try {
+      // Get the current user's auth token
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('You must be logged in to perform this action');
+      }
+      
+      const idToken = await currentUser.getIdToken();
+      
       const response = await fetch(`http://localhost:3001/api/users/${user.id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${idToken}`
+        }
       });
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to delete user');
@@ -53,6 +84,7 @@ export default function UsersDashboardPage() {
       setPopup({ open: true, type: 'success', message: `User "${user.name}" deleted successfully!` });
       setUsers(users.filter(u => u.id !== user.id));
     } catch (err) {
+      console.error('Error deleting user:', err);
       setPopup({ open: true, type: 'error', message: err.message || 'Error deleting user.' });
     } finally {
       setLoading(false);
