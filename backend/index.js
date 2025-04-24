@@ -251,6 +251,7 @@ app.post('/api/users/:id/reset-password', authenticateUser, requireRole(['admin'
 app.use('/api/furniture', authenticateUser);
 app.use('/api/users', authenticateUser);
 app.use('/api/projects', authenticateUser);
+app.use('/api/count',authenticateUser);
 
 // Apply role-based access control to admin routes
 app.post('/api/furniture', requireRole(['admin']));
@@ -258,6 +259,9 @@ app.put('/api/furniture/:id', requireRole(['admin', 'designer']));
 app.delete('/api/furniture/:id', requireRole(['admin']));
 app.post('/api/users', requireRole(['admin']));
 app.delete('/api/users/:id', requireRole(['admin']));
+app.get('/api/count/designers', requireRole(['admin']));
+app.get('/api/count/todayProjects',requireRole(['admin']));
+app.get('/api/count/totalProjcts',requireRole(['admin']));
 
 // Helper function to extract storage path from signed URL
 const getStoragePathFromUrl = (url) => {
@@ -562,10 +566,38 @@ app.delete('/api/furniture/:id', async (req, res) => {
   }
 });
 
+// app.get('/api/furniture', async (req, res) => {
+//   try {
+//     const furnitureCol = db.collection('furniture');
+//     const snapshot = await furnitureCol.get();
+//     const items = snapshot.docs.map(doc => {
+//       const data = doc.data();
+//       const { objFileUrl, ...rest } = data;
+//       return {
+//         id: doc.id,
+//         ...rest,
+//         modelEndpoint: `/api/furniture/${doc.id}/model`
+//       };
+//     });
+//     res.json(items);
+//   } catch (err) {
+//     console.error('Error fetching furniture:', err);
+//     res.status(500).json({ error: 'Failed to fetch furniture', details: err.message });
+//   }
+// });
+
 app.get('/api/furniture', async (req, res) => {
   try {
-    const furnitureCol = db.collection('furniture');
+    const { category } = req.query;
+    let furnitureCol = db.collection('furniture');
+    
+    // Apply category filter if provided
+    if (category && category !== 'All') {
+      furnitureCol = furnitureCol.where('category', '==', category);
+    }
+    
     const snapshot = await furnitureCol.get();
+    
     const items = snapshot.docs.map(doc => {
       const data = doc.data();
       const { objFileUrl, ...rest } = data;
@@ -575,6 +607,7 @@ app.get('/api/furniture', async (req, res) => {
         modelEndpoint: `/api/furniture/${doc.id}/model`
       };
     });
+    
     res.json(items);
   } catch (err) {
     console.error('Error fetching furniture:', err);
@@ -1025,6 +1058,55 @@ app.get('/api/projects/:projectId/model', authenticateUser, async (req, res) => 
   } catch (error) {
     console.error('Error serving model file:', error);
     res.status(500).json({ message: 'Failed to retrieve model file', details: error.message });
+  }
+});
+
+// API to get total number of projects
+app.get('/api/count/totalProjcts', async (req, res) => {
+  try {
+    const projectsCol = db.collection('projects');
+    const snapshot = await projectsCol.count().get();
+    const totalProjects = snapshot.data().count;
+    
+    res.json({ count: totalProjects });
+  } catch (err) {
+    console.error('Error fetching total projects count:', err);
+    res.status(500).json({ error: 'Failed to fetch projects count', details: err.message });
+  }
+});
+
+// API to get count of projects added today
+app.get('/api/count/todayProjects', async (req, res) => {
+  try {
+    // Get today's date at midnight (start of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const projectsCol = db.collection('projects');
+    // Query for documents where createdAt is >= today's start
+    const snapshot = await projectsCol
+      .where('createdAt', '>=', today)
+      .get();
+    
+    res.json({ count: snapshot.size });
+  } catch (err) {
+    console.error('Error fetching today\'s projects count:', err);
+    res.status(500).json({ error: 'Failed to fetch today\'s projects count', details: err.message });
+  }
+});
+
+// API to get count of designers
+app.get('/api/count/designers', async (req, res) => {
+  try {
+    const usersCol = db.collection('users');
+    const snapshot = await usersCol
+      .where('userType', '==', 'designer')
+      .get();
+    
+    res.json({ count: snapshot.size });
+  } catch (err) {
+    console.error('Error fetching designers count:', err);
+    res.status(500).json({ error: 'Failed to fetch designers count', details: err.message });
   }
 });
 

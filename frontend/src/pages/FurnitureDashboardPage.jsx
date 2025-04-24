@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import FurnitureCard from './components/FurnitureCard'
+import CategoryFilter from './components/FurnitureCategoryFilter' // Import the new component
 import Loading from '../components/Loading'
 import Popup from '../components/Popup'
 import { auth } from '../services/firebase'
 
 export default function FurnitureDashboardPage() {
   const [furniture, setFurniture] = useState([])
+  const [filteredFurniture, setFilteredFurniture] = useState([])
+  const [selectedCategory, setSelectedCategory] = useState('All')
   const [loading, setLoading] = useState(true)
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' })
 
@@ -21,7 +24,12 @@ export default function FurnitureDashboardPage() {
         
         const idToken = await user.getIdToken();
         
-        const response = await fetch('http://localhost:3001/api/furniture', {
+        // Use query parameter for filtering if not "All"
+        const endpoint = selectedCategory !== 'All' 
+          ? `http://localhost:3001/api/furniture?category=${encodeURIComponent(selectedCategory)}`
+          : 'http://localhost:3001/api/furniture';
+        
+        const response = await fetch(endpoint, {
           headers: {
             'Authorization': `Bearer ${idToken}`
           }
@@ -33,6 +41,7 @@ export default function FurnitureDashboardPage() {
         }
         const items = await response.json()
         setFurniture(items)
+        setFilteredFurniture(items)
       } catch (err) {
         console.error('Error fetching furniture:', err);
         setPopup({ open: true, type: 'error', message: 'Failed to load furniture: ' + err.message })
@@ -40,12 +49,23 @@ export default function FurnitureDashboardPage() {
         setLoading(false)
       }
     }
+    
     fetchFurniture()
-  }, [])
+  }, [selectedCategory]) // Re-fetch when category changes
+
+  // Handle category change
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category);
+  }
 
   // Callback function to remove item from state
   const handleDeleteSuccess = (deletedId) => {
-    setFurniture(currentFurniture => currentFurniture.filter(item => item.id !== deletedId))
+    setFurniture(currentFurniture => {
+      const updatedFurniture = currentFurniture.filter(item => item.id !== deletedId);
+      setFilteredFurniture(updatedFurniture);
+      return updatedFurniture;
+    });
+    
     // Show success message on the dashboard after successful deletion
     setPopup({ open: true, type: 'success', message: 'Furniture item deleted successfully.' })
   }
@@ -55,6 +75,13 @@ export default function FurnitureDashboardPage() {
       <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
       <main className="main-content" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
         <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)' }}>Furniture Dashboard</h2>
+        
+        {/* Add the category filter component */}
+        <CategoryFilter 
+          selectedCategory={selectedCategory} 
+          onCategoryChange={handleCategoryChange} 
+        />
+        
         {loading ? (
           <Loading />
         ) : (

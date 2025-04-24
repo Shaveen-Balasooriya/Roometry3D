@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MetricCard from './components/MetricCard';
 import './HomePage.css';
+import { auth } from '../services/firebase'; // Adjust the path as needed
 
 // Simple icon components without external dependencies
 const IconFurniture = () => <div className="icon-placeholder">F</div>;
@@ -12,28 +13,60 @@ const IconOrders = () => <div className="icon-placeholder">O</div>;
 export default function HomePage() {
   // State for metrics - will be populated from backend
   const [metrics, setMetrics] = useState({
-    totalFurniture: 0,
-    totalUsers: 0,
+    projectsToday: 0,
+    totalDesigners: 0,
     totalProjects: 0,
-    totalOrders: 0
+    checkedOutProjects: 0 // You may need to create an API for this as well
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Simulate fetching data from backend
   useEffect(() => {
-    // This would be replaced with your actual API call
     const fetchMetrics = async () => {
+      setLoading(true);
       try {
-        // Simulate API response
-        const response = {
-          totalFurniture: 45,
-          totalUsers: 28,
-          totalProjects: 12,
-          totalOrders: 34
-        };
+        // Get the current user's auth token
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('You must be logged in to access this page');
+        }
         
-        setMetrics(response);
-      } catch (error) {
-        console.error("Error fetching metrics:", error);
+        const idToken = await user.getIdToken();
+        const headers = {
+          'Authorization': `Bearer ${idToken}`
+        };
+
+        // Fetch all metrics in parallel
+        const [projectsTodayRes, designersRes, totalProjectsRes] = await Promise.all([
+          fetch('http://localhost:3001/api/count/todayProjects', { headers }),
+          fetch('http://localhost:3001/api/count/designers', { headers }),
+          fetch('http://localhost:3001/api/count/totalProjcts', { headers })
+        ]);
+
+        // Check for errors
+        if (!projectsTodayRes.ok || !designersRes.ok || !totalProjectsRes.ok) {
+          throw new Error('Failed to fetch one or more metrics');
+        }
+
+        // Parse responses
+        const projectsTodayData = await projectsTodayRes.json();
+        const designersData = await designersRes.json();
+        const totalProjectsData = await totalProjectsRes.json();
+
+        // Update state with fetched data
+        setMetrics({
+          projectsToday: projectsTodayData.count,
+          totalDesigners: designersData.count,
+          totalProjects: totalProjectsData.count,
+          checkedOutProjects: 0 // You'd need to fetch this separately
+        });
+        
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching metrics:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -57,25 +90,27 @@ export default function HomePage() {
       
       {/* Dashboard Stats Section */}
       <h3 className="section-title">Dashboard Overview</h3>
+      {error && <div className="error-message">Error loading metrics: {error}</div>}
+      
       <div className="metrics-container">
         <MetricCard 
-          title="Total Furniture" 
-          amount={metrics.totalFurniture} 
-          icon={<IconFurniture />} 
+          title="Projects Added Today" 
+          amount={loading ? '...' : metrics.projectsToday} 
+          icon={<IconProjects />} 
         />
         <MetricCard 
-          title="Total Users" 
-          amount={metrics.totalUsers} 
+          title="Designers" 
+          amount={loading ? '...' : metrics.totalDesigners} 
           icon={<IconUsers />} 
         />
         <MetricCard 
           title="Total Projects" 
-          amount={metrics.totalProjects} 
+          amount={loading ? '...' : metrics.totalProjects} 
           icon={<IconProjects />} 
         />
         <MetricCard 
-          title="Total Orders" 
-          amount={metrics.totalOrders} 
+          title="Checked Out Projects" 
+          amount={loading ? '...' : metrics.checkedOutProjects} 
           icon={<IconOrders />} 
         />
       </div>
