@@ -10,6 +10,7 @@ import UserManagementPage from './pages/AddUserPage'
 import UsersDashboardPage from './pages/UsersDashboardPage'
 import EditUserPage from './pages/EditUserPage'
 import LoginPage from './pages/LoginPage'
+import ProfilePage from './pages/ProfilePage'
 import AuthGuard from './components/AuthGuard'
 
 function Home() {
@@ -57,10 +58,11 @@ export default function App() {
         {/* Protected routes - require any authenticated user */}
         <Route element={<AuthGuard allowedRoles={[]} />}>
           <Route path="/" element={<Home />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
         
-        {/* Routes accessible to clients, designers and admin */}
-        <Route element={<AuthGuard allowedRoles={['client', 'designer', 'admin']} />}>
+        {/* Routes accessible to designers and admin */}
+        <Route element={<AuthGuard allowedRoles={['admin', 'designer']} />}>
           <Route path="/furniture-dashboard" element={
             <div className="app-container">
               <Navbar />
@@ -86,6 +88,10 @@ export default function App() {
               <Footer />
             </div>
           } />
+        </Route>
+        
+        {/* Routes accessible only to admin */}
+        <Route element={<AuthGuard allowedRoles={['admin']} />}>
           <Route path="/add-user" element={
             <div className="app-container">
               <Navbar />

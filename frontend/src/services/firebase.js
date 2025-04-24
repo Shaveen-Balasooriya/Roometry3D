@@ -9,7 +9,7 @@ import {
   updateProfile,
   sendEmailVerification
 } from "firebase/auth";
-import { getFirestore, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { getFirestore, doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -81,9 +81,46 @@ export const getUserRole = async () => {
   const user = auth.currentUser;
   if (!user) return null;
   
-  // Get ID token result which includes custom claims
-  const tokenResult = await user.getIdTokenResult();
-  return tokenResult.claims.role || null;
+  try {
+    // First, try to get role from custom claims
+    const tokenResult = await user.getIdTokenResult();
+    const claimsRole = tokenResult.claims.role;
+    
+    if (claimsRole) {
+      return claimsRole;
+    }
+    
+    // If no role in claims, try to get from Firestore
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      return userData.userType || userData.role;
+    }
+    
+    // If we still don't have a role, try to get from token/backend
+    try {
+      const idToken = await user.getIdToken();
+      const response = await fetch('http://localhost:3001/api/auth/verify', {
+        headers: {
+          'Authorization': `Bearer ${idToken}`
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        return userData.role || userData.userType;
+      }
+    } catch (e) {
+      console.error("Error fetching user role from backend:", e);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error getting user role:", error);
+    return null;
+  }
 };
 
 // Auth state observer

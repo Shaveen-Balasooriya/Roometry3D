@@ -12,8 +12,32 @@ export default function AuthGuard({ allowedRoles = [] }) {
     const unsubscribe = onAuthChange(async (authUser) => {
       if (authUser) {
         setUser(authUser);
-        const role = await getUserRole();
-        setUserRole(role);
+        try {
+          // Get user role from custom claims
+          const role = await getUserRole();
+          console.log("User role from claims:", role);
+          setUserRole(role);
+          
+          // If role is not found in claims, fetch from Firestore
+          if (!role) {
+            // Fetch the user's role from the backend
+            const idToken = await authUser.getIdToken();
+            const response = await fetch('http://localhost:3001/api/auth/verify', {
+              headers: {
+                'Authorization': `Bearer ${idToken}`
+              }
+            });
+            
+            if (response.ok) {
+              const userData = await response.json();
+              console.log("User data from API:", userData);
+              // Use either role or userType, depending on what's available
+              setUserRole(userData.role || userData.userType);
+            }
+          }
+        } catch (error) {
+          console.error("Error getting user role:", error);
+        }
       } else {
         setUser(null);
         setUserRole(null);
@@ -32,8 +56,16 @@ export default function AuthGuard({ allowedRoles = [] }) {
     return <Navigate to="/login" replace />;
   }
 
-  // If no specific roles are required or user's role is in allowed roles
-  if (allowedRoles.length === 0 || allowedRoles.includes(userRole)) {
+  // If no specific roles are required, allow access
+  if (allowedRoles.length === 0) {
+    return <Outlet />;
+  }
+  
+  // For debugging
+  console.log("Required roles:", allowedRoles, "User role:", userRole);
+  
+  // Check if user's role is in allowed roles
+  if (userRole && allowedRoles.includes(userRole.toLowerCase())) {
     return <Outlet />;
   }
 

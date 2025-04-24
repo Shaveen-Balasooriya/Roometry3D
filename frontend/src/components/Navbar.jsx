@@ -104,6 +104,22 @@ export default function Navbar() {
     return 'U';
   };
 
+  // Get role display info
+  const getRoleDisplay = (role) => {
+    if (!role) return { icon: '👤', text: 'User' };
+    
+    switch(role.toLowerCase()) {
+      case 'admin':
+        return { icon: '👑', text: 'Administrator' };
+      case 'designer':
+        return { icon: '🎨', text: 'Designer' };
+      case 'client':
+        return { icon: '👤', text: 'Client' };
+      default:
+        return { icon: '👤', text: 'User' };
+    }
+  };
+
   // Toggle body scroll when mobile menu is open
   useEffect(() => {
     if (isMobileMenuOpen) {
@@ -164,11 +180,16 @@ export default function Navbar() {
             {isDropdownOpen && (
               <div className="user-dropdown" role="menu">
                 <div className="dropdown-item user-role">
-                  {userRole && userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+                  {userRole && (
+                    <>
+                      <span style={{ marginRight: '8px' }}>{getRoleDisplay(userRole).icon}</span>
+                      {getRoleDisplay(userRole).text}
+                    </>
+                  )}
                 </div>
                 <div className="dropdown-divider" role="separator"></div>
                 <Link to="/profile" className="dropdown-item" role="menuitem">My Profile</Link>
-                {userRole === 'user' && (
+                {userRole === 'client' && (
                   <Link to="/my-projects" className="dropdown-item" role="menuitem">My Projects</Link>
                 )}
                 <div className="dropdown-divider" role="separator"></div>
