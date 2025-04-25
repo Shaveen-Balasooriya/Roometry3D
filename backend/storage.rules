@@ -1,0 +1,40 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Default rule - deny access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+    
+    // Furniture images folder
+    match /furniture/{furnitureId}/{fileName} {
+      // Authenticated users can view furniture images
+      allow read: if request.auth != null;
+      
+      // Only admins can upload furniture images
+      allow write: if request.auth != null && request.auth.token.role == "admin";
+    }
+    
+    // Projects 3D models folder
+    match /projects/{projectId}/{fileName} {
+      // Allow authenticated users to read project files
+      allow read: if request.auth != null;
+      
+      // Admin can write/update any project files
+      allow write: if request.auth != null && request.auth.token.role == "admin";
+      
+      // Designers can only upload/update project files they are assigned to
+      allow write: if request.auth != null && 
+                     request.auth.token.role == "designer" &&
+                     exists(/databases/$(database)/documents/projects/$(projectId)) &&
+                     get(/databases/$(database)/documents/projects/$(projectId)).data.designerId == request.auth.uid;
+    }
+    
+    // User profile images folder
+    match /users/{userId}/{fileName} {
+      // User's own profile image
+      allow read: if request.auth != null; // All authenticated users can see profiles
+      allow write: if request.auth != null && request.auth.uid == userId; // Only owner can update
+    }
+  }
+}

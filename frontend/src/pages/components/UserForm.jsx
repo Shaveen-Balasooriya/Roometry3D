@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { auth } from '../../services/firebase';
 import Loading from '../../components/Loading';
 import Popup from '../../components/Popup';
 
@@ -8,7 +9,7 @@ export default function UserForm({ onSuccess, initialData = null, editMode = fal
     email: '',
     password: '',
     confirmPassword: '',
-    userType: 'admin'
+    userType: 'client' // Changed default from 'admin' to 'client'
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,10 +73,17 @@ export default function UserForm({ onSuccess, initialData = null, editMode = fal
     setIsSubmitting(true);
     try {
       let response, result;
+      
+      // Get current user's auth token
+      const idToken = await auth.currentUser.getIdToken();
+      
       if (editMode) {
         response = await fetch(`http://localhost:3001/api/users/${userId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
           body: JSON.stringify({
             name: form.name,
             password: form.password || undefined, // Only send if changed
@@ -84,7 +92,10 @@ export default function UserForm({ onSuccess, initialData = null, editMode = fal
       } else {
         response = await fetch('http://localhost:3001/api/users', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
           body: JSON.stringify({
             name: form.name,
             email: form.email,
@@ -110,7 +121,7 @@ export default function UserForm({ onSuccess, initialData = null, editMode = fal
           email: '',
           password: '',
           confirmPassword: '',
-          userType: 'admin'
+          userType: 'client'
         });
       }
       if (onSuccess) onSuccess(result);
@@ -134,7 +145,7 @@ export default function UserForm({ onSuccess, initialData = null, editMode = fal
         email: '',
         password: '',
         confirmPassword: '',
-        userType: 'admin'
+        userType: 'client'
       });
     }
     setErrors({});
@@ -214,12 +225,18 @@ export default function UserForm({ onSuccess, initialData = null, editMode = fal
             id="userType"
             name="userType"
             value={form.userType}
-            disabled
-            className="disabled"
+            onChange={handleChange}
+            className={errors.userType ? 'error' : ''}
           >
+            <option value="client">Client</option>
+            <option value="designer">Designer</option>
             <option value="admin">Administrator</option>
           </select>
-          <div className="helper-text">This user will have full administrative privileges</div>
+          <div className="helper-text">
+            {form.userType === 'client' && "This user can create projects and view designs"}
+            {form.userType === 'designer' && "This user can create and modify 3D designs"}
+            {form.userType === 'admin' && "This user will have full administrative privileges"}
+          </div>
         </div>
         <div className="form-actions">
           <button

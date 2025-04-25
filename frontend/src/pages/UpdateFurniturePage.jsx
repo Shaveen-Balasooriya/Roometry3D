@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import UpdateFurnitureContent from './UpdateFurnitureContent';
 import Loading from '../components/Loading';
 import Popup from '../components/Popup';
+import { auth } from '../services/firebase';
 
 export default function UpdateFurniturePage() {
   const { id } = useParams();
@@ -15,8 +16,21 @@ export default function UpdateFurniturePage() {
     const fetchFurnitureDetails = async () => {
       setLoading(true);
       try {
+        // Get the current user's auth token
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('You must be logged in to access this page');
+        }
+        
+        const idToken = await user.getIdToken();
+        
         // Fetch the full details including the original objFileUrl needed for the preview
-        const response = await fetch(`http://localhost:3001/api/furniture/${id}/details`); // Assuming a new endpoint for full details
+        const response = await fetch(`http://localhost:3001/api/furniture/${id}/details`, {
+          headers: {
+            'Authorization': `Bearer ${idToken}`
+          }
+        });
+        
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.message || 'Failed to fetch furniture details');
