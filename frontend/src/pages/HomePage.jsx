@@ -4,11 +4,11 @@ import MetricCard from './components/MetricCard';
 import './HomePage.css';
 import { auth } from '../services/firebase'; // Adjust the path as needed
 
-// Simple icon components without external dependencies
-const IconFurniture = () => <div className="icon-placeholder">F</div>;
-const IconUsers = () => <div className="icon-placeholder">U</div>;
-const IconProjects = () => <div className="icon-placeholder">P</div>;
-const IconOrders = () => <div className="icon-placeholder">O</div>;
+// Enhanced icon components with better accessibility
+const IconFurniture = () => <div className="icon-placeholder" aria-hidden="true">F</div>;
+const IconUsers = () => <div className="icon-placeholder" aria-hidden="true">U</div>;
+const IconProjects = () => <div className="icon-placeholder" aria-hidden="true">P</div>;
+const IconOrders = () => <div className="icon-placeholder" aria-hidden="true">O</div>;
 
 export default function HomePage() {
   // State for metrics - will be populated from backend
@@ -16,7 +16,7 @@ export default function HomePage() {
     projectsToday: 0,
     totalDesigners: 0,
     totalProjects: 0,
-    checkedOutProjects: 0 // You may need to create an API for this as well
+    checkedOutProjects: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -75,59 +75,63 @@ export default function HomePage() {
 
   // Navigation links
   const navLinks = [
-    { title: "Add Furniture", path: "/add-furniture", icon: <IconFurniture /> },
-    { title: "Furniture Dashboard", path: "/furniture-dashboard", icon: <IconFurniture /> },
-    { title: "Add User", path: "/add-user", icon: <IconUsers /> },
-    { title: "Users Dashboard", path: "/users-dashboard", icon: <IconUsers /> }
+    { title: "Add Furniture", path: "/add-furniture", icon: <IconFurniture />, ariaLabel: "Navigate to Add Furniture page" },
+    { title: "Furniture Dashboard", path: "/furniture-dashboard", icon: <IconFurniture />, ariaLabel: "Navigate to Furniture Dashboard page" },
+    { title: "Add User", path: "/add-user", icon: <IconUsers />, ariaLabel: "Navigate to Add User page" },
+    { title: "Users Dashboard", path: "/users-dashboard", icon: <IconUsers />, ariaLabel: "Navigate to Users Dashboard page" }
   ];
 
   return (
-    <div className="home-content">
-      <div className="welcome-section">
+    <main className="home-content">
+      <section className="welcome-section">
         <h2>Welcome to Roometry 3D Admin</h2>
-        <p>Use the navigation bar to add furniture or manage your content.</p>
-      </div>
+      </section>
       
       {/* Dashboard Stats Section */}
       <h3 className="section-title">Dashboard Overview</h3>
-      {error && <div className="error-message">Error loading metrics: {error}</div>}
+      {error && <div className="error-message" role="alert">Error loading metrics: {error}</div>}
       
       <div className="metrics-container">
         <MetricCard 
           title="Projects Added Today" 
-          amount={loading ? '...' : metrics.projectsToday} 
+          amount={loading ? 'Loading...' : metrics.projectsToday} 
           icon={<IconProjects />} 
         />
         <MetricCard 
           title="Designers" 
-          amount={loading ? '...' : metrics.totalDesigners} 
+          amount={loading ? 'Loading...' : metrics.totalDesigners} 
           icon={<IconUsers />} 
         />
         <MetricCard 
           title="Total Projects" 
-          amount={loading ? '...' : metrics.totalProjects} 
+          amount={loading ? 'Loading...' : metrics.totalProjects} 
           icon={<IconProjects />} 
         />
         <MetricCard 
           title="Checked Out Projects" 
-          amount={loading ? '...' : metrics.checkedOutProjects} 
+          amount={loading ? 'Loading...' : metrics.checkedOutProjects} 
           icon={<IconOrders />} 
         />
       </div>
       
       {/* Clear section separator */}
-      <div className="section-separator"></div>
+      <div className="section-separator" role="separator"></div>
       
       {/* Quick Navigation Section */}
       <h3 className="section-title">Quick Navigation</h3>
-      <div className="quick-nav-links">
+      <nav className="quick-nav-links">
         {navLinks.map((link, index) => (
-          <Link to={link.path} key={index} className="quick-nav-link">
+          <Link 
+            to={link.path} 
+            key={index} 
+            className="quick-nav-link"
+            aria-label={link.ariaLabel}
+          >
             <div className="quick-nav-icon">{link.icon}</div>
             <span>{link.title}</span>
           </Link>
         ))}
-      </div>
-    </div>
+      </nav>
+    </main>
   );
 }
