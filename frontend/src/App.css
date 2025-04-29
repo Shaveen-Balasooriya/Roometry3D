@@ -188,7 +188,7 @@ header .subtitle {
   gap: 2.5rem;
   justify-content: center;
   align-items: flex-start;
-  padding: 88px 2.5rem 2.5rem 2.5rem; /* Increase left/right padding for balance */
+  padding: 2.5rem 2.5rem 2.5rem; /* Increase left/right padding for balance */
   width: 100vw;
   min-height: 0;
   height: auto;
@@ -259,6 +259,14 @@ header .subtitle {
   background: var(--primary);
 }
 
+.warning-text {
+  color: #856404;
+  background-color: #fff3cd;
+  padding: 5px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
 .preview-section {
   background: var(--surface);
   border-radius: var(--radius);
@@ -279,6 +287,47 @@ header .subtitle {
 
 .preview-section canvas {
   background: var(--primary-dark) !important;
+}
+
+/* Page Header */
+.page-header {
+  display: flex;
+  justify-content: space-between; /* Align header title to the left and button to the right */
+  align-items: center;
+  margin-bottom: 20px;
+  margin-top: 0px;
+}
+
+.page-header h1 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin: 0;
+  text-align: left; /* Align the header text to the left */
+}
+
+/* Content Section (Form and Preview Side by Side) */
+.content-section {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.form-section,
+.preview-section {
+  flex: 1; /* Allow both sections to take equal space */
+  max-width: 50%; /* Limit each section to half the width */
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .content-section {
+    flex-direction: column; /* Stack form and preview vertically on smaller screens */
+  }
+
+  .form-section,
+  .preview-section {
+    max-width: 100%; /* Allow full width for each section */
+  }
 }
 
 /* Form Styles */
@@ -390,6 +439,11 @@ header .subtitle {
   box-sizing: border-box;
 }
 
+.file-input-wrapper .file-input-display{
+  border: 3px dotted var(--border);
+  height: 200px;
+}
+
 .furniture-form input.disabled,
 .furniture-form textarea.disabled,
 .furniture-form select.disabled {
@@ -466,20 +520,31 @@ header .subtitle {
 
 /* Checkbox */
 .form-group.checkbox input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  appearance: none; /* Remove default checkbox styling */
+  background-color: var(--surface-lighter);
+  width: 5px;
+  height: 5px;
   margin-right: 0.75rem;
-  accent-color: var(--accent);
-  background: var(--surface-lighter);
-  border: 1.5px solid var(--primary-dark);
-  border-radius: 4px;
-  /* Remove default shadow */
-  box-shadow: none;
+  border: 1.5px solid var(--primary-dark); /* Add a border */
+  border-radius: 4px; /* Optional: Add rounded corners */
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
 }
 
-.form-group.checkbox input[type="checkbox"]:focus {
-  outline: 2px solid var(--primary-light);
-  outline-offset: 2px;
+.form-group.checkbox input[type="checkbox"]:checked {
+  background-color: var(--primary-dark); /* Change background color when checked */
+  border-color: var(--primary-dark); /* Change border color when checked */
+}
+
+.form-group.checkbox input[type="checkbox"]:checked::after {
+  content: '✔'; /* Add a tick mark */
+  color: white; /* Tick color */
+  font-size: 14px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .form-group.checkbox label {
@@ -511,8 +576,9 @@ header .subtitle {
 .file-input-display {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  text-align: left;
+  align-content: center;
+  justify-content: center;
+  text-align: center;
   background: var(--surface-lighter);
   color: var(--text);
 }
