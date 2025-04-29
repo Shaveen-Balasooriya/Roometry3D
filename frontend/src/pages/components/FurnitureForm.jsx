@@ -317,7 +317,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
       <div className="form-scroll-inner">
         <form className="furniture-form" onSubmit={handleSubmit} autoComplete="off">
           {isSubmitting && <Loading overlay />}
-          <h2>{isUpdateMode ? 'Update Furniture' : 'Add New Furniture'}</h2>
+
 
           <div className="form-section-title">Basic Information</div>
           <div className="form-group">
@@ -368,7 +368,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
           <div className="form-section-title">Inventory Details</div>
           <div className="form-row">
             <div className="form-group half">
-              <label htmlFor="furniturePrice">Price (€)</label>
+              <label htmlFor="furniturePrice">Price ($)</label>
               <input
                 id="furniturePrice"
                 name="price"
@@ -401,7 +401,8 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
             </div>
           </div>
 
-          <div className="form-section-title">Dimensions (m)</div>
+          <div className="form-section-title">Dimensions</div>
+          <p className="warning-text">All of the dimensions you will be entering below will be in meters.</p>
           <div className="form-row">
             <div className="form-group third">
               <label htmlFor="furnitureHeight">Height</label>
