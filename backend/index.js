@@ -566,6 +566,63 @@ app.delete('/api/furniture/:id', async (req, res) => {
   }
 });
 
+app.put('/api/furniture/:id/textures', upload.array('textures', 10), async (req, res) => {
+  const { id } = req.params;
+  console.log(`Received PUT request to add textures for furniture ID: ${id}`);
+
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'No texture files provided' });
+    }
+
+    const docRef = db.collection('furniture').doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Furniture item not found' });
+    }
+
+    const existingData = doc.data();
+    const existingTextures = existingData.textureUrls || [];
+
+    // Upload new textures
+    const newTextureUrls = [];
+    for (const texture of req.files) {
+      const textureName = `furniture/textures/${uuidv4()}_${texture.originalname}`;
+      const textureUpload = bucket.file(textureName);
+      await textureUpload.save(texture.buffer, { contentType: texture.mimetype });
+      const [signedUrl] = await textureUpload.getSignedUrl({ 
+        action: 'read', 
+        expires: '03-01-2030' 
+      });
+      newTextureUrls.push(signedUrl);
+      console.log(`New texture uploaded: ${signedUrl}`);
+    }
+
+    // Combine existing and new textures
+    const updatedTextures = [...existingTextures, ...newTextureUrls];
+    
+    // Update Firestore
+    await docRef.update({
+      textureUrls: updatedTextures,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    res.status(200).json({ 
+      success: true,
+      newTextureUrls,
+      textureUrls: updatedTextures
+    });
+
+  } catch (err) {
+    console.error(`Error adding textures to furniture item ${id}:`, err);
+    res.status(500).json({ 
+      message: 'Failed to add textures', 
+      details: err.message 
+    });
+  }
+});
+
 // app.get('/api/furniture', async (req, res) => {
 //   try {
 //     const furnitureCol = db.collection('furniture');

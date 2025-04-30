@@ -1,0 +1,37 @@
+.texture-controls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .add-texture-button {
+    background: white;
+    color: #006A71;
+    border: 1px solid #006A71;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  
+  .add-texture-button:hover {
+    background: #006A71;
+  color: white;
+  }
+  
+  .add-texture-button span {
+    font-size: 18px;
+    line-height: 1;
+  }
+  
+  .texture-switcher {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }

@@ -13,6 +13,7 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
     dimensions: {},
     initialObjUrl: null, // For fetching initial model
     initialTextureUrls: [], // For showing initial textures
+    furnitureId: null, // Pass the furniture ID for texture uploads
   });
 
   // Initialize form and preview state when initialData is loaded
@@ -35,6 +36,7 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
         },
         initialObjUrl: `http://localhost:3001/api/furniture/${initialData.id}/model`, // Pass the endpoint
         initialTextureUrls: initialData.textureUrls || [],
+        furnitureId: initialData.id, // Pass the furniture ID
       });
     }
   }, [initialData]);
@@ -55,7 +57,6 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
       },
       // Keep initial URLs unless new files are added
       initialObjUrl: updatedForm.objFile ? null : prev.initialObjUrl,
-      initialTextureUrls: updatedForm.textures?.length > 0 ? [] : prev.initialTextureUrls,
     }));
   }, []);
 
@@ -75,6 +76,7 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
           dimensions={previewData.dimensions}
           initialObjUrl={previewData.initialObjUrl}
           initialTextureUrls={previewData.initialTextureUrls}
+          furnitureId={previewData.furnitureId}
         />
       </section>
     </>
