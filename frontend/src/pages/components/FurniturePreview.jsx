@@ -1,11 +1,12 @@
-import React, { useRef, useEffect, useState, useMemo, Suspense, useCallback } from 'react'; // Added useCallback
+import React, { useRef, useEffect, useState, useMemo, Suspense, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, Bounds } from '@react-three/drei';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import * as THREE from 'three';
-import Loading from '../../components/Loading'; // Import Loading
-import ErrorBoundary from '../../components/ErrorBoundary'; // Import ErrorBoundary
-import { auth } from '../../services/firebase'; // Import auth
+import Loading from '../../components/Loading';
+import ErrorBoundary from '../../components/ErrorBoundary';
+import { auth } from '../../services/firebase';
+import './FurniturePreview.css';
 
 // ModelLoader component
 const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimensions }) {
@@ -44,7 +45,6 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
         const scaleX = targetWidth / originalWidth;
         const scaleY = targetHeight / originalHeight;
         const scaleZ = targetLength / originalLength;
-
 
         const scaledBox = new THREE.Box3().setFromObject(parsedObj);
         const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
@@ -117,8 +117,6 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
 
     loadObjFromBlob();
 
-    loadObjFromBlob();
-
     // Cleanup function
     return () => {
       cancelled = true;
@@ -134,15 +132,19 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
 });
 
 // FurniturePreview component
-export default function FurniturePreview({ objFile, textures, dimensions, initialObjUrl = null, initialTextureUrls = [] }) {
+export default function FurniturePreview({ objFile, textures, dimensions, initialObjUrl = null, initialTextureUrls = [], furnitureId }) {
   const [selectedTextureIndex, setSelectedTextureIndex] = useState(0);
   const [localTextureUrls, setLocalTextureUrls] = useState([]);
   const [initialObjBlob, setInitialObjBlob] = useState(null);
   const [isLoadingInitialObj, setIsLoadingInitialObj] = useState(false);
+  const [isUploadingTextures, setIsUploadingTextures] = useState(false);
+  const [combinedTextureUrls, setCombinedTextureUrls] = useState([]);
   const prevLocalUrlsRef = useRef([]);
   const canvasRef = useRef();
   const [isContextLost, setIsContextLost] = useState(false);
   const [forceUpdateKey, setForceUpdateKey] = useState(0);
+  const fileInputRef = useRef(null);
+  const isUpdateMode = initialObjUrl || initialTextureUrls.length > 0;
 
   // Effect to create/revoke URLs for user-uploaded textures
   useEffect(() => {
@@ -158,7 +160,6 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
       prevLocalUrlsRef.current = [];
       setLocalTextureUrls([]);
-      setSelectedTextureIndex(0);
     }
 
     return () => {
@@ -166,6 +167,23 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       prevLocalUrlsRef.current = [];
     };
   }, [textures]); // Rerun only when user-provided textures change
+
+  // Effect to combine and manage all texture URLs 
+  useEffect(() => {
+    // If we have new local textures to add or replace, use them
+    if (localTextureUrls.length > 0) {
+      setCombinedTextureUrls([...localTextureUrls]);
+      if (localTextureUrls.length > 0 && selectedTextureIndex >= localTextureUrls.length) {
+        setSelectedTextureIndex(0);
+      }
+    } else {
+      // Otherwise use the initial textures
+      setCombinedTextureUrls([...initialTextureUrls]);
+      if (initialTextureUrls.length > 0 && selectedTextureIndex >= initialTextureUrls.length) {
+        setSelectedTextureIndex(0);
+      }
+    }
+  }, [localTextureUrls, initialTextureUrls, selectedTextureIndex]);
 
   useEffect(() => {
     let isActive = true;
@@ -215,11 +233,10 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
   }, [initialObjUrl, objFile]);
 
   const displayObjBlob = objFile instanceof Blob ? objFile : initialObjBlob;
-  const displayTextureUrls = localTextureUrls.length > 0 ? localTextureUrls : initialTextureUrls;
 
   const currentTextureUrl = useMemo(() => {
-    return displayTextureUrls[selectedTextureIndex] || null;
-  }, [displayTextureUrls, selectedTextureIndex]);
+    return combinedTextureUrls[selectedTextureIndex] || null;
+  }, [combinedTextureUrls, selectedTextureIndex]);
 
   const numericDimensions = useMemo(() => ({
     width: Number(dimensions?.width) || 1,
@@ -254,6 +271,86 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       canvasElement.removeEventListener('webglcontextrestored', handleContextRestored);
     };
   }, []);
+
+  // Handle the file input change for adding new textures
+  const handleAddTextures = useCallback(async (e) => {
+    const files = Array.from(e.target.files).filter(file => file.type.startsWith('image/'));
+    
+    if (files.length === 0 || !furnitureId) return;
+    
+    setIsUploadingTextures(true);
+    
+    try {
+      // Get current user's auth token
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('You must be logged in to add textures');
+      }
+      
+      const idToken = await user.getIdToken();
+      
+      // Create form data for the upload
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('textures', file);
+      });
+      
+      // Send the textures to the server
+      const response = await fetch(`http://localhost:3001/api/furniture/${furnitureId}/textures`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to upload textures');
+      }
+      
+      const result = await response.json();
+      
+      // Clean up any existing local texture URLs
+      prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      prevLocalUrlsRef.current = [];
+      setLocalTextureUrls([]);
+      
+      // Store and update the texture URLs from the server
+      if (result.textureUrls && Array.isArray(result.textureUrls)) {
+        console.log("Texture upload successful, refreshing page to display new textures");
+        
+        // For complete page refresh:
+        // Option 1: Use window.location.reload() for full page refresh
+        window.location.reload();
+        
+        // Note: The code below won't execute due to page reload above
+        // But keeping it as fallback in case reload is prevented
+        setCombinedTextureUrls(result.textureUrls);
+        
+        // Select the first of the newly added textures if available
+        if (result.newTextureUrls && result.newTextureUrls.length > 0) {
+          const firstNewTextureUrl = result.newTextureUrls[0];
+          const newIndex = result.textureUrls.findIndex(url => url === firstNewTextureUrl);
+          setSelectedTextureIndex(newIndex >= 0 ? newIndex : 0);
+        }
+        
+        // Force 3D scene refresh
+        setForceUpdateKey(prev => prev + 1);
+      }
+      
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
+    } catch (error) {
+      console.error('Error uploading textures:', error);
+      alert('Failed to upload textures: ' + error.message);
+    } finally {
+      setIsUploadingTextures(false);
+    }
+  }, [furnitureId]);
 
   return (
     <div className="furniture-preview" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
@@ -334,22 +431,57 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
             <span>{initialObjUrl ? 'Could not load initial model' : 'Upload a 3D model to see preview'}</span>
           </div>
         )}
-      </div>
-      {canPreview && !isContextLost && displayTextureUrls.length > 1 && (
-        <div className="texture-controls">
-          <h3>Available Textures</h3>
-          <div className="texture-switcher">
-            {displayTextureUrls.map((url, index) => (
-              <button
-                key={index}
-                className={index === selectedTextureIndex ? 'selected' : ''}
-                onClick={() => setSelectedTextureIndex(index)}
-                title={`Texture ${index + 1}`}
-              >
-                <img src={url} alt={`Texture ${index + 1}`} />
-              </button>
-            ))}
+
+        {/* Hidden file input for adding textures */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ display: 'none' }}
+          onChange={handleAddTextures}
+        />
+        
+        {isUploadingTextures && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}>
+            <div style={{ background: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+              <Loading size={30} />
+              <p style={{ marginTop: '10px' }}>Uploading textures...</p>
+            </div>
           </div>
+        )}
+      </div>
+      {canPreview && !isContextLost && (
+        <div className="texture-controls">
+          <div className="texture-controls-header">
+            <h3>Available Textures{combinedTextureUrls.length > 0 ? ` (${combinedTextureUrls.length})` : ''}</h3>
+            {isUpdateMode && furnitureId && (
+              <button 
+                className="add-texture-button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingTextures}
+                title="Add new texture"
+              >
+                <span>+</span> Add Texture
+              </button>
+            )}
+          </div>
+          {combinedTextureUrls.length > 0 ? (
+            <div className="texture-switcher">
+              {combinedTextureUrls.map((url, index) => (
+                <button
+                  key={`texture-${url}-${index}`} // Added index to ensure unique keys
+                  className={index === selectedTextureIndex ? 'selected' : ''}
+                  onClick={() => setSelectedTextureIndex(index)}
+                  title={`Texture ${index + 1}`}
+                >
+                  <img src={url} alt={`Texture ${index + 1}`} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="no-textures-message">No textures available</p>
+          )}
         </div>
       )}
     </div>
