@@ -132,12 +132,13 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
 });
 
 // FurniturePreview component
-export default function FurniturePreview({ objFile, textures, dimensions, initialObjUrl = null, initialTextureUrls = [], furnitureId }) {
+export default function FurniturePreview({ objFile, textures, dimensions, initialObjUrl = null, initialTextureUrls = [], furnitureId, isEditMode = false }) {
   const [selectedTextureIndex, setSelectedTextureIndex] = useState(0);
   const [localTextureUrls, setLocalTextureUrls] = useState([]);
   const [initialObjBlob, setInitialObjBlob] = useState(null);
   const [isLoadingInitialObj, setIsLoadingInitialObj] = useState(false);
   const [isUploadingTextures, setIsUploadingTextures] = useState(false);
+  const [isDeletingTexture, setIsDeletingTexture] = useState(false);
   const [combinedTextureUrls, setCombinedTextureUrls] = useState([]);
   const prevLocalUrlsRef = useRef([]);
   const canvasRef = useRef();
@@ -352,6 +353,76 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
     }
   }, [furnitureId]);
 
+  // Handle deleting the selected texture
+  const handleDeleteTexture = useCallback(async () => {
+    if (combinedTextureUrls.length <= 1) {
+      alert("Cannot delete the last texture. At least one texture is required.");
+      return;
+    }
+    
+    if (!furnitureId || selectedTextureIndex < 0 || selectedTextureIndex >= combinedTextureUrls.length) {
+      return;
+    }
+    
+    // Get the URL of the texture to delete
+    const textureToDelete = combinedTextureUrls[selectedTextureIndex];
+    
+    setIsDeletingTexture(true);
+    
+    try {
+      // Get current user's auth token
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('You must be logged in to delete textures');
+      }
+      
+      const idToken = await user.getIdToken();
+      
+      // Send the delete request to the server
+      const response = await fetch(`http://localhost:3001/api/furniture/${furnitureId}/textures/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          textureUrl: textureToDelete
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete texture');
+      }
+      
+      const result = await response.json();
+      
+      // Update the texture URLs
+      if (result.success) {
+        console.log("Texture deleted successfully, refreshing page");
+        
+        // For complete page refresh
+        window.location.reload();
+        
+        // Note: The code below won't execute due to page reload above
+        // But keeping it as fallback in case reload is prevented
+        const updatedTextures = combinedTextureUrls.filter((_, index) => index !== selectedTextureIndex);
+        setCombinedTextureUrls(updatedTextures);
+        
+        // Update selected index if needed
+        if (selectedTextureIndex >= updatedTextures.length) {
+          setSelectedTextureIndex(Math.max(0, updatedTextures.length - 1));
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error deleting texture:', error);
+      alert('Failed to delete texture: ' + error.message);
+    } finally {
+      setIsDeletingTexture(false);
+    }
+  }, [furnitureId, combinedTextureUrls, selectedTextureIndex]);
+
   return (
     <div className="furniture-preview" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
       <h2 style={{ marginLeft: 0, marginRight: 0, textAlign: 'left' }}>3D Preview</h2>
@@ -450,20 +521,41 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
             </div>
           </div>
         )}
+        
+        {isDeletingTexture && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}>
+            <div style={{ background: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+              <Loading size={30} />
+              <p style={{ marginTop: '10px' }}>Deleting texture...</p>
+            </div>
+          </div>
+        )}
       </div>
       {canPreview && !isContextLost && (
         <div className="texture-controls">
           <div className="texture-controls-header">
             <h3>Available Textures{combinedTextureUrls.length > 0 ? ` (${combinedTextureUrls.length})` : ''}</h3>
             {isUpdateMode && furnitureId && (
-              <button 
-                className="add-texture-button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploadingTextures}
-                title="Add new texture"
-              >
-                <span>+</span> Add Texture
-              </button>
+              <div className="texture-control-buttons">
+                <button 
+                  className="add-texture-button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingTextures || isDeletingTexture}
+                  title="Add new texture"
+                >
+                  <span>+</span> Add Texture
+                </button>
+                {isUpdateMode && combinedTextureUrls.length > 0 && (
+                  <button 
+                    className="delete-texture-button"
+                    onClick={handleDeleteTexture}
+                    disabled={isUploadingTextures || isDeletingTexture}
+                    title="Delete selected texture"
+                  >
+                    <span>-</span> Delete Texture
+                  </button>
+                )}
+              </div>
             )}
           </div>
           {combinedTextureUrls.length > 0 ? (
