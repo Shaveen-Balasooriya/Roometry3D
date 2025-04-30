@@ -162,62 +162,68 @@ export default function UserForm({ onSuccess, initialData = null, editMode = fal
       />
       <form className="furniture-form" onSubmit={handleSubmit}>
         {isSubmitting && <Loading overlay />}
-        <h2>{editMode ? 'Edit User' : 'Create Admin User'}</h2>
+
         <div className="form-section-title">User Information</div>
-        <div className="form-group">
-          <label htmlFor="name">Full Name</label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            value={form.name}
-            onChange={handleChange}
-            className={errors.name ? 'error' : ''}
-            placeholder="Enter full name"
-          />
-          {errors.name && <div className="error-message">{errors.name}</div>}
+        <div className="form-row">
+          <div className="form-group half">
+            <label htmlFor="name">Full Name</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              value={form.name}
+              onChange={handleChange}
+              className={errors.name ? 'error' : ''}
+              placeholder="Enter full name"
+            />
+            {errors.name && <div className="error-message">{errors.name}</div>}
+          </div>
+          <div className="form-group half">
+            <label htmlFor="email">Email Address</label>
+            <input
+              id="email"
+              name="email"
+              type="text"
+              value={form.email}
+              onChange={handleChange}
+              className={errors.email ? 'error' : ''}
+              placeholder="Enter email address"
+              disabled={editMode}
+            />
+            {errors.email && <div className="error-message">{errors.email}</div>}
+          </div>
         </div>
-        <div className="form-group">
-          <label htmlFor="email">Email Address</label>
-          <input
-            id="email"
-            name="email"
-            type="text"
-            value={form.email}
-            onChange={handleChange}
-            className={errors.email ? 'error' : ''}
-            placeholder="Enter email address"
-            disabled={editMode}
-          />
-          {errors.email && <div className="error-message">{errors.email}</div>}
-        </div>
+
         <div className="form-section-title">Security</div>
-        <div className="form-group">
-          <label htmlFor="password">{editMode ? 'New Password (leave blank to keep unchanged)' : 'Password'}</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            value={form.password}
-            onChange={handleChange}
-            className={errors.password ? 'error' : ''}
-            placeholder={editMode ? 'Enter new password (optional)' : 'Minimum 6 characters'}
-          />
-          {errors.password && <div className="error-message">{errors.password}</div>}
+        <div className="form-row">
+          <div className="form-group half">
+            <label htmlFor="password">{editMode ? 'New Password (leave blank to keep unchanged)' : 'Password'}</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              value={form.password}
+              onChange={handleChange}
+              className={errors.password ? 'error' : ''}
+              placeholder={editMode ? 'Enter new password (optional)' : 'Minimum 6 characters'}
+            />
+            {errors.password && <div className="error-message">{errors.password}</div>}
+          </div>
+          <div className="form-group half">
+            <label htmlFor="confirmPassword">Confirm Password</label>
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              className={errors.confirmPassword ? 'error' : ''}
+              placeholder={editMode ? 'Re-enter new password' : 'Re-enter password'}
+            />
+            {errors.confirmPassword && <div className="error-message">{errors.confirmPassword}</div>}
+          </div>
         </div>
-        <div className="form-group">
-          <label htmlFor="confirmPassword">Confirm Password</label>
-          <input
-            id="confirmPassword"
-            name="confirmPassword"
-            type="password"
-            value={form.confirmPassword}
-            onChange={handleChange}
-            className={errors.confirmPassword ? 'error' : ''}
-            placeholder={editMode ? 'Re-enter new password' : 'Re-enter password'}
-          />
-          {errors.confirmPassword && <div className="error-message">{errors.confirmPassword}</div>}
-        </div>
+
         <div className="form-section-title">Access Level</div>
         <div className="form-group">
           <label htmlFor="userType">User Role</label>
@@ -238,6 +244,7 @@ export default function UserForm({ onSuccess, initialData = null, editMode = fal
             {form.userType === 'admin' && "This user will have full administrative privileges"}
           </div>
         </div>
+
         <div className="form-actions">
           <button
             type="button"
