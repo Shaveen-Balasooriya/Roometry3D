@@ -623,6 +623,78 @@ app.put('/api/furniture/:id/textures', upload.array('textures', 10), async (req,
   }
 });
 
+app.delete('/api/furniture/:id/textures/delete', async (req, res) => {
+  const { id } = req.params;
+  const { textureUrl } = req.body;
+  
+  console.log(`Received DELETE request for texture on furniture ID: ${id}`);
+  
+  if (!textureUrl) {
+    return res.status(400).json({ message: 'No texture URL provided' });
+  }
+  
+  try {
+    // Get the furniture document
+    const docRef = db.collection('furniture').doc(id);
+    const doc = await docRef.get();
+    
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Furniture item not found' });
+    }
+    
+    const furnitureData = doc.data();
+    const existingTextures = furnitureData.textureUrls || [];
+    
+    // Check if the URL exists in the textures array
+    if (!existingTextures.includes(textureUrl)) {
+      return res.status(404).json({ message: 'Texture not found on this furniture item' });
+    }
+    
+    // Check that we won't delete the last texture
+    if (existingTextures.length <= 1) {
+      return res.status(400).json({ message: 'Cannot delete the last texture. At least one texture is required.' });
+    }
+    
+    // Extract the filename from the URL to delete from storage
+    // The URL format from your example looks like:
+    // https://storage.googleapis.com/roometry-3d.firebasestorage.app/furniture/textures/{uuid}_{filename}
+    const textureFilePath = textureUrl.split('?')[0].split('/furniture/textures/')[1];
+    
+    if (textureFilePath) {
+      try {
+        // Delete the file from storage
+        const fileRef = bucket.file(`furniture/textures/${textureFilePath}`);
+        await fileRef.delete();
+        console.log(`Deleted texture file: ${textureFilePath}`);
+      } catch (err) {
+        console.warn(`Unable to delete texture file from storage: ${err.message}`);
+        // Continue even if file delete fails, as we still want to update the database
+      }
+    }
+    
+    // Update the document by removing the texture URL
+    const updatedTextures = existingTextures.filter(url => url !== textureUrl);
+    
+    await docRef.update({
+      textureUrls: updatedTextures,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    res.status(200).json({
+      success: true,
+      message: 'Texture deleted successfully',
+      textureUrls: updatedTextures
+    });
+    
+  } catch (err) {
+    console.error(`Error deleting texture from furniture item ${id}:`, err);
+    res.status(500).json({
+      message: 'Failed to delete texture',
+      details: err.message
+    });
+  }
+});
+
 // app.get('/api/furniture', async (req, res) => {
 //   try {
 //     const furnitureCol = db.collection('furniture');
