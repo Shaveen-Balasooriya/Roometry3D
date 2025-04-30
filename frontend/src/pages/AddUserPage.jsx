@@ -30,14 +30,14 @@ export default function AddUserPage() {
         <div
           style={{
             width: '100%',
-            maxWidth: 480,
+            maxWidth: '900px',
             background: 'var(--surface)',
             borderRadius: 'var(--radius)',
             boxShadow: 'var(--shadow)',
             border: '1px solid var(--border)',
             padding: '2.5rem 2.2rem 2rem 2.2rem',
             margin: '0 auto',
-            display: 'flex',
+            
             flexDirection: 'column',
             alignItems: 'center',
           }}
