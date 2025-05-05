@@ -156,7 +156,7 @@ export default function ViewProjectPage() {
 
       const idToken = await user.getIdToken();
 
-      const response = await fetch(`http://localhost:3001/api/projects/${id}`, {
+      const response = await fetch(`${API_URL}/api/projects/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${idToken}`

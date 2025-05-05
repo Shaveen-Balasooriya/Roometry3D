@@ -36,7 +36,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
   const [isTextureDragging, setIsTextureDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [popup, setPopup] = useState({ open: false, type: 'success', message: '' });
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     if (initialData) {
       const dataForState = {
@@ -244,7 +244,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
         }
 
         const isUpdate = !!initialData;
-        const url = isUpdate ? `http://localhost:3001/api/furniture/${initialData.id}` : 'http://localhost:3001/api/furniture';
+        const url = isUpdate ? `${API_URL}/api/furniture/${initialData.id}` : '${API_URL}/api/furniture';
         const method = isUpdate ? 'PUT' : 'POST';
 
         console.log(`Submitting ${method} request to ${url}`);

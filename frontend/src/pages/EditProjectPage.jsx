@@ -13,7 +13,7 @@ export default function EditProjectPage() {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     async function fetchProject() {
       try {
@@ -25,7 +25,7 @@ export default function EditProjectPage() {
         }
         
         const idToken = await user.getIdToken();
-        const response = await fetch(`http://localhost:3001/api/projects/${id}`, {
+        const response = await fetch(`${API_URL}/api/projects/${id}`, {
           headers: {
             'Authorization': `Bearer ${idToken}`
           }

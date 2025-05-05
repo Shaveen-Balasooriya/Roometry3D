@@ -11,7 +11,7 @@ export default function EditUserPage() {
   const [formData, setFormData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' });
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     async function fetchUser() {
       setLoading(true);
@@ -24,7 +24,7 @@ export default function EditUserPage() {
         
         const idToken = await user.getIdToken();
         
-        const response = await fetch(`http://localhost:3001/api/users/${id}`, {
+        const response = await fetch(`${API_URL}/api/users/${id}`, {
           headers: {
             'Authorization': `Bearer ${idToken}`
           }
