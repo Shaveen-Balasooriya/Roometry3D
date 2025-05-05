@@ -9,7 +9,7 @@ const IconFurniture = () => <div className="icon-placeholder" aria-hidden="true"
 const IconUsers = () => <div className="icon-placeholder" aria-hidden="true">U</div>;
 const IconProjects = () => <div className="icon-placeholder" aria-hidden="true">P</div>;
 const IconOrders = () => <div className="icon-placeholder" aria-hidden="true">O</div>;
-
+const API_URL = import.meta.env.VITE_BACKEND_URL;
 export default function HomePage() {
   // State for metrics - will be populated from backend
   const [metrics, setMetrics] = useState({
@@ -38,9 +38,9 @@ export default function HomePage() {
 
         // Fetch all metrics in parallel
         const [projectsTodayRes, designersRes, totalProjectsRes] = await Promise.all([
-          fetch('http://localhost:3001/api/count/todayProjects', { headers }),
-          fetch('http://localhost:3001/api/count/designers', { headers }),
-          fetch('http://localhost:3001/api/count/totalProjcts', { headers })
+          fetch(`${API_URL}/api/count/todayProjects`, { headers }),
+          fetch(`${API_URL}/api/count/designers`, { headers }),
+          fetch(`${API_URL}/api/count/totalProjcts`, { headers })
         ]);
 
         // Check for errors
