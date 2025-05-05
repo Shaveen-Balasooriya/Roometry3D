@@ -27,7 +27,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
-
+const API_URL = import.meta.env.VITE_BACKEND_URL;
 // Authentication functions
 export const loginUser = (email, password) => {
   return signInWithEmailAndPassword(auth, email, password);
@@ -102,7 +102,7 @@ export const getUserRole = async () => {
     // If we still don't have a role, try to get from token/backend
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch('http://localhost:3001/api/auth/verify', {
+      const response = await fetch('${API_URL}/api/auth/verify', {
         headers: {
           'Authorization': `Bearer ${idToken}`
         }
