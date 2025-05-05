@@ -152,12 +152,17 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
     const validTextures = textures?.filter(t => t instanceof Blob) || [];
     if (validTextures.length > 0) {
       const newUrls = validTextures.map(textureFile => URL.createObjectURL(textureFile));
-      setLocalTextureUrls(newUrls);
-      setSelectedTextureIndex(0);
-
+      
+      // Cleanup previous URLs before setting new ones
       prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      
+      setLocalTextureUrls(newUrls);
+      // Reset selected index safely when we have new textures
+      setSelectedTextureIndex(0);
+      
       prevLocalUrlsRef.current = newUrls;
-    } else {
+    } else if (prevLocalUrlsRef.current.length > 0 && validTextures.length === 0) {
+      // Only clean up if we previously had URLs but now don't
       prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
       prevLocalUrlsRef.current = [];
       setLocalTextureUrls([]);
@@ -165,26 +170,32 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
 
     return () => {
       prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-      prevLocalUrlsRef.current = [];
     };
   }, [textures]); // Rerun only when user-provided textures change
 
-  // Effect to combine and manage all texture URLs 
+  // Effect to combine local and initial texture URLs
+  // FIXED: Only run when dependencies actually change
   useEffect(() => {
-    // If we have new local textures to add or replace, use them
-    if (localTextureUrls.length > 0) {
-      setCombinedTextureUrls([...localTextureUrls]);
-      if (localTextureUrls.length > 0 && selectedTextureIndex >= localTextureUrls.length) {
-        setSelectedTextureIndex(0);
-      }
-    } else {
-      // Otherwise use the initial textures
-      setCombinedTextureUrls([...initialTextureUrls]);
-      if (initialTextureUrls.length > 0 && selectedTextureIndex >= initialTextureUrls.length) {
-        setSelectedTextureIndex(0);
-      }
+    // Use whichever textures are available
+    const texturesToUse = localTextureUrls.length > 0 
+      ? [...localTextureUrls] 
+      : [...initialTextureUrls];
+    
+    // Prevent infinite loop - only update if the combined URLs actually change
+    if (JSON.stringify(texturesToUse) !== JSON.stringify(combinedTextureUrls)) {
+      setCombinedTextureUrls(texturesToUse);
     }
-  }, [localTextureUrls, initialTextureUrls, selectedTextureIndex]);
+    
+    // Don't adjust selectedTextureIndex here - let the user control it
+  }, [localTextureUrls, initialTextureUrls]);
+
+  // Safety check for selectedTextureIndex - runs when combinedTextureUrls changes
+  useEffect(() => {
+    // If the selected index is out of bounds, reset it to a valid value
+    if (combinedTextureUrls.length > 0 && selectedTextureIndex >= combinedTextureUrls.length) {
+      setSelectedTextureIndex(0);
+    }
+  }, [combinedTextureUrls, selectedTextureIndex]);
 
   useEffect(() => {
     let isActive = true;
@@ -236,7 +247,9 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
   const displayObjBlob = objFile instanceof Blob ? objFile : initialObjBlob;
 
   const currentTextureUrl = useMemo(() => {
-    return combinedTextureUrls[selectedTextureIndex] || null;
+    return combinedTextureUrls.length > 0 ? 
+      combinedTextureUrls[selectedTextureIndex] || null : 
+      null;
   }, [combinedTextureUrls, selectedTextureIndex]);
 
   const numericDimensions = useMemo(() => ({
