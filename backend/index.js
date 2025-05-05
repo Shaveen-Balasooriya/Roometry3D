@@ -1322,7 +1322,15 @@ app.get('/api/count/designers', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Backend listening on port ${PORT}`);
-});
+if (process.env.NODE_ENV === 'development') {
+  // Running locally
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log("Backend listening on port ${PORT}");
+  });
+} else {
+  // Running on Firebase
+  exports.api = functions.https.onRequest(app);
+}
+
+
