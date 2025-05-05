@@ -51,18 +51,11 @@ export default function App() {
 
         {/* Protected routes - require any authenticated user */}
         <Route element={<AuthGuard allowedRoles={[]} />}>
-          <Route
-            path="/"
-            element={
-              <div className="app-container">
-                <Navbar />
-                <HomePage />
-                <Footer />
-              </div>
-            }
-          />
           <Route path="/profile" element={<ProfilePage />} />
-          
+        </Route>
+
+        {/* Routes accessible to designers and client */}
+        <Route element={<AuthGuard allowedRoles={["client", "designer"]} />}>
           {/* Project routes - accessible to all authenticated users */}
           <Route path="/my-projects" element={<MyProjectsPage />} />
           <Route path="/create-project" element={<CreateProjectPage />} />
@@ -111,6 +104,16 @@ export default function App() {
 
         {/* Routes accessible only to admin */}
         <Route element={<AuthGuard allowedRoles={["admin"]} />}>
+          <Route
+            path="/"
+            element={
+              <div className="app-container">
+                <Navbar />
+                <HomePage />
+                <Footer />
+              </div>
+            }
+          />
           <Route
             path="/add-user"
             element={
