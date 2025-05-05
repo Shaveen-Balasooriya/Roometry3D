@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser, registerUser, getCurrentUser } from '../services/firebase';
+import { loginUser, registerUser, getCurrentUser, getUserRole } from '../services/firebase';
 import Loading from '../components/Loading';
 import './LoginPage.css';
 
@@ -76,7 +76,22 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await loginUser(formData.email, formData.password);
-      navigate('/');
+      
+      // Get the user's role and redirect based on role
+      const user = await getCurrentUser();
+      if (user) {
+        const userRole = await getUserRole();
+        console.log("User role:", userRole);
+        
+        if (userRole === 'admin') {
+          navigate('/');
+        } else {
+          // For designers and clients, redirect to their projects
+          navigate('/my-projects');
+        }
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       console.error('Login error:', err);
       setError(err.message || 'Failed to sign in. Please check your credentials.');
@@ -150,7 +165,7 @@ export default function LoginPage() {
             <div className="form-group">
               <label htmlFor="email">Email</label>
               <div className="input-with-icon">
-                <span className="input-icon">📧</span>
+                
                 <input
                   type="email"
                   id="email"
@@ -166,7 +181,7 @@ export default function LoginPage() {
             <div className="form-group">
               <label htmlFor="password">Password</label>
               <div className="input-with-icon">
-                <span className="input-icon">🔒</span>
+                
                 <input
                   type="password"
                   id="password"
