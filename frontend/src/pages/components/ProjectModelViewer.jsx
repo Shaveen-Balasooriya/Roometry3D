@@ -26,7 +26,7 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl }) {
   const [object, setObject] = useState(null);
   const [error, setError] = useState(null);
   const loaderRef = useRef(new OBJLoader());
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     let currentMaterial = null;
     let cancelled = false;
@@ -249,7 +249,7 @@ export default function ProjectModelViewer({ projectId, texturePath = null, hasC
         const idToken = await user.getIdToken();
         
         // Fetch the model using our backend proxy instead of direct Firebase Storage URL
-        const proxyUrl = `http://localhost:3001/api/projects/${projectId}/model`;
+        const proxyUrl = `${API_URL}/api/projects/${projectId}/model`;
         
         const response = await fetch(proxyUrl, {
           method: 'GET',

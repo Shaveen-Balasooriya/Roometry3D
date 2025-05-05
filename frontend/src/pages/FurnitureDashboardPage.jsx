@@ -11,7 +11,7 @@ export default function FurnitureDashboardPage() {
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [loading, setLoading] = useState(true)
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' })
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     async function fetchFurniture() {
       setLoading(true)
@@ -26,8 +26,8 @@ export default function FurnitureDashboardPage() {
         
         // Use query parameter for filtering if not "All"
         const endpoint = selectedCategory !== 'All' 
-          ? `http://localhost:3001/api/furniture?category=${encodeURIComponent(selectedCategory)}`
-          : 'http://localhost:3001/api/furniture';
+          ? `${API_URL}/api/furniture?category=${encodeURIComponent(selectedCategory)}`
+          : `${API_URL}/api/furniture`;
         
         const response = await fetch(endpoint, {
           headers: {

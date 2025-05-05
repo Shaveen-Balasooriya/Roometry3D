@@ -22,7 +22,7 @@ export default function ViewProjectPage() {
   const [userRole, setUserRole] = useState(null);
   const [animateModel, setAnimateModel] = useState(true);
   const [notification, setNotification] = useState(null);
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     async function fetchProjectData() {
       try {
@@ -36,7 +36,7 @@ export default function ViewProjectPage() {
         const idToken = await user.getIdToken();
 
         // Fetch project details
-        const projectResponse = await fetch(`http://localhost:3001/api/projects/${id}`, {
+        const projectResponse = await fetch(`${API_URL}/api/projects/${id}`, {
           headers: {
             'Authorization': `Bearer ${idToken}`
           }
@@ -51,7 +51,7 @@ export default function ViewProjectPage() {
         setProject(projectData);
 
         // Fetch client details
-        const clientResponse = await fetch(`http://localhost:3001/api/users/${projectData.clientId}`, {
+        const clientResponse = await fetch(`${API_URL}/api/users/${projectData.clientId}`, {
           headers: {
             'Authorization': `Bearer ${idToken}`
           }
@@ -63,7 +63,7 @@ export default function ViewProjectPage() {
         }
 
         // Fetch designer details
-        const designerResponse = await fetch(`http://localhost:3001/api/users/${projectData.designerId}`, {
+        const designerResponse = await fetch(`${API_URL}/api/users/${projectData.designerId}`, {
           headers: {
             'Authorization': `Bearer ${idToken}`
           }

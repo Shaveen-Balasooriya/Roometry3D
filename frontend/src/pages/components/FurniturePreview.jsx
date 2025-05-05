@@ -7,7 +7,7 @@ import Loading from '../../components/Loading';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { auth } from '../../services/firebase';
 import './FurniturePreview.css';
-
+const API_URL = import.meta.env.VITE_BACKEND_URL;
 // ModelLoader component
 const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimensions }) {
   const [object, setObject] = useState(null);
@@ -310,7 +310,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       });
       
       // Send the textures to the server
-      const response = await fetch(`http://localhost:3001/api/furniture/${furnitureId}/textures`, {
+      const response = await fetch(`${API_URL}/api/furniture/${furnitureId}/textures`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${idToken}`
@@ -392,7 +392,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       const idToken = await user.getIdToken();
       
       // Send the delete request to the server
-      const response = await fetch(`http://localhost:3001/api/furniture/${furnitureId}/textures/delete`, {
+      const response = await fetch(`${API_URL}/api/furniture/${furnitureId}/textures/delete`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${idToken}`,

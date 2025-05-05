@@ -13,7 +13,7 @@ export default function MyProjectsPage() {
   const [error, setError] = useState(null);
   const [popup, setPopup] = useState({ open: false, type: '', message: '' });
   const [userRole, setUserRole] = useState(null);
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   // Fetch user projects on component mount
   useEffect(() => {
     async function fetchUserProjects() {
@@ -33,7 +33,7 @@ export default function MyProjectsPage() {
         // Get auth token for API request
         const idToken = await user.getIdToken();
         
-        const response = await fetch(`http://localhost:3001/api/users/${user.uid}/projects`, {
+        const response = await fetch(`${API_URL}/api/users/${user.uid}/projects`, {
           headers: {
             'Authorization': `Bearer ${idToken}`
           }
@@ -72,7 +72,7 @@ export default function MyProjectsPage() {
       const user = auth.currentUser;
       const idToken = await user.getIdToken();
       
-      const response = await fetch(`http://localhost:3001/api/projects/${projectId}`, {
+      const response = await fetch(`${API_URL}/api/projects/${projectId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${idToken}`
