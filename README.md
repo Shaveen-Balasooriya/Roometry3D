@@ -15,7 +15,7 @@
 </div>
 
 <p align="center">
-  <img src="https://via.placeholder.com/1200x600?text=Roometry3D+Visualization" alt="Roometry3D Visualization" width="100%" style="border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);"/>
+  <img src="frontend/public/assets/roometry3d-visualization.svg" alt="Roometry3D Visualization" width="100%" style="border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);"/>
 </p>
 
 ## 📋 Overview
