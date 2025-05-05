@@ -15,6 +15,7 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
     initialTextureUrls: [], // For showing initial textures
     furnitureId: null, // Pass the furniture ID for texture uploads
   });
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
 
   // Initialize form and preview state when initialData is loaded
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
           height: Number(initialData.height),
           length: Number(initialData.length),
         },
-        initialObjUrl: `http://localhost:3001/api/furniture/${initialData.id}/model`, // Pass the endpoint
+        initialObjUrl: `${API_URL}/api/furniture/${initialData.id}/model`, // Pass the endpoint
         initialTextureUrls: initialData.textureUrls || [],
         furnitureId: initialData.id, // Pass the furniture ID
       });
