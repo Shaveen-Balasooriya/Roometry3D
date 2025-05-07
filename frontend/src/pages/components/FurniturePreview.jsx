@@ -6,8 +6,10 @@ import * as THREE from 'three';
 import Loading from '../../components/Loading';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { auth } from '../../services/firebase';
+import { getUserRole } from '../../services/firebase'; // Added import for getUserRole
 import './FurniturePreview.css';
 const API_URL = import.meta.env.VITE_BACKEND_URL;
+
 // ModelLoader component
 const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimensions }) {
   const [object, setObject] = useState(null);
@@ -140,12 +142,27 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
   const [isUploadingTextures, setIsUploadingTextures] = useState(false);
   const [isDeletingTexture, setIsDeletingTexture] = useState(false);
   const [combinedTextureUrls, setCombinedTextureUrls] = useState([]);
+  const [userRole, setUserRole] = useState(null); // Added state for user role
   const prevLocalUrlsRef = useRef([]);
   const canvasRef = useRef();
   const [isContextLost, setIsContextLost] = useState(false);
   const [forceUpdateKey, setForceUpdateKey] = useState(0);
   const fileInputRef = useRef(null);
   const isUpdateMode = initialObjUrl || initialTextureUrls.length > 0;
+
+  // Effect to fetch user role
+  useEffect(() => {
+    async function fetchUserRole() {
+      try {
+        const role = await getUserRole();
+        setUserRole(role);
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+    }
+    
+    fetchUserRole();
+  }, []);
 
   // Effect to create/revoke URLs for user-uploaded textures
   useEffect(() => {
@@ -260,6 +277,9 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
 
   const showLoading = isLoadingInitialObj && !objFile;
   const canPreview = !!displayObjBlob;
+
+  // Check if user can manage textures (only non-designer users can)
+  const canManageTextures = userRole !== 'designer';
 
   useEffect(() => {
     const canvasElement = canvasRef.current;
@@ -548,7 +568,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
         <div className="texture-controls">
           <div className="texture-controls-header">
             <h3>Available Textures{combinedTextureUrls.length > 0 ? ` (${combinedTextureUrls.length})` : ''}</h3>
-            {isUpdateMode && furnitureId && (
+            {isUpdateMode && furnitureId && canManageTextures && (
               <div className="texture-control-buttons">
                 <button 
                   className="add-texture-button"
