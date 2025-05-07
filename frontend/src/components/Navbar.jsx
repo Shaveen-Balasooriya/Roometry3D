@@ -10,6 +10,7 @@ export default function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const mobileMenuRef = useRef(null);
@@ -33,6 +34,48 @@ export default function Navbar() {
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Load cart item count from localStorage
+  useEffect(() => {
+    const updateCartCount = () => {
+      try {
+        const cartJSON = localStorage.getItem('cart');
+        if (cartJSON) {
+          const parsedCart = JSON.parse(cartJSON);
+          if (Array.isArray(parsedCart)) {
+            setCartItemCount(parsedCart.length);
+          } else {
+            setCartItemCount(0);
+          }
+        } else {
+          setCartItemCount(0);
+        }
+      } catch (error) {
+        console.error('Error loading cart count:', error);
+        setCartItemCount(0);
+      }
+    };
+
+    // Initial load
+    updateCartCount();
+
+    // Set up a listener for storage events to update cart count when changed
+    const handleStorageChange = (e) => {
+      if (e.key === 'cart') {
+        updateCartCount();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also set up an interval to check for changes (for cross-tab sync)
+    const interval = setInterval(updateCartCount, 5000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
   }, []);
 
   // Handle scroll events for navbar styling
@@ -259,53 +302,81 @@ export default function Navbar() {
         </div>
 
         {user ? (
-          <div className="user-menu" ref={userDropdownRef}>
-            <button
-              className="user-info"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              aria-expanded={isDropdownOpen}
-              aria-label="User menu"
-            >
-              <div className="user-avatar">{getInitial()}</div>
-              <div className="user-name">{user.displayName || "User"}</div>
-              <div className={`dropdown-arrow ${isDropdownOpen ? "open" : ""}`}>
-                ▼
-              </div>
-            </button>
-
-            {isDropdownOpen && (
-              <div className="user-dropdown" role="menu">
-                <div className="dropdown-item user-role">
-                  {userRole && (
-                    <>
-                      <span style={{ marginRight: "8px" }}>
-                        {getRoleDisplay(userRole).icon}
-                      </span>
-                      {getRoleDisplay(userRole).text}
-                    </>
+          <div className="navbar-actions">
+            {/* Cart icon - visible to clients and designers */}
+            {userRole && (userRole === "client" || userRole === "designer") && (
+              <Link 
+                to="/cart" 
+                className="cart-icon-link"
+                aria-label="Shopping cart"
+                title="View cart"
+              >
+                <div className="cart-icon">
+                  🛒
+                  {cartItemCount > 0 && (
+                    <span className="cart-count">{cartItemCount}</span>
                   )}
                 </div>
-                <div className="dropdown-divider" role="separator"></div>
-                <Link to="/profile" className="dropdown-item" role="menuitem">
-                  My Profile
-                </Link>
-                <Link
-                  to="/my-projects"
-                  className="dropdown-item"
-                  role="menuitem"
-                >
-                  My Projects
-                </Link>
-                <div className="dropdown-divider" role="separator"></div>
-                <button
-                  className="dropdown-item logout"
-                  onClick={handleLogout}
-                  role="menuitem"
-                >
-                  Logout
-                </button>
-              </div>
+              </Link>
             )}
+            
+            <div className="user-menu" ref={userDropdownRef}>
+              <button
+                className="user-info"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                aria-expanded={isDropdownOpen}
+                aria-label="User menu"
+              >
+                <div className="user-avatar">{getInitial()}</div>
+                <div className="user-name">{user.displayName || "User"}</div>
+                <div className={`dropdown-arrow ${isDropdownOpen ? "open" : ""}`}>
+                  ▼
+                </div>
+              </button>
+
+              {isDropdownOpen && (
+                <div className="user-dropdown" role="menu">
+                  <div className="dropdown-item user-role">
+                    {userRole && (
+                      <>
+                        <span style={{ marginRight: "8px" }}>
+                          {getRoleDisplay(userRole).icon}
+                        </span>
+                        {getRoleDisplay(userRole).text}
+                      </>
+                    )}
+                  </div>
+                  <div className="dropdown-divider" role="separator"></div>
+                  <Link to="/profile" className="dropdown-item" role="menuitem">
+                    My Profile
+                  </Link>
+                  <Link
+                    to="/my-projects"
+                    className="dropdown-item"
+                    role="menuitem"
+                  >
+                    My Projects
+                  </Link>
+                  {userRole && (userRole === "client" || userRole === "designer") && (
+                    <Link
+                      to="/cart"
+                      className="dropdown-item"
+                      role="menuitem"
+                    >
+                      My Cart {cartItemCount > 0 && `(${cartItemCount})`}
+                    </Link>
+                  )}
+                  <div className="dropdown-divider" role="separator"></div>
+                  <button
+                    className="dropdown-item logout"
+                    onClick={handleLogout}
+                    role="menuitem"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <Link to="/login" className="login-button">
