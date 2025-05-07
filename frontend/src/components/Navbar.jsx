@@ -218,7 +218,21 @@ export default function Navbar() {
               >
                 Add Furniture
               </Link>
-              <Link
+              {/* <Link
+                to="/furniture-dashboard"
+                className={
+                  location.pathname === "/furniture-dashboard" ? "active" : ""
+                }
+              >
+                Manage Furniture
+              </Link> */}
+            </>
+          )}
+
+          {/* User Management Links - visible only to admins */}
+          {userRole === "admin" && (
+            <>
+                          <Link
                 to="/furniture-dashboard"
                 className={
                   location.pathname === "/furniture-dashboard" ? "active" : ""
@@ -226,12 +240,6 @@ export default function Navbar() {
               >
                 Manage Furniture
               </Link>
-            </>
-          )}
-
-          {/* User Management Links - visible only to admins */}
-          {userRole === "admin" && (
-            <>
               <Link
                 to="/add-user"
                 className={location.pathname === "/add-user" ? "active" : ""}
