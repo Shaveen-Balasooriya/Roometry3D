@@ -45,37 +45,43 @@ export default function Navbar() {
     }
 
     // Set up real-time listener for cart changes
-    const cartDocRef = doc(db, 'carts', user.uid);
-    const unsubscribe = onSnapshot(cartDocRef, (doc) => {
-      try {
-        if (doc.exists()) {
-          const cartData = doc.data();
-          const items = cartData.items || [];
-          setCartItemCount(items.length);
-        } else {
+    const cartDocRef = doc(db, "carts", user.uid);
+    const unsubscribe = onSnapshot(
+      cartDocRef,
+      (doc) => {
+        try {
+          if (doc.exists()) {
+            const cartData = doc.data();
+            const items = cartData.items || [];
+            setCartItemCount(items.length);
+          } else {
+            setCartItemCount(0);
+          }
+        } catch (error) {
+          console.error("Error fetching cart count:", error);
           setCartItemCount(0);
         }
-      } catch (error) {
-        console.error('Error fetching cart count:', error);
-        setCartItemCount(0);
+      },
+      (error) => {
+        console.error("Error setting up cart listener:", error);
+
+        // Fallback to one-time fetch if listener fails
+        getDoc(cartDocRef)
+          .then((doc) => {
+            if (doc.exists()) {
+              const cartData = doc.data();
+              const items = cartData.items || [];
+              setCartItemCount(items.length);
+            } else {
+              setCartItemCount(0);
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching cart count:", error);
+            setCartItemCount(0);
+          });
       }
-    }, (error) => {
-      console.error('Error setting up cart listener:', error);
-      
-      // Fallback to one-time fetch if listener fails
-      getDoc(cartDocRef).then((doc) => {
-        if (doc.exists()) {
-          const cartData = doc.data();
-          const items = cartData.items || [];
-          setCartItemCount(items.length);
-        } else {
-          setCartItemCount(0);
-        }
-      }).catch((error) => {
-        console.error('Error fetching cart count:', error);
-        setCartItemCount(0);
-      });
-    });
+    );
 
     return () => unsubscribe();
   }, [user, userRole]);
@@ -180,7 +186,7 @@ export default function Navbar() {
       document.body.style.overflow = "";
     };
   }, [isMobileMenuOpen]);
-  
+
   // Determine home path based on user role
   const getHomePath = () => {
     if (!userRole) return "/login";
@@ -229,10 +235,7 @@ export default function Navbar() {
 
           {/* Client and Designer home link */}
           {userRole && (userRole === "client" || userRole === "designer") && (
-            <Link
-              to="/"
-              className={location.pathname === "/" ? "active" : ""}
-            >
+            <Link to="/" className={location.pathname === "/" ? "active" : ""}>
               Home
             </Link>
           )}
@@ -257,8 +260,10 @@ export default function Navbar() {
               <Link
                 to="/customer-designer-furniture-catalogue"
                 className={
-                  location.pathname === "/customer-designer-furniture-catalogue"? "active": ""
-                } 
+                  location.pathname === "/customer-designer-furniture-catalogue"
+                    ? "active"
+                    : ""
+                }
               >
                 Furniture Catalogue
               </Link>
@@ -267,6 +272,11 @@ export default function Navbar() {
 
           {/* Furniture Management Links - visible to designers and admins */}
           {userRole && (userRole === "admin" || userRole === "designer") && (
+            <></>
+          )}
+
+          {/* User Management Links - visible only to admins */}
+          {userRole === "admin" && (
             <>
               <Link
                 to="/add-furniture"
@@ -276,12 +286,6 @@ export default function Navbar() {
               >
                 Add Furniture
               </Link>
-            </>
-          )}
-
-          {/* User Management Links - visible only to admins */}
-          {userRole === "admin" && (
-            <>
               <Link
                 to="/furniture-dashboard"
                 className={
@@ -312,8 +316,8 @@ export default function Navbar() {
           <div className="navbar-actions">
             {/* Cart icon - visible to clients and designers */}
             {userRole && (userRole === "client" || userRole === "designer") && (
-              <Link 
-                to="/cart" 
+              <Link
+                to="/cart"
                 className="cart-icon-link"
                 aria-label="Shopping cart"
                 title="View cart"
@@ -326,7 +330,7 @@ export default function Navbar() {
                 </div>
               </Link>
             )}
-            
+
             <div className="user-menu" ref={userDropdownRef}>
               <button
                 className="user-info"
@@ -336,7 +340,9 @@ export default function Navbar() {
               >
                 <div className="user-avatar">{getInitial()}</div>
                 <div className="user-name">{user.displayName || "User"}</div>
-                <div className={`dropdown-arrow ${isDropdownOpen ? "open" : ""}`}>
+                <div
+                  className={`dropdown-arrow ${isDropdownOpen ? "open" : ""}`}
+                >
                   ▼
                 </div>
               </button>
@@ -364,15 +370,16 @@ export default function Navbar() {
                   >
                     My Projects
                   </Link>
-                  {userRole && (userRole === "client" || userRole === "designer") && (
-                    <Link
-                      to="/cart"
-                      className="dropdown-item"
-                      role="menuitem"
-                    >
-                      My Cart {cartItemCount > 0 && `(${cartItemCount})`}
-                    </Link>
-                  )}
+                  {userRole &&
+                    (userRole === "client" || userRole === "designer") && (
+                      <Link
+                        to="/cart"
+                        className="dropdown-item"
+                        role="menuitem"
+                      >
+                        My Cart {cartItemCount > 0 && `(${cartItemCount})`}
+                      </Link>
+                    )}
                   <div className="dropdown-divider" role="separator"></div>
                   <button
                     className="dropdown-item logout"
