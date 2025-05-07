@@ -252,41 +252,41 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
       
       // Also keep a local copy in localStorage for faster access and offline capabilities
       // This is optional and can be removed if you want to rely fully on the server
-      try {
-        const existingCartJSON = localStorage.getItem('cart');
-        let cartItems = [];
+    //   try {
+    //     const existingCartJSON = localStorage.getItem('cart');
+    //     let cartItems = [];
         
-        if (existingCartJSON) {
-          cartItems = JSON.parse(existingCartJSON);
-          if (!Array.isArray(cartItems)) {
-            cartItems = [];
-          }
-        }
+    //     if (existingCartJSON) {
+    //       cartItems = JSON.parse(existingCartJSON);
+    //       if (!Array.isArray(cartItems)) {
+    //         cartItems = [];
+    //       }
+    //     }
         
-        const cartItem = {
-          furnitureId: id,
-          quantity: 1,
-          textureUrl: currentTextureUrl,
-          dateAdded: new Date().toISOString(),
-          name: name,
-          price: price
-        };
+    //     const cartItem = {
+    //       furnitureId: id,
+    //       quantity: 1,
+    //       textureUrl: currentTextureUrl,
+    //       dateAdded: new Date().toISOString(),
+    //       name: name,
+    //       price: price
+    //     };
         
-        const existingItemIndex = cartItems.findIndex(item => 
-          item.furnitureId === id && item.textureUrl === currentTextureUrl
-        );
+    //     const existingItemIndex = cartItems.findIndex(item => 
+    //       item.furnitureId === id && item.textureUrl === currentTextureUrl
+    //     );
         
-        if (existingItemIndex >= 0) {
-          cartItems[existingItemIndex].quantity += 1;
-        } else {
-          cartItems.push(cartItem);
-        }
+    //     if (existingItemIndex >= 0) {
+    //       cartItems[existingItemIndex].quantity += 1;
+    //     } else {
+    //       cartItems.push(cartItem);
+    //     }
         
-        localStorage.setItem('cart', JSON.stringify(cartItems));
-      } catch (localStorageError) {
-        console.warn("Could not update localStorage cart:", localStorageError);
-        // Continue even if localStorage fails
-      }
+    //     localStorage.setItem('cart', JSON.stringify(cartItems));
+    //   } catch (localStorageError) {
+    //     console.warn("Could not update localStorage cart:", localStorageError);
+    //     // Continue even if localStorage fails
+    //   }
       
       setPopup({ 
         open: true, 
