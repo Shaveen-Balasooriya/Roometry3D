@@ -19,6 +19,7 @@ import MyProjectsPage from "./pages/MyProjectsPage";
 import CreateProjectPage from "./pages/CreateProjectPage";
 import ViewProjectPage from "./pages/ViewProjectPage";
 import EditProjectPage from "./pages/EditProjectPage";
+import CustomerDesignerFurnitureCataloguePage from "./pages/CustomerDesignerFurnitureCataloguePage";
 
 // Unauthorized page component
 function Unauthorized() {
@@ -66,6 +67,11 @@ export default function App() {
           <Route path="/view-project/:id" element={<ViewProjectPage />} />{" "}
           {/* Updated path to match the URL in the links */}
           <Route path="/edit-project/:id" element={<EditProjectPage />} />
+          <Route
+            path="/customer-designer-furniture-catalogue"
+            element={<CustomerDesignerFurnitureCataloguePage />}
+          />
+          
         </Route>
 
         {/* Routes accessible to designers and admin */}

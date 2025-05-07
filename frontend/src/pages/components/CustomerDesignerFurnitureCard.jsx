@@ -3,11 +3,11 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { Environment, Bounds } from '@react-three/drei'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader'
 import * as THREE from 'three'
-import { useNavigate } from 'react-router-dom' // Import useNavigate
+import { useNavigate } from 'react-router-dom'
 import Loading from '../../components/Loading'
 import Popup from '../../components/Popup'
-import ConfirmationPopup from '../../components/ConfirmationPopup'
 import { auth } from '../../services/firebase'
+import { getUserRole } from '../../services/firebase' // Import the getUserRole function
 
 function ModelPreview({ objFile, textureUrl, dimensions }) {
   const [object, setObject] = useState(null)
@@ -132,7 +132,7 @@ function RotatingBoundsContent({ children }) {
   )
 }
 
-export default function FurnitureCard({ furniture, onDeleteSuccess }) {
+export default function CustomerDesignerFurnitureCard({ furniture }) {
   const {
     id, name, category, price, quantity, height, width, length, wallMountable,
     modelEndpoint, textureUrls = []
@@ -141,18 +141,32 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
   const [selectedTextureIndex, setSelectedTextureIndex] = useState(0)
   const [objBlob, setObjBlob] = useState(null)
   const [isLoadingBlob, setIsLoadingBlob] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' })
-  const [showConfirmPopup, setShowConfirmPopup] = useState(false)
+  const [userRole, setUserRole] = useState(null)
   const navigate = useNavigate()
   const API_URL = import.meta.env.VITE_BACKEND_URL;
-
+  
   useEffect(() => { setSelectedTextureIndex(0) }, [textureUrls])
 
   const currentTextureUrl = useMemo(() => {
     if (!textureUrls || textureUrls.length === 0) return null
     return textureUrls[selectedTextureIndex] || textureUrls[0]
   }, [textureUrls, selectedTextureIndex])
+
+  // Get user role when component mounts
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const role = await getUserRole();
+        setUserRole(role);
+      } catch (error) {
+        console.error("Error getting user role:", error);
+      }
+    };
+    
+    fetchUserRole();
+  }, []);
 
   useEffect(() => {
     let isActive = true
@@ -201,53 +215,52 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
     }
   }, [modelEndpoint])
 
-  const executeDelete = async () => {
-    setShowConfirmPopup(false)
-    setIsDeleting(true)
-    setPopup({ open: false, type: '', message: '' })
-    try {
-      // Get the current user's auth token
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error('You must be logged in to delete furniture');
-      }
-      
-      const idToken = await user.getIdToken();
-      
-      const response = await fetch(`${API_URL}/api/furniture/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${idToken}`
-        }
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to delete item. Server returned an error.' }))
-        throw new Error(errorData.message || 'Failed to delete item.')
-      }
-
-      onDeleteSuccess(id)
-
-    } catch (err) {
-      console.error("Error deleting furniture:", err)
-      setPopup({ open: true, type: 'error', message: err.message || 'Error deleting item.' })
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  const handleDelete = () => {
-    setShowConfirmPopup(true)
-  }
-
-  const handleCancelDelete = () => {
-    setShowConfirmPopup(false)
-  }
-
   const handleEdit = () => {
     console.log(`Edit button clicked for item ID: ${id}`)
     navigate(`/update-furniture/${id}`)
   }
+
+  const handleAddToCart = async () => {
+    setIsAddingToCart(true);
+    try {
+      // Get the current user's auth token
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('You must be logged in to add items to cart');
+      }
+      
+      const idToken = await user.getIdToken();
+      
+      // Create cart item with the selected texture
+      const cartItem = {
+        furnitureId: id,
+        quantity: 1, // Default to 1, can be modified on the cart page
+        textureUrl: currentTextureUrl // Include the currently selected texture
+      };
+      
+      const response = await fetch(`${API_URL}/api/cart`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify(cartItem)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to add item to cart' }));
+        throw new Error(errorData.message || 'Failed to add item to cart');
+      }
+      
+      setPopup({ open: true, type: 'success', message: 'Item added to cart successfully!' });
+      
+    } catch (err) {
+      console.error("Error adding to cart:", err);
+      setPopup({ open: true, type: 'error', message: err.message || 'Error adding item to cart.' });
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
 
   const previewAvailable = !!objBlob
   const showLoading = isLoadingBlob || (!previewAvailable && modelEndpoint)
@@ -271,15 +284,6 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
       }}
     >
       <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
-
-      <ConfirmationPopup
-        open={showConfirmPopup}
-        message={`Are you sure you want to delete "${name}"? This action cannot be undone.`}
-        onConfirm={executeDelete}
-        onCancel={handleCancelDelete}
-        confirmText="Delete"
-        confirmButtonClass="button-primary"
-      />
 
       <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'  }}>
         <span style={{fontWeight: 600, fontSize: '20px', color: '#1A365D'  }}>{name}</span>
@@ -384,34 +388,38 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
         <span style={{ color: '#4A5568', textAlign: 'left' }}>{wallMountable ? 'Yes' : 'No'}</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
+        {userRole === 'designer' && (
+          <button
+            onClick={handleEdit}
+            style={{
+              minWidth: '80px', 
+              padding: '0.5rem 1rem', 
+              fontSize: '0.9rem',
+              background: '#3B82F6',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer' 
+            }}
+          >
+            Edit
+          </button>
+        )}
         <button
-          onClick={handleEdit}
+          onClick={handleAddToCart}
           style={{
-             minWidth: '80px', 
-            padding: '0.5rem 1rem', 
-            fontSize: '0.9rem',
-            background: '#3B82F6',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer' }}
-        >
-          Edit
-        </button>
-        <button
-          onClick={handleDelete}
-          style={{
-            minWidth: '80px', 
+            minWidth: userRole === 'designer' ? '80px' : '100%', 
             padding: '0.5rem 1rem', 
             fontSize: '0.9rem', 
-            background: '#EF4444',
+            background: '#4F46E5',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: '4px',
-            cursor: 'pointer'}}
-          disabled={isDeleting}
+            cursor: 'pointer'
+          }}
+          disabled={isAddingToCart}
         >
-          {isDeleting ? <Loading size={18} /> : 'Delete'}
+          {isAddingToCart ? <Loading size={18} /> : 'Add to Cart'}
         </button>
       </div>
     </div>

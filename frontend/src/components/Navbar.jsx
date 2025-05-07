@@ -196,6 +196,14 @@ export default function Navbar() {
               >
                 Create Project
               </Link>
+              <Link
+                to="/customer-designer-furniture-catalogue"
+                className={
+                  location.pathname === "/customer-designer-furniture-catalogue"? "active": ""
+                } 
+              >
+                Furniture Catalogue
+              </Link>
             </>
           )}
 
