@@ -178,12 +178,19 @@ export default function Navbar() {
       document.body.style.overflow = "";
     };
   }, [isMobileMenuOpen]);
+  
+  // Determine home path based on user role
+  const getHomePath = () => {
+    if (!userRole) return "/login";
+    if (userRole === "admin") return "/admin";
+    return "/"; // Client and Designer home
+  };
 
   return (
     <nav className={`navbar ${isScrolled ? "scrolled" : ""}`} role="navigation">
       <div className="navbar-content">
         <Link
-          to="/my-projects"
+          to={getHomePath()}
           className="navbar-title"
           aria-label="Roometry Home"
         >
@@ -208,19 +215,25 @@ export default function Navbar() {
           className={`navbar-links ${isMobileMenuOpen ? "open" : ""}`}
           aria-hidden={!isMobileMenuOpen && window.innerWidth <= 768}
         >
-          {/* <Link to="/" className={location.pathname === '/' ? 'active' : ''}>Home</Link> */}
-          {/* User Management Links - visible only to admins */}
+          {/* Admin home link */}
           {userRole === "admin" && (
-            <>
-              <Link
-                to="/"
-                className={location.pathname === "/" ? "active" : ""}
-              >
-                Home
-              </Link>
-            </>
+            <Link
+              to="/admin"
+              className={location.pathname === "/admin" ? "active" : ""}
+            >
+              Home
+            </Link>
           )}
 
+          {/* Client and Designer home link */}
+          {userRole && (userRole === "client" || userRole === "designer") && (
+            <Link
+              to="/"
+              className={location.pathname === "/" ? "active" : ""}
+            >
+              Home
+            </Link>
+          )}
 
           {/* Links - visible to designers and client */}
           {userRole && (userRole === "client" || userRole === "designer") && (
@@ -229,7 +242,7 @@ export default function Navbar() {
                 to="/my-projects"
                 className={location.pathname === "/my-projects" ? "active" : ""}
               >
-                Projects
+                My Projects
               </Link>
               <Link
                 to="/create-project"
@@ -261,21 +274,13 @@ export default function Navbar() {
               >
                 Add Furniture
               </Link>
-              {/* <Link
-                to="/furniture-dashboard"
-                className={
-                  location.pathname === "/furniture-dashboard" ? "active" : ""
-                }
-              >
-                Manage Furniture
-              </Link> */}
             </>
           )}
 
           {/* User Management Links - visible only to admins */}
           {userRole === "admin" && (
             <>
-                          <Link
+              <Link
                 to="/furniture-dashboard"
                 className={
                   location.pathname === "/furniture-dashboard" ? "active" : ""

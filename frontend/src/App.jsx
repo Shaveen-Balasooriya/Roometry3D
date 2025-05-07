@@ -15,6 +15,7 @@ import ChangePasswordPage from "./pages/ChangePasswordPage";
 import EditProfilePage from "./pages/EditProfilePage";
 import AuthGuard from "./components/AuthGuard";
 import HomePage from "./pages/HomePage";
+import ClientDesignerHomePage from "./pages/ClientDesignerHomePage";
 import MyProjectsPage from "./pages/MyProjectsPage";
 import CreateProjectPage from "./pages/CreateProjectPage";
 import ViewProjectPage from "./pages/ViewProjectPage";
@@ -62,6 +63,17 @@ export default function App() {
 
         {/* Routes accessible to designers and client */}
         <Route element={<AuthGuard allowedRoles={["client", "designer"]} />}>
+          {/* Home route for clients and designers */}
+          <Route 
+            path="/" 
+            element={
+              <div className="app-container">
+                <Navbar />
+                <ClientDesignerHomePage />
+                <Footer />
+              </div>
+            } 
+          />
           {/* Project routes - accessible to all authenticated users */}
           <Route path="/my-projects" element={<MyProjectsPage />} />
           <Route path="/create-project" element={<CreateProjectPage />} />
@@ -115,7 +127,7 @@ export default function App() {
         {/* Routes accessible only to admin */}
         <Route element={<AuthGuard allowedRoles={["admin"]} />}>
           <Route
-            path="/"
+            path="/admin"
             element={
               <div className="app-container">
                 <Navbar />
