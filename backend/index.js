@@ -253,6 +253,7 @@ app.use('/api/furniture', authenticateUser);
 app.use('/api/users', authenticateUser);
 app.use('/api/projects', authenticateUser);
 app.use('/api/count',authenticateUser);
+app.use('/api/cart',authenticateUser);
 
 // User self-service profile endpoints
 app.post('/api/user/change-password', authenticateUser, async (req, res) => {
@@ -346,7 +347,8 @@ app.delete('/api/users/:id', requireRole(['admin']));
 app.get('/api/count/designers', requireRole(['admin']));
 app.get('/api/count/todayProjects',requireRole(['admin']));
 app.get('/api/count/totalProjcts',requireRole(['admin']));
-
+app.post('/api/cart/add',requireRole(['client','designer']))
+app.get('api/cart',requireRole(['client','designer']))
 // Helper function to extract storage path from signed URL
 const getStoragePathFromUrl = (url) => {
   if (!url) return null;
@@ -1320,6 +1322,126 @@ app.get('/api/count/designers', async (req, res) => {
   } catch (err) {
     console.error('Error fetching designers count:', err);
     res.status(500).json({ error: 'Failed to fetch designers count', details: err.message });
+  }
+});
+
+
+
+// API endpoint for adding items to cart
+app.post('/api/cart/add', async (req, res) => {
+  try {
+    // Get user ID from the authenticated request
+    const userId = req.user?.uid || req.user?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated or user ID not found' });
+    }
+
+    // Extract furniture details from request body
+    const { furnitureId, quantity = 1, textureUrl } = req.body;
+    
+    if (!furnitureId) {
+      return res.status(400).json({ error: 'Furniture ID is required' });
+    }
+
+    // Fetch the furniture details to ensure it exists and to store complete info
+    const furnitureDoc = await db.collection('furniture').doc(furnitureId).get();
+    if (!furnitureDoc.exists) {
+      return res.status(404).json({ error: 'Furniture not found' });
+    }
+    
+    const furnitureData = furnitureDoc.data();
+    
+    // Reference to the user's cart document
+    const userCartRef = db.collection('carts').doc(userId);
+    
+    // Use a transaction to safely update the cart
+    await db.runTransaction(async (transaction) => {
+      const cartDoc = await transaction.get(userCartRef);
+      
+      let cartItems = [];
+      if (cartDoc.exists) {
+        cartItems = cartDoc.data().items || [];
+      }
+      
+      // Check if the item with the same furnitureId and textureUrl already exists
+      const existingItemIndex = cartItems.findIndex(item => 
+        item.furnitureId === furnitureId && 
+        (item.textureUrl === textureUrl || (!item.textureUrl && !textureUrl))
+      );
+      
+      if (existingItemIndex >= 0) {
+        // Update quantity if item exists
+        cartItems[existingItemIndex].quantity += quantity;
+      } else {
+        // Add new item with full furniture details, ensuring no undefined values
+        const cartItem = {
+          furnitureId,
+          // quantity,
+          textureUrl: textureUrl || null, // Use null instead of undefined
+          dateAdded: new Date().toISOString(),
+          // Store full furniture details with null fallbacks for any undefined values
+          // name: furnitureData.name || "",
+          // price: furnitureData.price || 0,
+          // category: furnitureData.category || "",
+          dimensions: {
+            height: furnitureData.height || 0,
+            width: furnitureData.width || 0,
+            length: furnitureData.length || 0
+          },
+          // wallMountable: furnitureData.wallMountable || false,
+          // Only store the URL, not the actual file
+          // modelEndpoint: furnitureData.modelEndpoint || null,
+          // Preserve the original texture URL list
+          // availableTextures: furnitureData.textureUrls || []
+        };
+        
+        cartItems.push(cartItem);
+      }
+      
+      // Set or update the cart document
+      transaction.set(userCartRef, { 
+        items: cartItems,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+    });
+    
+    // Return success
+    res.status(200).json({ 
+      message: 'Item added to cart successfully',
+      furnitureId,
+      textureUrl: textureUrl || null
+    });
+    
+  } catch (err) {
+    console.error('Error adding item to cart:', err);
+    res.status(500).json({ 
+      error: 'Failed to add item to cart', 
+      details: err.message 
+    });
+  }
+});
+
+// API endpoint to retrieve the cart
+app.get('/api/cart', async (req, res) => {
+  try {
+    const userId = req.user?.uid || req.user?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated or user ID not found' });
+    }
+    
+    const cartDoc = await db.collection('carts').doc(userId).get();
+    if (!cartDoc.exists) {
+      return res.status(200).json({ items: [] });
+    }
+    
+    res.status(200).json(cartDoc.data());
+    
+  } catch (err) {
+    console.error('Error fetching cart:', err);
+    res.status(500).json({ 
+      error: 'Failed to fetch cart', 
+      details: err.message 
+    });
   }
 });
 
