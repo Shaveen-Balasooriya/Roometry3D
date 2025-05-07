@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth, getUserRole } from "../services/firebase";
+import { auth, getUserRole, db } from "../services/firebase";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import "./Navbar.css";
 
 export default function Navbar() {
@@ -36,47 +37,48 @@ export default function Navbar() {
     return () => unsubscribe();
   }, []);
 
-  // Load cart item count from localStorage
+  // Fetch cart item count from Firebase
   useEffect(() => {
-    const updateCartCount = () => {
+    if (!user || !(userRole === "client" || userRole === "designer")) {
+      setCartItemCount(0);
+      return;
+    }
+
+    // Set up real-time listener for cart changes
+    const cartDocRef = doc(db, 'carts', user.uid);
+    const unsubscribe = onSnapshot(cartDocRef, (doc) => {
       try {
-        const cartJSON = localStorage.getItem('cart');
-        if (cartJSON) {
-          const parsedCart = JSON.parse(cartJSON);
-          if (Array.isArray(parsedCart)) {
-            setCartItemCount(parsedCart.length);
-          } else {
-            setCartItemCount(0);
-          }
+        if (doc.exists()) {
+          const cartData = doc.data();
+          const items = cartData.items || [];
+          setCartItemCount(items.length);
         } else {
           setCartItemCount(0);
         }
       } catch (error) {
-        console.error('Error loading cart count:', error);
+        console.error('Error fetching cart count:', error);
         setCartItemCount(0);
       }
-    };
+    }, (error) => {
+      console.error('Error setting up cart listener:', error);
+      
+      // Fallback to one-time fetch if listener fails
+      getDoc(cartDocRef).then((doc) => {
+        if (doc.exists()) {
+          const cartData = doc.data();
+          const items = cartData.items || [];
+          setCartItemCount(items.length);
+        } else {
+          setCartItemCount(0);
+        }
+      }).catch((error) => {
+        console.error('Error fetching cart count:', error);
+        setCartItemCount(0);
+      });
+    });
 
-    // Initial load
-    updateCartCount();
-
-    // Set up a listener for storage events to update cart count when changed
-    const handleStorageChange = (e) => {
-      if (e.key === 'cart') {
-        updateCartCount();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Also set up an interval to check for changes (for cross-tab sync)
-    const interval = setInterval(updateCartCount, 5000);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, []);
+    return () => unsubscribe();
+  }, [user, userRole]);
 
   // Handle scroll events for navbar styling
   useEffect(() => {

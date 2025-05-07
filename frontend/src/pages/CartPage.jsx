@@ -10,7 +10,7 @@ import Loading from '../components/Loading';
 import Popup from '../components/Popup';
 import ConfirmationPopup from '../components/ConfirmationPopup';
 import { auth, db } from '../services/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import './CartPage.css';
 
 // 3D Model preview components
@@ -151,18 +151,28 @@ export default function CartPage() {
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_BACKEND_URL;
 
-  // Load cart items from localStorage
+  // Load cart items from Firebase
   useEffect(() => {
-    const loadCartItems = () => {
+    const fetchCartFromFirebase = async () => {
       setIsLoading(true);
       try {
-        const cartJSON = localStorage.getItem('cart');
-        if (cartJSON) {
-          const parsedCart = JSON.parse(cartJSON);
-          if (Array.isArray(parsedCart) && parsedCart.length > 0) {
-            setCartItems(parsedCart);
-            // Load additional details for each furniture item
-            fetchFurnitureDetails(parsedCart);
+        const user = auth.currentUser;
+        if (!user) {
+          console.log('User not logged in');
+          setIsLoading(false);
+          return;
+        }
+
+        const cartDocRef = doc(db, 'carts', user.uid);
+        const cartDoc = await getDoc(cartDocRef);
+        
+        if (cartDoc.exists()) {
+          const cartData = cartDoc.data();
+          const items = cartData.items || [];
+          
+          if (items.length > 0) {
+            setCartItems(items);
+            fetchFurnitureDetails(items);
           } else {
             setCartItems([]);
             setIsLoading(false);
@@ -172,17 +182,16 @@ export default function CartPage() {
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('Error loading cart:', error);
-        setPopup({ open: true, type: 'error', message: 'Failed to load cart items.' });
+        console.error('Error fetching cart from Firebase:', error);
+        setPopup({ open: true, type: 'error', message: 'Failed to load your cart. Please try again.' });
         setCartItems([]);
         setIsLoading(false);
       }
     };
 
-    loadCartItems();
+    fetchCartFromFirebase();
   }, []);
 
-  // Fetch complete details for furniture items from Firestore
   const fetchFurnitureDetails = async (items) => {
     const uniqueIds = [...new Set(items.map(item => item.furnitureId))];
     const outOfStock = [];
@@ -192,13 +201,11 @@ export default function CartPage() {
     try {
       const detailsPromises = uniqueIds.map(async (id) => {
         try {
-          // Get from Firestore
           const furnitureDoc = await getDoc(doc(db, 'furniture', id));
           
           if (furnitureDoc.exists()) {
             const data = furnitureDoc.data();
             
-            // Check stock status
             if (data.quantity <= 0) {
               outOfStock.push(id);
             } else if (data.quantity < 10) {
@@ -207,7 +214,6 @@ export default function CartPage() {
             
             detailsMap[id] = { id, ...data };
             
-            // If the furniture has a model URL or endpoint, fetch the 3D model
             if (data.objFileUrl || data.modelEndpoint) {
               fetchModelBlob(id, data.objFileUrl || data.modelEndpoint);
             }
@@ -215,7 +221,6 @@ export default function CartPage() {
             return { id, ...data };
           }
           
-          // If not found in Firestore, try getting from API
           const user = auth.currentUser;
           if (!user) return null;
           
@@ -229,7 +234,6 @@ export default function CartPage() {
           if (response.ok) {
             const data = await response.json();
             
-            // Check stock status
             if (data.quantity <= 0) {
               outOfStock.push(id);
             } else if (data.quantity < 10) {
@@ -238,7 +242,6 @@ export default function CartPage() {
             
             detailsMap[id] = { id, ...data };
             
-            // If the furniture has a model URL or endpoint, fetch the 3D model
             if (data.objFileUrl || data.modelEndpoint) {
               fetchModelBlob(id, data.objFileUrl || data.modelEndpoint);
             }
@@ -269,7 +272,6 @@ export default function CartPage() {
     }
   };
 
-  // Fetch 3D model blob for a furniture item
   const fetchModelBlob = async (furnitureId, modelEndpoint) => {
     try {
       if (!modelEndpoint) return;
@@ -283,7 +285,6 @@ export default function CartPage() {
       
       const idToken = await user.getIdToken();
       
-      // Check if the URL is already complete or needs the base API URL
       const modelUrl = modelEndpoint.startsWith('http') 
         ? modelEndpoint 
         : `${API_URL}${modelEndpoint}`;
@@ -305,14 +306,12 @@ export default function CartPage() {
     }
   };
 
-  const updateQuantity = (index, newQuantity) => {
+  const updateQuantity = async (index, newQuantity) => {
     if (newQuantity < 1) return;
     
-    // Get the current item
     const item = cartItems[index];
     const furnitureId = item.furnitureId;
     
-    // Check if there's enough stock
     if (furnitureDetails[furnitureId] && furnitureDetails[furnitureId].quantity < newQuantity) {
       const availableQuantity = furnitureDetails[furnitureId].quantity;
       setPopup({ 
@@ -323,31 +322,81 @@ export default function CartPage() {
       return;
     }
     
-    const updatedItems = [...cartItems];
-    updatedItems[index].quantity = newQuantity;
-    setCartItems(updatedItems);
-    localStorage.setItem('cart', JSON.stringify(updatedItems));
-    
-    // Event to notify other tabs about the cart update
-    window.dispatchEvent(new Event('storage'));
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('You must be logged in to update your cart');
+      }
+
+      const updatedItems = [...cartItems];
+      updatedItems[index] = {
+        ...updatedItems[index],
+        quantity: newQuantity
+      };
+      setCartItems(updatedItems);
+      
+      const cartDocRef = doc(db, 'carts', user.uid);
+      await setDoc(cartDocRef, {
+        items: updatedItems,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+      
+      try {
+        const idToken = await user.getIdToken();
+        await fetch(`${API_URL}/api/cart`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ items: updatedItems })
+        });
+      } catch (apiError) {
+        console.warn('Could not sync cart with backend API:', apiError);
+      }
+      
+    } catch (error) {
+      console.error('Error updating cart quantity:', error);
+      setPopup({ 
+        open: true, 
+        type: 'error', 
+        message: 'Failed to update quantity. Please try again.' 
+      });
+    }
   };
 
-  const removeItem = (index) => {
+  const removeItem = async (index) => {
     setConfirmPopup({ open: false, index: null });
     
-    const updatedItems = [...cartItems];
-    const removedItem = updatedItems[index];
-    updatedItems.splice(index, 1);
-    setCartItems(updatedItems);
-    localStorage.setItem('cart', JSON.stringify(updatedItems));
-    setPopup({ 
-      open: true, 
-      type: 'success', 
-      message: `${removedItem.name || 'Item'} removed from cart.` 
-    });
-    
-    // Event to notify other tabs about the cart update
-    window.dispatchEvent(new Event('storage'));
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('You must be logged in to update your cart');
+      }
+      
+      const updatedItems = [...cartItems];
+      updatedItems.splice(index, 1);
+      setCartItems(updatedItems);
+      
+      const cartDocRef = doc(db, 'carts', user.uid);
+      await setDoc(cartDocRef, {
+        items: updatedItems,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+      
+      setPopup({ 
+        open: true, 
+        type: 'success', 
+        message: `Item removed from cart.` 
+      });
+    } catch (error) {
+      console.error('Error removing item from cart:', error);
+      setPopup({ 
+        open: true, 
+        type: 'error', 
+        message: 'Failed to remove item. Please try again.' 
+      });
+    }
   };
 
   const confirmRemoveItem = (index) => {
@@ -360,7 +409,6 @@ export default function CartPage() {
 
   const calculateTotal = () => {
     return cartItems.reduce((total, item) => {
-      // Skip out-of-stock items in total calculation
       if (outOfStockItems.includes(item.furnitureId)) return total;
       return total + (item.price * item.quantity);
     }, 0).toFixed(2);
@@ -372,7 +420,6 @@ export default function CartPage() {
       return;
     }
     
-    // Check if there are any out-of-stock items
     if (outOfStockItems.length > 0) {
       setPopup({ 
         open: true, 
@@ -384,42 +431,44 @@ export default function CartPage() {
     
     try {
       setIsLoading(true);
-      // Here you would implement the checkout process that connects to your backend
       
       const user = auth.currentUser;
       if (!user) {
         throw new Error('You must be logged in to checkout');
       }
       
-      const idToken = await user.getIdToken();
-      
-      // Filter out any out-of-stock items
       const availableItems = cartItems.filter(item => !outOfStockItems.includes(item.furnitureId));
       
-      // Optional: Sync cart with backend before checkout
-      await fetch(`${API_URL}/api/cart/sync`, {
+      const idToken = await user.getIdToken();
+      await fetch(`${API_URL}/api/orders/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
-        body: JSON.stringify({ cartItems: availableItems })
+        body: JSON.stringify({ 
+          items: availableItems,
+          orderTotal: parseFloat(calculateTotal())
+        })
       }).catch(err => {
-        console.log("Could not sync cart with backend, continuing with local cart:", err);
+        console.error("Failed to create order:", err);
+        throw new Error("Failed to create order. Please try again.");
       });
       
-      // Clear the cart
-      localStorage.removeItem('cart');
+      const cartDocRef = doc(db, 'carts', user.uid);
+      await setDoc(cartDocRef, {
+        items: [],
+        lastUpdated: new Date().toISOString()
+      });
+      
       setCartItems([]);
       
-      // Show success message and redirect
       setPopup({ 
         open: true, 
         type: 'success', 
         message: 'Your order has been placed successfully!' 
       });
       
-      // In a real application, you would navigate to an order confirmation page
       setTimeout(() => {
         navigate('/customer-designer-furniture-catalogue');
       }, 2000);
@@ -441,7 +490,6 @@ export default function CartPage() {
   };
   
   const getItemName = (item) => {
-    // Use name from Firebase if available, otherwise use the one from localStorage
     if (furnitureDetails[item.furnitureId]?.name) {
       return furnitureDetails[item.furnitureId].name;
     }
@@ -449,7 +497,6 @@ export default function CartPage() {
   };
   
   const getItemPrice = (item) => {
-    // Use price from Firebase if available
     if (furnitureDetails[item.furnitureId]?.price) {
       return furnitureDetails[item.furnitureId].price;
     }
@@ -464,7 +511,6 @@ export default function CartPage() {
     return 'Dimensions not available';
   };
 
-  // Helper to get dimensions object for a furniture item
   const getDimensions = (item) => {
     if (furnitureDetails[item.furnitureId]) {
       const details = furnitureDetails[item.furnitureId];
@@ -477,12 +523,10 @@ export default function CartPage() {
     return { height: 0, width: 0, length: 0 };
   };
   
-  // Check if an item is out of stock
   const isOutOfStock = (furnitureId) => {
     return outOfStockItems.includes(furnitureId);
   };
   
-  // Get stock status message
   const getStockMessage = (furnitureId) => {
     if (isOutOfStock(furnitureId)) {
       return <span className="out-of-stock">Out of Stock</span>;
@@ -572,7 +616,7 @@ export default function CartPage() {
                             <RotatingBoundsContent>
                               <ModelPreview
                                 objFile={objBlobs[item.furnitureId]}
-                                textureUrl={item.textureUrl} // Use the customer's selected texture
+                                textureUrl={item.textureUrl}
                                 dimensions={getDimensions(item)}
                               />
                             </RotatingBoundsContent>
