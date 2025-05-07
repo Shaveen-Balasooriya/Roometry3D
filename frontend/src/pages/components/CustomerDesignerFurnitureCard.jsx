@@ -229,30 +229,71 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
         throw new Error('You must be logged in to add items to cart');
       }
       
-      const idToken = await user.getIdToken();
+      // Store the furniture information in local storage
+      // First, get the existing cart items (if any)
+      const existingCartJSON = localStorage.getItem('cart');
+      let cartItems = [];
       
-      // Create cart item with the selected texture
+      if (existingCartJSON) {
+        try {
+          cartItems = JSON.parse(existingCartJSON);
+          if (!Array.isArray(cartItems)) {
+            cartItems = [];
+          }
+        } catch (e) {
+          console.error("Error parsing cart from localStorage:", e);
+          cartItems = [];
+        }
+      }
+      
+      // Create the new cart item with the selected texture
       const cartItem = {
         furnitureId: id,
         quantity: 1, // Default to 1, can be modified on the cart page
-        textureUrl: currentTextureUrl // Include the currently selected texture
+        textureUrl: currentTextureUrl, // Include the currently selected texture
+        dateAdded: new Date().toISOString(),
+        name: name, // Adding basic furniture info to make rendering faster in the cart
+        price: price
       };
       
-      const response = await fetch(`${API_URL}/api/cart`, {
+      // Check if item already exists in cart
+      const existingItemIndex = cartItems.findIndex(item => 
+        item.furnitureId === id && item.textureUrl === currentTextureUrl
+      );
+      
+      if (existingItemIndex >= 0) {
+        // If item already exists, increase quantity instead of adding a new entry
+        cartItems[existingItemIndex].quantity += 1;
+      } else {
+        // Add new item to cart
+        cartItems.push(cartItem);
+      }
+      
+      // Save updated cart back to localStorage
+      localStorage.setItem('cart', JSON.stringify(cartItems));
+      
+      // Update user's cart in Firestore if needed
+      const idToken = await user.getIdToken();
+      
+      // Optional: Sync with backend (you can decide if you want to keep this or not)
+      const response = await fetch(`${API_URL}/api/cart/sync`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
-        body: JSON.stringify(cartItem)
+        body: JSON.stringify({ cartItems })
+      }).catch(err => {
+        console.log("Could not sync cart with backend, continuing with local cart:", err);
+        // This is non-critical, so we continue even if it fails
+        return { ok: false };
       });
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to add item to cart' }));
-        throw new Error(errorData.message || 'Failed to add item to cart');
-      }
-      
-      setPopup({ open: true, type: 'success', message: 'Item added to cart successfully!' });
+      setPopup({ 
+        open: true, 
+        type: 'success', 
+        message: `${name} added to cart successfully!` 
+      });
       
     } catch (err) {
       console.error("Error adding to cart:", err);
