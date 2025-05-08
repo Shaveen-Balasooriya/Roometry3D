@@ -226,7 +226,7 @@ export default function Navbar() {
           {/* Admin home link */}
           {userRole === "admin" && (
             <Link
-              to="/admin"
+              to="/"
               className={location.pathname === "/admin" ? "active" : ""}
             >
               Home

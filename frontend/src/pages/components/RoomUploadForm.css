@@ -323,7 +323,6 @@
 
 .texture-application-section .button-primary:hover:not(:disabled),
 .button-primary:hover:not(:disabled) {
-  background-color: #0039cb; /* Darker primary */
   transform: translateY(-1px);
 }
 
