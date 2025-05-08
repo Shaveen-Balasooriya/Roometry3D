@@ -15,10 +15,13 @@ import ChangePasswordPage from "./pages/ChangePasswordPage";
 import EditProfilePage from "./pages/EditProfilePage";
 import AuthGuard from "./components/AuthGuard";
 import HomePage from "./pages/HomePage";
+import ClientDesignerHomePage from "./pages/ClientDesignerHomePage";
 import MyProjectsPage from "./pages/MyProjectsPage";
 import CreateProjectPage from "./pages/CreateProjectPage";
 import ViewProjectPage from "./pages/ViewProjectPage";
 import EditProjectPage from "./pages/EditProjectPage";
+import CustomerDesignerFurnitureCataloguePage from "./pages/CustomerDesignerFurnitureCataloguePage";
+import CartPage from "./pages/CartPage";
 import Breadcrumb from "./components/Breadcrumb";
 import UploadRoomPage from "./pages/UploadRoomPage"; // Added import for the new page
 
@@ -67,13 +70,24 @@ export default function App() {
                 <Route path="/edit-project/:id" element={<EditProjectPage />} />
               </Route>
 
+              {/* Project routes - accessible to all authenticated users */}
+              <Route path="/my-projects" element={<MyProjectsPage />} />
+              <Route path="/create-project" element={<CreateProjectPage />} />
+              <Route path="/view-project/:id" element={<ViewProjectPage />} />
+              <Route path="/edit-project/:id" element={<EditProjectPage />} />
+              <Route
+                path="/customer-designer-furniture-catalogue"
+                element={<CustomerDesignerFurnitureCataloguePage />}
+              />
+              <Route path="/cart" element={<CartPage />} />
+              </Route>
+
               {/* Routes accessible to designers and admin */}
               <Route element={<AuthGuard allowedRoles={["admin", "designer"]} />}>
                 <Route path="/furniture-dashboard" element={<FurnitureDashboardPage />} />
                 <Route path="/update-furniture/:id" element={<UpdateFurniturePage />} />
                 <Route path="/add-furniture" element={<AddFurniturePage />} />
               </Route>
-
 
               {/* Routes accessible only to admin */}
               <Route element={<AuthGuard allowedRoles={["admin"]} />}>

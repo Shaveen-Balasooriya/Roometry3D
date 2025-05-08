@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth, getUserRole } from "../services/firebase";
+import { auth, getUserRole, db } from "../services/firebase";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import "./Navbar.css";
 
 export default function Navbar() {
@@ -10,6 +11,7 @@ export default function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const mobileMenuRef = useRef(null);
@@ -34,6 +36,55 @@ export default function Navbar() {
 
     return () => unsubscribe();
   }, []);
+
+  // Fetch cart item count from Firebase
+  useEffect(() => {
+    if (!user || !(userRole === "client" || userRole === "designer")) {
+      setCartItemCount(0);
+      return;
+    }
+
+    // Set up real-time listener for cart changes
+    const cartDocRef = doc(db, "carts", user.uid);
+    const unsubscribe = onSnapshot(
+      cartDocRef,
+      (doc) => {
+        try {
+          if (doc.exists()) {
+            const cartData = doc.data();
+            const items = cartData.items || [];
+            setCartItemCount(items.length);
+          } else {
+            setCartItemCount(0);
+          }
+        } catch (error) {
+          console.error("Error fetching cart count:", error);
+          setCartItemCount(0);
+        }
+      },
+      (error) => {
+        console.error("Error setting up cart listener:", error);
+
+        // Fallback to one-time fetch if listener fails
+        getDoc(cartDocRef)
+          .then((doc) => {
+            if (doc.exists()) {
+              const cartData = doc.data();
+              const items = cartData.items || [];
+              setCartItemCount(items.length);
+            } else {
+              setCartItemCount(0);
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching cart count:", error);
+            setCartItemCount(0);
+          });
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, userRole]);
 
   // Handle scroll events for navbar styling
   useEffect(() => {
@@ -136,11 +187,18 @@ export default function Navbar() {
     };
   }, [isMobileMenuOpen]);
 
+  // Determine home path based on user role
+  const getHomePath = () => {
+    if (!userRole) return "/login";
+    if (userRole === "admin") return "/admin";
+    return "/"; // Client and Designer home
+  };
+
   return (
     <nav className={`navbar ${isScrolled ? "scrolled" : ""}`} role="navigation">
       <div className="navbar-content">
         <Link
-          to="/my-projects"
+          to={getHomePath()}
           className="navbar-title"
           aria-label="Roometry Home"
         >
@@ -165,19 +223,22 @@ export default function Navbar() {
           className={`navbar-links ${isMobileMenuOpen ? "open" : ""}`}
           aria-hidden={!isMobileMenuOpen && window.innerWidth <= 768}
         >
-          {/* <Link to="/" className={location.pathname === '/' ? 'active' : ''}>Home</Link> */}
-          {/* User Management Links - visible only to admins */}
+          {/* Admin home link */}
           {userRole === "admin" && (
-            <>
-              <Link
-                to="/"
-                className={location.pathname === "/" ? "active" : ""}
-              >
-                Home
-              </Link>
-            </>
+            <Link
+              to="/admin"
+              className={location.pathname === "/admin" ? "active" : ""}
+            >
+              Home
+            </Link>
           )}
 
+          {/* Client and Designer home link */}
+          {userRole && (userRole === "client" || userRole === "designer") && (
+            <Link to="/" className={location.pathname === "/" ? "active" : ""}>
+              Home
+            </Link>
+          )}
 
           {/* Links - visible to designers and client */}
           {userRole && (userRole === "client" || userRole === "designer") && (
@@ -186,7 +247,7 @@ export default function Navbar() {
                 to="/my-projects"
                 className={location.pathname === "/my-projects" ? "active" : ""}
               >
-                Projects
+                My Projects
               </Link>
               <Link
                 to="/create-project"
@@ -196,11 +257,26 @@ export default function Navbar() {
               >
                 Create Project
               </Link>
+              <Link
+                to="/customer-designer-furniture-catalogue"
+                className={
+                  location.pathname === "/customer-designer-furniture-catalogue"
+                    ? "active"
+                    : ""
+                }
+              >
+                Furniture Catalogue
+              </Link>
             </>
           )}
 
           {/* Furniture Management Links - visible to designers and admins */}
           {userRole && (userRole === "admin" || userRole === "designer") && (
+            <></>
+          )}
+
+          {/* User Management Links - visible only to admins */}
+          {userRole === "admin" && (
             <>
               <Link
                 to="/add-furniture"
@@ -218,12 +294,6 @@ export default function Navbar() {
               >
                 Manage Furniture
               </Link>
-            </>
-          )}
-
-          {/* User Management Links - visible only to admins */}
-          {userRole === "admin" && (
-            <>
               <Link
                 to="/add-user"
                 className={location.pathname === "/add-user" ? "active" : ""}
@@ -243,53 +313,84 @@ export default function Navbar() {
         </div>
 
         {user ? (
-          <div className="user-menu" ref={userDropdownRef}>
-            <button
-              className="user-info"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              aria-expanded={isDropdownOpen}
-              aria-label="User menu"
-            >
-              <div className="user-avatar">{getInitial()}</div>
-              <div className="user-name">{user.displayName || "User"}</div>
-              <div className={`dropdown-arrow ${isDropdownOpen ? "open" : ""}`}>
-                ▼
-              </div>
-            </button>
-
-            {isDropdownOpen && (
-              <div className="user-dropdown" role="menu">
-                <div className="dropdown-item user-role">
-                  {userRole && (
-                    <>
-                      <span style={{ marginRight: "8px" }}>
-                        {getRoleDisplay(userRole).icon}
-                      </span>
-                      {getRoleDisplay(userRole).text}
-                    </>
+          <div className="navbar-actions">
+            {/* Cart icon - visible to clients and designers */}
+            {userRole && (userRole === "client" || userRole === "designer") && (
+              <Link
+                to="/cart"
+                className="cart-icon-link"
+                aria-label="Shopping cart"
+                title="View cart"
+              >
+                <div className="cart-icon">
+                  🛒
+                  {cartItemCount > 0 && (
+                    <span className="cart-count">{cartItemCount}</span>
                   )}
                 </div>
-                <div className="dropdown-divider" role="separator"></div>
-                <Link to="/profile" className="dropdown-item" role="menuitem">
-                  My Profile
-                </Link>
-                <Link
-                  to="/my-projects"
-                  className="dropdown-item"
-                  role="menuitem"
-                >
-                  My Projects
-                </Link>
-                <div className="dropdown-divider" role="separator"></div>
-                <button
-                  className="dropdown-item logout"
-                  onClick={handleLogout}
-                  role="menuitem"
-                >
-                  Logout
-                </button>
-              </div>
+              </Link>
             )}
+
+            <div className="user-menu" ref={userDropdownRef}>
+              <button
+                className="user-info"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                aria-expanded={isDropdownOpen}
+                aria-label="User menu"
+              >
+                <div className="user-avatar">{getInitial()}</div>
+                <div className="user-name">{user.displayName || "User"}</div>
+                <div
+                  className={`dropdown-arrow ${isDropdownOpen ? "open" : ""}`}
+                >
+                  ▼
+                </div>
+              </button>
+
+              {isDropdownOpen && (
+                <div className="user-dropdown" role="menu">
+                  <div className="dropdown-item user-role">
+                    {userRole && (
+                      <>
+                        <span style={{ marginRight: "8px" }}>
+                          {getRoleDisplay(userRole).icon}
+                        </span>
+                        {getRoleDisplay(userRole).text}
+                      </>
+                    )}
+                  </div>
+                  <div className="dropdown-divider" role="separator"></div>
+                  <Link to="/profile" className="dropdown-item" role="menuitem">
+                    My Profile
+                  </Link>
+                  <Link
+                    to="/my-projects"
+                    className="dropdown-item"
+                    role="menuitem"
+                  >
+                    My Projects
+                  </Link>
+                  {userRole &&
+                    (userRole === "client" || userRole === "designer") && (
+                      <Link
+                        to="/cart"
+                        className="dropdown-item"
+                        role="menuitem"
+                      >
+                        My Cart {cartItemCount > 0 && `(${cartItemCount})`}
+                      </Link>
+                    )}
+                  <div className="dropdown-divider" role="separator"></div>
+                  <button
+                    className="dropdown-item logout"
+                    onClick={handleLogout}
+                    role="menuitem"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <Link to="/login" className="login-button">
