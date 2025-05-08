@@ -64,6 +64,7 @@ export default function App() {
               {/* Routes accessible to designers and client */}
               <Route element={<AuthGuard allowedRoles={["client", "designer"]} />}>
                 {/* Project routes - accessible to all authenticated users */}
+                <Route path="/" element={<ClientDesignerHomePage />} />
                 <Route path="/my-projects" element={<MyProjectsPage />} />
                 <Route path="/create-project" element={<CreateProjectPage />} />
                 <Route path="/view-project/:id" element={<ViewProjectPage />} />
