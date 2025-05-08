@@ -538,7 +538,6 @@ export default function CartPage() {
 
   return (
     <div className="app-container">
-      <Navbar />
       <Popup 
         open={popup.open} 
         type={popup.type} 

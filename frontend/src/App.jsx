@@ -68,18 +68,11 @@ export default function App() {
                 <Route path="/create-project" element={<CreateProjectPage />} />
                 <Route path="/view-project/:id" element={<ViewProjectPage />} />
                 <Route path="/edit-project/:id" element={<EditProjectPage />} />
-              </Route>
-
-              {/* Project routes - accessible to all authenticated users */}
-              <Route path="/my-projects" element={<MyProjectsPage />} />
-              <Route path="/create-project" element={<CreateProjectPage />} />
-              <Route path="/view-project/:id" element={<ViewProjectPage />} />
-              <Route path="/edit-project/:id" element={<EditProjectPage />} />
-              <Route
-                path="/customer-designer-furniture-catalogue"
-                element={<CustomerDesignerFurnitureCataloguePage />}
-              />
-              <Route path="/cart" element={<CartPage />} />
+                <Route
+                  path="/customer-designer-furniture-catalogue"
+                  element={<CustomerDesignerFurnitureCataloguePage />}
+                />
+                <Route path="/cart" element={<CartPage />} />
               </Route>
 
               {/* Routes accessible to designers and admin */}
