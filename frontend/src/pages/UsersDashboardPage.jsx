@@ -13,7 +13,7 @@ export default function UsersDashboardPage() {
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' });
   const [confirm, setConfirm] = useState({ open: false, user: null });
   const navigate = useNavigate();
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -29,7 +29,7 @@ export default function UsersDashboardPage() {
       
       const idToken = await user.getIdToken();
       
-      const response = await fetch('http://localhost:3001/api/users', {
+      const response = await fetch(`${API_URL}/api/users`, {
         headers: {
           'Authorization': `Bearer ${idToken}`
         }
@@ -72,7 +72,7 @@ export default function UsersDashboardPage() {
       
       const idToken = await currentUser.getIdToken();
       
-      const response = await fetch(`http://localhost:3001/api/users/${user.id}`, {
+      const response = await fetch(`${API_URL}/api/users/${user.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${idToken}`

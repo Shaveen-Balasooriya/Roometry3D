@@ -11,7 +11,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' });
   const navigate = useNavigate();
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     async function fetchUserProfile() {
       try {
@@ -25,7 +25,7 @@ export default function ProfilePage() {
         const idToken = await user.getIdToken();
         
         // Fetch user profile data from backend
-        const response = await fetch('http://localhost:3001/api/auth/verify', {
+        const response = await fetch('${API_URL}/api/auth/verify', {
           headers: {
             'Authorization': `Bearer ${idToken}`
           }

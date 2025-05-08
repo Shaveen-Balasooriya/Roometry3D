@@ -13,7 +13,7 @@ function ModelPreview({ objFile, textureUrl, dimensions }) {
   const [object, setObject] = useState(null)
   const loaderRef = useRef(new OBJLoader())
   const { width = 1, height = 1, length = 1 } = dimensions || {}
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     let currentMaterial = null
     let cancelled = false
@@ -169,7 +169,7 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
           
           const idToken = await user.getIdToken();
           
-          const response = await fetch(`http://localhost:3001${modelEndpoint}`, {
+          const response = await fetch(`${API_URL}${modelEndpoint}`, {
             headers: {
               'Authorization': `Bearer ${idToken}`
             }
@@ -214,7 +214,7 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
       
       const idToken = await user.getIdToken();
       
-      const response = await fetch(`http://localhost:3001/api/furniture/${id}`, {
+      const response = await fetch(`${API_URL}/api/furniture/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${idToken}`

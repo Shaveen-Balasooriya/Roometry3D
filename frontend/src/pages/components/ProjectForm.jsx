@@ -4,6 +4,8 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import Loading from '../../components/Loading';
 import './ProjectForm.css';
 
+const API_URL = import.meta.env.VITE_BACKEND_URL;
+
 export default function ProjectForm({ onSuccess, initialData = null, editMode = false, projectId }) {
   const [form, setForm] = useState({
     name: '',
@@ -136,7 +138,7 @@ export default function ProjectForm({ onSuccess, initialData = null, editMode = 
       
       let response;
       if (editMode) {
-        response = await fetch(`http://localhost:3001/api/projects/${projectId}`, {
+        response = await fetch(`${API_URL}/api/projects/${projectId}`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${idToken}`
@@ -144,7 +146,7 @@ export default function ProjectForm({ onSuccess, initialData = null, editMode = 
           body: formData,
         });
       } else {
-        response = await fetch('http://localhost:3001/api/projects', {
+        response = await fetch(`${API_URL}/api/projects`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${idToken}`

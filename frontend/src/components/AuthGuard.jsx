@@ -7,7 +7,7 @@ export default function AuthGuard({ allowedRoles = [] }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     const unsubscribe = onAuthChange(async (authUser) => {
       if (authUser) {
@@ -22,7 +22,7 @@ export default function AuthGuard({ allowedRoles = [] }) {
           if (!role) {
             // Fetch the user's role from the backend
             const idToken = await authUser.getIdToken();
-            const response = await fetch('http://localhost:3001/api/auth/verify', {
+            const response = await fetch('${API_URL}/api/auth/verify', {
               headers: {
                 'Authorization': `Bearer ${idToken}`
               }

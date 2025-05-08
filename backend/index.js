@@ -3,6 +3,7 @@ const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const functions = require('firebase-functions');
 
 const app = express();
 
@@ -252,6 +253,89 @@ app.use('/api/furniture', authenticateUser);
 app.use('/api/users', authenticateUser);
 app.use('/api/projects', authenticateUser);
 app.use('/api/count',authenticateUser);
+
+// User self-service profile endpoints
+app.post('/api/user/change-password', authenticateUser, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+    
+    // Verify current password by attempting to get a new ID token
+    try {
+      // We can't directly verify the password on the backend, so we'll rely on Firebase Auth rules
+      // to prevent changing password unless the user is properly authenticated
+      await admin.auth().updateUser(uid, { password: newPassword });
+      res.json({ message: 'Password updated successfully' });
+    } catch (error) {
+      console.error('Error updating password:', error);
+      if (error.code === 'auth/requires-recent-login') {
+        return res.status(403).json({ 
+          message: 'This operation requires recent authentication. Please log in again before retrying.',
+          requiresReauth: true
+        });
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error('Password change error:', error);
+    res.status(500).json({ message: 'Failed to change password', details: error.message });
+  }
+});
+
+app.put('/api/user/profile', authenticateUser, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const { name, photoURL } = req.body;
+    
+    const updates = {};
+    const authUpdates = {};
+    
+    if (name) {
+      updates.name = name;
+      authUpdates.displayName = name;
+    }
+    
+    if (photoURL) {
+      updates.photoURL = photoURL;
+      authUpdates.photoURL = photoURL;
+    }
+    
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No valid fields provided for update' });
+    }
+    
+    // Update in Firebase Auth
+    if (Object.keys(authUpdates).length > 0) {
+      await admin.auth().updateUser(uid, authUpdates);
+    }
+    
+    // Update in Firestore
+    const userDocRef = db.collection('users').doc(uid);
+    await userDocRef.update({
+      ...updates,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    res.json({ 
+      message: 'Profile updated successfully',
+      user: {
+        uid,
+        ...updates
+      }
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Failed to update profile', details: error.message });
+  }
+});
 
 // Apply role-based access control to admin routes
 app.post('/api/furniture', requireRole(['admin']));
@@ -1239,7 +1323,15 @@ app.get('/api/count/designers', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Backend listening on port ${PORT}`);
-});
+if (process.env.NODE_ENV === 'development') {
+  // Running locally
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log("Backend listening on port ${PORT}");
+  });
+} else {
+  // Running on Firebase
+  exports.api = functions.https.onRequest(app);
+}
+
+

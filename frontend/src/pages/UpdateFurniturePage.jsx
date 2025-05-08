@@ -11,7 +11,7 @@ export default function UpdateFurniturePage() {
   const [initialData, setInitialData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' });
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     const fetchFurnitureDetails = async () => {
       setLoading(true);
@@ -25,7 +25,7 @@ export default function UpdateFurniturePage() {
         const idToken = await user.getIdToken();
         
         // Fetch the full details including the original objFileUrl needed for the preview
-        const response = await fetch(`http://localhost:3001/api/furniture/${id}/details`, {
+        const response = await fetch(`${API_URL}/api/furniture/${id}/details`, {
           headers: {
             'Authorization': `Bearer ${idToken}`
           }

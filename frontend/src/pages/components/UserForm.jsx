@@ -14,7 +14,7 @@ export default function UserForm({ onSuccess, initialData = null, editMode = fal
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' });
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     if (initialData) {
       setForm({ ...initialData, password: '', confirmPassword: '' });
@@ -78,7 +78,7 @@ export default function UserForm({ onSuccess, initialData = null, editMode = fal
       const idToken = await auth.currentUser.getIdToken();
       
       if (editMode) {
-        response = await fetch(`http://localhost:3001/api/users/${userId}`, {
+        response = await fetch(`${API_URL}/api/users/${userId}`, {
           method: 'PUT',
           headers: { 
             'Content-Type': 'application/json',
@@ -90,7 +90,7 @@ export default function UserForm({ onSuccess, initialData = null, editMode = fal
           }),
         });
       } else {
-        response = await fetch('http://localhost:3001/api/users', {
+        response = await fetch(`${API_URL}/api/users`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',

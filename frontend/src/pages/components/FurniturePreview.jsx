@@ -7,7 +7,7 @@ import Loading from '../../components/Loading';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { auth } from '../../services/firebase';
 import './FurniturePreview.css';
-
+const API_URL = import.meta.env.VITE_BACKEND_URL;
 // ModelLoader component
 const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimensions }) {
   const [object, setObject] = useState(null);
@@ -146,12 +146,17 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
     const validTextures = textures?.filter(t => t instanceof Blob) || [];
     if (validTextures.length > 0) {
       const newUrls = validTextures.map(textureFile => URL.createObjectURL(textureFile));
-      setLocalTextureUrls(newUrls);
-      setSelectedTextureIndex(0);
-
+      
+      // Cleanup previous URLs before setting new ones
       prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      
+      setLocalTextureUrls(newUrls);
+      // Reset selected index safely when we have new textures
+      setSelectedTextureIndex(0);
+      
       prevLocalUrlsRef.current = newUrls;
-    } else {
+    } else if (prevLocalUrlsRef.current.length > 0 && validTextures.length === 0) {
+      // Only clean up if we previously had URLs but now don't
       prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
       prevLocalUrlsRef.current = [];
       setLocalTextureUrls([]);
@@ -159,23 +164,33 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
 
     return () => {
       prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-      prevLocalUrlsRef.current = [];
     };
   }, [textures]);
 
+
+  // Effect to combine local and initial texture URLs
+  // FIXED: Only run when dependencies actually change
   useEffect(() => {
-    if (localTextureUrls.length > 0) {
-      setCombinedTextureUrls([...localTextureUrls]);
-      if (localTextureUrls.length > 0 && selectedTextureIndex >= localTextureUrls.length) {
-        setSelectedTextureIndex(0);
-      }
-    } else {
-      setCombinedTextureUrls([...initialTextureUrls]);
-      if (initialTextureUrls.length > 0 && selectedTextureIndex >= initialTextureUrls.length) {
-        setSelectedTextureIndex(0);
-      }
+    // Use whichever textures are available
+    const texturesToUse = localTextureUrls.length > 0 
+      ? [...localTextureUrls] 
+      : [...initialTextureUrls];
+    
+    // Prevent infinite loop - only update if the combined URLs actually change
+    if (JSON.stringify(texturesToUse) !== JSON.stringify(combinedTextureUrls)) {
+      setCombinedTextureUrls(texturesToUse);
     }
-  }, [localTextureUrls, initialTextureUrls, selectedTextureIndex]);
+    
+    // Don't adjust selectedTextureIndex here - let the user control it
+  }, [localTextureUrls, initialTextureUrls]);
+
+  // Safety check for selectedTextureIndex - runs when combinedTextureUrls changes
+  useEffect(() => {
+    // If the selected index is out of bounds, reset it to a valid value
+    if (combinedTextureUrls.length > 0 && selectedTextureIndex >= combinedTextureUrls.length) {
+      setSelectedTextureIndex(0);
+    }
+  }, [combinedTextureUrls, selectedTextureIndex]);
 
   useEffect(() => {
     let isActive = true;
@@ -226,7 +241,9 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
   const displayObjBlob = objFile instanceof Blob ? objFile : initialObjBlob;
 
   const currentTextureUrl = useMemo(() => {
-    return combinedTextureUrls[selectedTextureIndex] || null;
+    return combinedTextureUrls.length > 0 ? 
+      combinedTextureUrls[selectedTextureIndex] || null : 
+      null;
   }, [combinedTextureUrls, selectedTextureIndex]);
 
   const numericDimensions = useMemo(() => ({
@@ -283,7 +300,9 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
         formData.append('textures', file);
       });
       
-      const response = await fetch(`http://localhost:3001/api/furniture/${furnitureId}/textures`, {
+      // Send the textures to the server
+      const response = await fetch(`${API_URL}/api/furniture/${furnitureId}/textures`, {
+
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${idToken}`
@@ -348,7 +367,9 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       
       const idToken = await user.getIdToken();
       
-      const response = await fetch(`http://localhost:3001/api/furniture/${furnitureId}/textures/delete`, {
+      // Send the delete request to the server
+      const response = await fetch(`${API_URL}/api/furniture/${furnitureId}/textures/delete`, {
+
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${idToken}`,
