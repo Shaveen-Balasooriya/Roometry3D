@@ -410,7 +410,9 @@ export default function CartPage() {
   const calculateTotal = () => {
     return cartItems.reduce((total, item) => {
       if (outOfStockItems.includes(item.furnitureId)) return total;
-      return total + (item.price * item.quantity);
+      const price = getItemPrice(item);
+      const quantity = item.quantity || 1;
+      return total + (price * quantity);
     }, 0).toFixed(2);
   };
 
@@ -654,15 +656,15 @@ export default function CartPage() {
                     
                     <div className="cart-item-quantity">
                       <button
-                        onClick={() => updateQuantity(index, item.quantity - 1)}
+                        onClick={() => updateQuantity(index, (item.quantity || 1) - 1)}
                         className="quantity-btn"
-                        disabled={item.quantity <= 1 || isOutOfStock(item.furnitureId)}
+                        disabled={(item.quantity || 1) <= 1 || isOutOfStock(item.furnitureId)}
                       >
                         -
                       </button>
-                      <span className="quantity-value">{item.quantity}</span>
+                      <span className="quantity-value">{item.quantity || 1}</span>
                       <button
-                        onClick={() => updateQuantity(index, item.quantity + 1)}
+                        onClick={() => updateQuantity(index, (item.quantity || 1) + 1)}
                         className="quantity-btn"
                         disabled={isOutOfStock(item.furnitureId)}
                       >
@@ -671,7 +673,7 @@ export default function CartPage() {
                     </div>
                     
                     <div className="cart-item-subtotal">
-                      ${(getItemPrice(item) * item.quantity).toFixed(2)}
+                      ${(getItemPrice(item) * (item.quantity || 1)).toFixed(2)}
                     </div>
                     
                     <button
