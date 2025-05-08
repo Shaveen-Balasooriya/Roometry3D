@@ -84,10 +84,10 @@ export default function LoginPage() {
         console.log("User role:", userRole);
         
         if (userRole === 'admin') {
-          navigate('/');
+          navigate('/admin');
         } else {
-          // For designers and clients, redirect to their projects
-          navigate('/my-projects');
+          // For designers and clients, redirect to the new home page
+          navigate('/');
         }
       } else {
         navigate('/');

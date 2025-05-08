@@ -21,7 +21,7 @@ export default function CreateProjectPage() {
 
   return (
     <div className="app-container">
-      <Navbar />
+
       <main className="main-content">
         <div className="my-projects-page">
           <div className="page-header">
@@ -40,7 +40,7 @@ export default function CreateProjectPage() {
           </div>
         </div>
       </main>
-      <Footer />
+  
     </div>
   );
 }

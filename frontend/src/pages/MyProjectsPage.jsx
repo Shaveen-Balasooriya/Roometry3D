@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { auth } from '../services/firebase';
 import Loading from '../components/Loading';
 import Popup from '../components/Popup';
@@ -13,7 +13,9 @@ export default function MyProjectsPage() {
   const [error, setError] = useState(null);
   const [popup, setPopup] = useState({ open: false, type: '', message: '' });
   const [userRole, setUserRole] = useState(null);
+  const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_BACKEND_URL;
+
   // Fetch user projects on component mount
   useEffect(() => {
     async function fetchUserProjects() {
@@ -135,103 +137,108 @@ export default function MyProjectsPage() {
 
   return (
     <>
-      <Navbar />
+ 
       <main className="main-content my-projects-page">
-        <Popup
-          open={popup.open}
-          type={popup.type}
-          message={popup.message}
-          onClose={() => setPopup({ ...popup, open: false })}
-        />
-        
-        <div className="container">
-          <div className="page-header">
-            <h1>My Projects</h1>
-            <Link to="/create-project" className="button-primary create-project-btn">
-              <span className="plus-icon">+</span> Create New Project
-            </Link>
+        <div className="page-content">
+          <Popup
+            open={popup.open}
+            type={popup.type}
+            message={popup.message}
+            onClose={() => setPopup({ ...popup, open: false })}
+          />
+          
+          <div className="projects-header">
+            <h2 className="projects-title">My Projects</h2>
+            <button 
+              className="button-primary create-project-button"
+              onClick={() => navigate('/create-project')}
+            >
+              <span className="plus-icon">+</span> Create Project
+            </button>
           </div>
 
-          {loading ? (
-            <div className="loading-container">
-              <Loading size={40} />
-            </div>
-          ) : error ? (
-            <div className="error-message">
-              <p>Error loading projects: {error}</p>
-              <p>Please try refreshing the page.</p>
-            </div>
-          ) : projects.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">📁</div>
-              <h3>No projects found</h3>
-              <p>
-                {userRole === 'client' 
-                  ? "You don't have any projects yet. Create your first project to get started!"
-                  : userRole === 'designer'
-                    ? "You haven't been assigned to any projects yet."
-                    : "No projects available."}
-              </p>
-              {userRole === 'client' && (
-                <Link to="/create-project" className="button-secondary">
-                  <i className="fas fa-plus-circle"></i> Create New Project
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div className="projects-grid">
-              {projects.map(project => (
-                <div key={project.id} className="project-card">
-                  <div className="project-header">
-                    <div className={`project-status ${getStatusClass(project.status)}`}>
-                      {getStatusDisplay(project.status)}
-                    </div>
-                    <div className="project-actions">
-                      <Link to={`/view-project/${project.id}`} className="action-button view-button" title="View Project">
-                        <i className="fas fa-eye"></i>
-                      </Link>
-                      {(userRole === 'admin' || (userRole === 'designer' && project.designerId === auth.currentUser?.uid)) && (
-                        <Link to={`/edit-project/${project.id}`} className="action-button edit-button" title="Edit Project">
-                          <i className="fas fa-edit"></i>
+          <div className="container">
+            {loading ? (
+              <div className="loading-container">
+                <Loading size={40} />
+              </div>
+            ) : error ? (
+              <div className="error-message">
+                <p>Error loading projects: {error}</p>
+                <p>Please try refreshing the page.</p>
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-icon">📁</div>
+                <h3>No projects found</h3>
+                <p>
+                  {userRole === 'client' 
+                    ? "You don't have any projects yet. Create your first project to get started!"
+                    : userRole === 'designer'
+                      ? "You haven't been assigned to any projects yet."
+                      : "No projects available."}
+                </p>
+                {userRole === 'client' && (
+                  <Link to="/create-project" className="button-secondary">
+                    <i className="fas fa-plus-circle"></i> Create New Project
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="projects-grid">
+                {projects.map(project => (
+                  <div key={project.id} className="project-card">
+                    <div className="project-header">
+                      <div className={`project-status ${getStatusClass(project.status)}`}>
+                        {getStatusDisplay(project.status)}
+                      </div>
+                      <div className="project-actions">
+                        <Link to={`/view-project/${project.id}`} className="action-button view-button" title="View Project">
+                          <i className="fas fa-eye"></i>
                         </Link>
-                      )}
-                      {(userRole === 'admin' || (userRole === 'client' && project.clientId === auth.currentUser?.uid)) && (
-                        <button 
-                          onClick={() => handleDeleteProject(project.id, project.name)}
-                          className="action-button delete-button"
-                          title="Delete Project"
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      )}
+                        {(userRole === 'admin' || (userRole === 'designer' && project.designerId === auth.currentUser?.uid)) && (
+                          <Link to={`/edit-project/${project.id}`} className="action-button edit-button" title="Edit Project">
+                            <i className="fas fa-edit"></i>
+                          </Link>
+                        )}
+                        {(userRole === 'admin' || (userRole === 'client' && project.clientId === auth.currentUser?.uid)) && (
+                          <button 
+                            onClick={() => handleDeleteProject(project.id, project.name)}
+                            className="action-button delete-button"
+                            title="Delete Project"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  
-                  <h3 className="project-name">{project.name}</h3>
-                  <p className="project-description">{project.description || "No description provided."}</p>
-                  
-                  <div className="project-details">
-                    <div className="detail-item">
-                      <span className="detail-label">Created</span>
-                      <span className="detail-value">{formatDate(project.createdAt)}</span>
+                    
+                    <h3 className="project-name">{project.name}</h3>
+                    <p className="project-description">{project.description || "No description provided."}</p>
+                    
+                    <div className="project-details">
+                      <div className="detail-item">
+                        <span className="detail-label">Created</span>
+                        <span className="detail-value">{formatDate(project.createdAt)}</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Updated</span>
+                        <span className="detail-value">{formatDate(project.updatedAt)}</span>
+                      </div>
                     </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Updated</span>
-                      <span className="detail-value">{formatDate(project.updatedAt)}</span>
-                    </div>
-                  </div>
 
-                  {project.objFileUrl && (
-                    <div className="model-preview">
-                      <Link to={`/view-project/${project.id}`} className="model-link">
-                        <i className="fas fa-cube"></i> View 3D Model
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                    {project.objFileUrl && (
+                      <div className="model-preview">
+                        <Link to={`/view-project/${project.id}`} className="model-link">
+                          <i className="fas fa-cube"></i> View 3D Model
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </>
