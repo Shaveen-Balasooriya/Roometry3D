@@ -3,11 +3,11 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { Environment, Bounds } from '@react-three/drei'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader'
 import * as THREE from 'three'
-import { useNavigate } from 'react-router-dom' // Import useNavigate
+import { useNavigate } from 'react-router-dom'
 import Loading from '../../components/Loading'
 import Popup from '../../components/Popup'
-import ConfirmationPopup from '../../components/ConfirmationPopup'
 import { auth } from '../../services/firebase'
+import { getUserRole } from '../../services/firebase' // Import the getUserRole function
 
 function ModelPreview({ objFile, textureUrl, dimensions }) {
   const [object, setObject] = useState(null)
@@ -132,7 +132,7 @@ function RotatingBoundsContent({ children }) {
   )
 }
 
-export default function FurnitureCard({ furniture, onDeleteSuccess }) {
+export default function CustomerDesignerFurnitureCard({ furniture }) {
   const {
     id, name, category, price, quantity, height, width, length, wallMountable,
     modelEndpoint, textureUrls = []
@@ -141,18 +141,32 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
   const [selectedTextureIndex, setSelectedTextureIndex] = useState(0)
   const [objBlob, setObjBlob] = useState(null)
   const [isLoadingBlob, setIsLoadingBlob] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' })
-  const [showConfirmPopup, setShowConfirmPopup] = useState(false)
+  const [userRole, setUserRole] = useState(null)
   const navigate = useNavigate()
   const API_URL = import.meta.env.VITE_BACKEND_URL;
-
+  
   useEffect(() => { setSelectedTextureIndex(0) }, [textureUrls])
 
   const currentTextureUrl = useMemo(() => {
     if (!textureUrls || textureUrls.length === 0) return null
     return textureUrls[selectedTextureIndex] || textureUrls[0]
   }, [textureUrls, selectedTextureIndex])
+
+  // Get user role when component mounts
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const role = await getUserRole();
+        setUserRole(role);
+      } catch (error) {
+        console.error("Error getting user role:", error);
+      }
+    };
+    
+    fetchUserRole();
+  }, []);
 
   useEffect(() => {
     let isActive = true
@@ -201,53 +215,96 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
     }
   }, [modelEndpoint])
 
-  const executeDelete = async () => {
-    setShowConfirmPopup(false)
-    setIsDeleting(true)
-    setPopup({ open: false, type: '', message: '' })
-    try {
-      // Get the current user's auth token
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error('You must be logged in to delete furniture');
-      }
-      
-      const idToken = await user.getIdToken();
-      
-      const response = await fetch(`${API_URL}/api/furniture/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${idToken}`
-        }
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to delete item. Server returned an error.' }))
-        throw new Error(errorData.message || 'Failed to delete item.')
-      }
-
-      onDeleteSuccess(id)
-
-    } catch (err) {
-      console.error("Error deleting furniture:", err)
-      setPopup({ open: true, type: 'error', message: err.message || 'Error deleting item.' })
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  const handleDelete = () => {
-    setShowConfirmPopup(true)
-  }
-
-  const handleCancelDelete = () => {
-    setShowConfirmPopup(false)
-  }
-
   const handleEdit = () => {
     console.log(`Edit button clicked for item ID: ${id}`)
     navigate(`/update-furniture/${id}`)
   }
+
+  const handleAddToCart = async () => {
+    setIsAddingToCart(true);
+    try {
+      // Get the current user's auth token
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('You must be logged in to add items to cart');
+      }
+      
+      const idToken = await user.getIdToken();
+      
+      // Call the new API endpoint to add the item to cart in Firestore
+      const response = await fetch(`${API_URL}/api/cart/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}` // Make sure the format matches what your middleware expects
+        },
+        body: JSON.stringify({
+          furnitureId: id,
+          quantity: 1, // Default quantity is 1
+          textureUrl: currentTextureUrl
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add item to cart');
+      }
+      
+      // Also keep a local copy in localStorage for faster access and offline capabilities
+      // This is optional and can be removed if you want to rely fully on the server
+    //   try {
+    //     const existingCartJSON = localStorage.getItem('cart');
+    //     let cartItems = [];
+        
+    //     if (existingCartJSON) {
+    //       cartItems = JSON.parse(existingCartJSON);
+    //       if (!Array.isArray(cartItems)) {
+    //         cartItems = [];
+    //       }
+    //     }
+        
+    //     const cartItem = {
+    //       furnitureId: id,
+    //       quantity: 1,
+    //       textureUrl: currentTextureUrl,
+    //       dateAdded: new Date().toISOString(),
+    //       name: name,
+    //       price: price
+    //     };
+        
+    //     const existingItemIndex = cartItems.findIndex(item => 
+    //       item.furnitureId === id && item.textureUrl === currentTextureUrl
+    //     );
+        
+    //     if (existingItemIndex >= 0) {
+    //       cartItems[existingItemIndex].quantity += 1;
+    //     } else {
+    //       cartItems.push(cartItem);
+    //     }
+        
+    //     localStorage.setItem('cart', JSON.stringify(cartItems));
+    //   } catch (localStorageError) {
+    //     console.warn("Could not update localStorage cart:", localStorageError);
+    //     // Continue even if localStorage fails
+    //   }
+      
+      setPopup({ 
+        open: true, 
+        type: 'success', 
+        message: `${name} added to cart successfully!` 
+      });
+      
+    } catch (err) {
+      console.error("Error adding to cart:", err);
+      setPopup({ 
+        open: true, 
+        type: 'error', 
+        message: err.message || 'Error adding item to cart.' 
+      });
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
 
   const previewAvailable = !!objBlob
   const showLoading = isLoadingBlob || (!previewAvailable && modelEndpoint)
@@ -256,77 +313,42 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
     <div
       style={{
         background: '#FFFFFF',
+        border: '2px solid #4382FF',
         borderRadius: '8px',
-        overflow: 'hidden',
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
-        border: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-sm)',
         padding: '1.5rem 1.2rem 1.2rem 1.2rem',
-        margin: '0',
+        margin: '0.5rem',
+        minWidth: 260,
+        maxWidth: 320,
+        flex: '1 1 260px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'stretch',
-        gap: '1rem',
-        height: '100%', // Make sure it takes full height
-        width: '100%', // Take full width of grid cell
-        maxWidth: '340px', // Set maximum width
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+        gap: '1rem'
       }}
     >
       <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
 
-      <ConfirmationPopup
-        open={showConfirmPopup}
-        message={`Are you sure you want to delete "${name}"? This action cannot be undone.`}
-        onConfirm={executeDelete}
-        onCancel={handleCancelDelete}
-        confirmText="Delete"
-        confirmButtonClass="button-primary"
-      />
-
-      <div style={{ 
-        marginBottom: '0.5rem', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center' 
-      }}>
-        <span style={{
-          fontWeight: 600, 
-          fontSize: '18px', 
-          color: '#00474C' // Darker teal from HomePage
-        }}>{name}</span>
-        <span style={{ 
-          color: '#006A71', // Teal from HomePage
-          fontWeight: 600, 
-          fontSize: '16px' 
-        }}>${price}</span>
+      <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'  }}>
+        <span style={{fontWeight: 600, fontSize: '20px', color: '#1A365D'  }}>{name}</span>
+        <span style={{ color: '#2C5282', fontWeight: 600, fontSize: '18px' }}>${price}</span>
       </div>
-      
-      <div style={{  
-        color: '#66B2B8', // Lighter teal from HomePage
-        fontSize: '14px', 
-        marginBottom: '0.2rem', 
-        fontWeight: 500 
-      }}>{category}</div>
-      
-      {/* Preview container with gold accent at the bottom */}
+      <div style={{  color: '#3182CE', fontSize: '14px', marginBottom: '0.2rem', fontWeight: 400 }}>{category}</div>
       <div
         style={{
           width: '100%',
           height: 140,
-          background: '#F7FAFC', // Light background from HomePage
+          background: '#DBEAFE',
           borderRadius: 8,
           marginBottom: 8,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
-          border: '1px solid #E2E8F0',
-          borderBottom: '2px solid #ECC94B', // Added gold accent to preview area
         }}
       >
-        {/* Keep the Canvas and 3D model rendering logic as is */}
         {showLoading ? (
-          <div style={{ color: '#4A5568', fontSize: 13, textAlign: 'center'}}>
+          <div style={{  color: '#4A5568', fontSize: 13, textAlign: 'center'}}>
             <Loading size={30} />
             <div style={{ marginTop: '5px', opacity: 0.8 }}>Loading Preview...</div>
           </div>
@@ -336,6 +358,7 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
               width: '100%',
               height: '100%',
               borderRadius: 8,
+              border: '1px solid #4382FF'
             }}
             gl={{ antialias: true, alpha: false, preserveDrawingBuffer: false }}
             dpr={[1, 1.5]}
@@ -343,8 +366,7 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
             shadows
             camera={{ fov: 45, near: 0.1, far: 50 }}
           >
-            <color attach="background" args={['#F7FAFC']} />
-            {/* Keep all the lighting and model components the same */}
+            <color attach="background" aargs={['#DBEAFE']} />
             <ambientLight intensity={0.6} />
             <directionalLight
               position={[3, 5, 4]}
@@ -371,146 +393,77 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
           </div>
         )}
       </div>
-      
-      {/* Texture selection buttons with gold accent */}
       {textureUrls.length > 1 && (
-        <div style={{ 
-          display: 'flex', 
-          gap: 8, 
-          marginBottom: 4, 
-          justifyContent: 'flex-start',
-          padding: '6px 10px',
-          borderRadius: '4px',
-          border: '1px solid #E2E8F0',
-          borderLeft: '2px solid #ECC94B' // Added gold accent to texture selection
-        }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 4, justifyContent: 'flex-start' }}>
           {textureUrls.map((url, idx) => (
             <button
               key={idx}
               onClick={() => setSelectedTextureIndex(idx)}
               style={{
-                border: idx === selectedTextureIndex ? `2px solid #006A71` : '1px solid #E2E8F0',
+                border: idx === selectedTextureIndex ? '2px solid #1A365D' : '1px solid #D1D5DB',
                 borderRadius: '4px',
                 padding: 0,
-                background: '#FFFFFF',
+                background: 'var(--surface-lighter)',
                 width: 24,
                 height: 24,
                 cursor: 'pointer',
                 outline: 'none',
-                boxShadow: idx === selectedTextureIndex ? '0 0 0 2px #66B2B8' : undefined,
+                boxShadow: idx === selectedTextureIndex ? '0 0 0 2px var(--primary-dark)' : undefined,
                 transition: 'border-color 0.2s, box-shadow 0.2s'
               }}
               title={`Texture ${idx + 1}`}
               type="button"
             >
-              <img src={url} alt={`Texture ${idx + 1}`} style={{ 
-                width: '100%', 
-                height: '100%', 
-                objectFit: 'cover', 
-                borderRadius: 4 
-              }} />
+              <img src={url} alt={`Texture ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }} />
             </button>
           ))}
         </div>
       )}
-      
-      {/* Product details */}
       <div style={{ fontSize: '12px', marginBottom: '8px', display: 'grid', gridTemplateColumns: '40% 60%' }}>
-        <span style={{ fontWeight: 600, color: '#00474C', textAlign: 'left' }}>Dimensions:</span>
+        <span style={{ fontWeight: 600, color: '#1A365D', textAlign: 'left' }}>Dimensions:</span>
         <span style={{ color: '#4A5568', textAlign: 'left' }}>{height}m (H) × {width}m (W) × {length}m (L)</span>
       </div>
       <div style={{ fontSize: '12px', marginBottom: '8px', display: 'grid', gridTemplateColumns: '40% 60%' }}>
-        <span style={{ fontWeight: 600, color: '#00474C', textAlign: 'left' }}>Quantity:</span>
+        <span style={{ fontWeight: 600, color: '#1A365D', textAlign: 'left' }}>Quantity:</span>
         <span style={{ color: '#4A5568', textAlign: 'left' }}>{quantity}</span>
       </div>
       <div style={{ fontSize: '12px', marginBottom: '8px', display: 'grid', gridTemplateColumns: '40% 60%' }}>
-        <span style={{ fontWeight: 600, color: '#00474C', textAlign: 'left' }}>Wall Mountable:</span>
+        <span style={{ fontWeight: 600, color: '#1A365D', textAlign: 'left' }}>Wall Mountable:</span>
         <span style={{ color: '#4A5568', textAlign: 'left' }}>{wallMountable ? 'Yes' : 'No'}</span>
       </div>
-      
-      {/* Action buttons with icon styling */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'flex-end', 
-        marginTop: 'auto', // This pushes the buttons to the bottom
-        paddingTop: '1rem',
-        gap: '8px'
-      }}>
-        {/* Edit Icon Button - With teal styling */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
+        {userRole === 'designer' && (
+          <button
+            onClick={handleEdit}
+            style={{
+              minWidth: '80px', 
+              padding: '0.5rem 1rem', 
+              fontSize: '0.9rem',
+              background: '#3B82F6',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer' 
+            }}
+          >
+            Edit
+          </button>
+        )}
         <button
-          className="icon-button"
-          onClick={handleEdit}
-          style={{ 
-            background: '#66B2B8', // Lighter teal from HomePage
+          onClick={handleAddToCart}
+          style={{
+            minWidth: userRole === 'designer' ? '80px' : '100%', 
+            padding: '0.5rem 1rem', 
+            fontSize: '0.9rem', 
+            background: '#4F46E5',
+            color: '#FFFFFF',
             border: 'none',
             borderRadius: '4px',
-            cursor: 'pointer',
-            padding: '6px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '32px',
-            height: '32px',
-            transition: 'background-color 0.2s'
+            cursor: 'pointer'
           }}
-          title="Edit Furniture"
-          aria-label={`Edit ${name}`}
-          onMouseOver={(e) => e.currentTarget.style.background = '#006A71'} // Darker teal on hover
-          onMouseOut={(e) => e.currentTarget.style.background = '#66B2B8'} // Back to lighter teal
+          disabled={isAddingToCart}
         >
-          <svg 
-            width="16" 
-            height="16" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="white"
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
-          >
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-          </svg>
-        </button>
-        
-        {/* Delete Icon Button - Red styling */}
-        <button
-          className="icon-button"
-          onClick={handleDelete}
-          style={{ 
-            background: '#9B2C2C', // Darker red from HomePage error colors
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            padding: '6px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '32px',
-            height: '32px',
-            transition: 'background-color 0.2s'
-          }}
-          title="Delete Furniture"
-          aria-label={`Delete ${name}`}
-          disabled={isDeleting}
-          onMouseOver={(e) => !isDeleting && (e.currentTarget.style.background = '#FC8181')} // Lighter red on hover
-          onMouseOut={(e) => !isDeleting && (e.currentTarget.style.background = '#9B2C2C')} // Back to darker red
-        >
-          <svg 
-            width="16" 
-            height="16" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="white" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
-          >
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            <line x1="10" y1="11" x2="10" y2="17"></line>
-            <line x1="14" y1="11" x2="14" y2="17"></line>
-          </svg>
+          {isAddingToCart ? <Loading size={18} /> : 'Add to Cart'}
         </button>
       </div>
     </div>

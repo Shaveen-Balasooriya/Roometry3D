@@ -62,15 +62,15 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
   }, []);
 
   return (
-    <>
-      <section className="form-section">
+    <div className="furniture-content-container">
+      <div className="furniture-form-section">
         <FurnitureForm
           initialData={initialData} // Pass initial data for pre-filling and reverting
           onChange={handleFormChange}
           onUpdateSuccess={onUpdateSuccess} // Pass the success handler
         />
-      </section>
-      <section className="preview-section">
+      </div>
+      <div className="furniture-preview-section">
         <FurniturePreview
           objFile={previewData.objFile}
           textures={previewData.textures}
@@ -78,8 +78,52 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
           initialObjUrl={previewData.initialObjUrl}
           initialTextureUrls={previewData.initialTextureUrls}
           furnitureId={previewData.furnitureId}
+          isEditMode={true}
         />
-      </section>
-    </>
+      </div>
+
+      <style jsx>{`
+        .furniture-content-container {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+          width: 100%;
+        }
+        
+        .furniture-form-section,
+        .furniture-preview-section {
+          width: 100%;
+        }
+        
+        @media (min-width: 992px) {
+          .furniture-content-container {
+            flex-direction: row;
+            align-items: flex-start;
+          }
+          
+          .furniture-form-section {
+            flex: 1;
+            max-width: 50%;
+            padding-right: 1rem;
+          }
+          
+          .furniture-preview-section {
+            flex: 1;
+            max-width: 50%;
+            padding-left: 1rem;
+          }
+        }
+        
+        @media (min-width: 1200px) {
+          .furniture-form-section {
+            padding-right: 2rem;
+          }
+          
+          .furniture-preview-section {
+            padding-left: 2rem;
+          }
+        }
+      `}</style>
+    </div>
   );
 }

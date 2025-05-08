@@ -93,30 +93,9 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="app-container">
-      <Navbar />
-      <Popup
-        open={popup.open}
-        type={popup.type}
-        message={popup.message}
-        onClose={() => setPopup({ ...popup, open: false })}
-      />
-      
-      <main className="main-content" style={{ 
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '3rem 1rem',
-        background: 'var(--background)'
-      }}>
-        <h1 style={{ 
-          color: 'var(--accent)',
-          marginBottom: '2rem',
-          fontSize: '2.2rem',
-          fontWeight: 700
-        }}>My Profile</h1>
-        
-        {loading ? (
+    <div className="page-content">
+      <h2 className="page-title">My Profile</h2>
+      {loading ? (
           <Loading size={40} />
         ) : profile ? (
           <div style={{
@@ -303,8 +282,7 @@ export default function ProfilePage() {
         ) : (
           <div className="error-message">Failed to load profile information</div>
         )}
-      </main>
-      <Footer />
+      
     </div>
   );
 }
