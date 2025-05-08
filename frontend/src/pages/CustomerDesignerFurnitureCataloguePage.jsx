@@ -63,7 +63,7 @@ export default function CustomerDesignerFurnitureCataloguePage() {
 
   return (
     <div className="app-container">
-      <Navbar />
+
       <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
       <main className="main-content" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
         <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)' }}>Furniture Catalogue</h2>
@@ -91,7 +91,7 @@ export default function CustomerDesignerFurnitureCataloguePage() {
           </div>
         )}
       </main>
-      <Footer />
+
     </div>
   )
 }

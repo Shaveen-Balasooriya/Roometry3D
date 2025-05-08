@@ -137,7 +137,7 @@ export default function MyProjectsPage() {
 
   return (
     <>
-      <Navbar />
+ 
       <main className="main-content my-projects-page">
         <div className="page-content">
           <Popup

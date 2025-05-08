@@ -226,7 +226,7 @@ export default function ViewProjectPage() {
 
   return (
     <div className="page-content">
-      <Navbar />
+
       <main className="main-content project-view-page">
         {notification && (
           <div className={`notification notification-${notification.type}`}>
@@ -449,7 +449,7 @@ export default function ViewProjectPage() {
           </div>
         </div>
       </main>
-      <Footer />
+
     </div>
   );
 }
