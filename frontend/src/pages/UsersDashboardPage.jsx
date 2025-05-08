@@ -4,6 +4,8 @@ import Loading from '../components/Loading';
 import Popup from '../components/Popup';
 import ConfirmationPopup from '../components/ConfirmationPopup';
 import { auth } from '../services/firebase';
+import './HomePage.css'; // Import HomePage styles for consistent theming
+import './UsersDashboard.css'; // We'll create this file for responsive table styles
 
 export default function UsersDashboardPage() {
   const [users, setUsers] = useState([]);
@@ -12,6 +14,7 @@ export default function UsersDashboardPage() {
   const [confirm, setConfirm] = useState({ open: false, user: null });
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_BACKEND_URL;
+  
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -91,8 +94,25 @@ export default function UsersDashboardPage() {
     }
   };
 
+  const formatDate = (timestamp) => {
+    if (!timestamp) return '-';
+    
+    // Handle Firestore timestamps
+    const date = timestamp._seconds 
+      ? new Date(timestamp._seconds * 1000) 
+      : new Date(timestamp);
+    
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
-    <div className="app-container">
+    <div className="page-content users-dashboard-page">
       <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
       <ConfirmationPopup
         open={confirm.open}
@@ -106,56 +126,105 @@ export default function UsersDashboardPage() {
         confirmText="Delete"
         confirmButtonClass="button-primary"
       />
-      <main className="main-content" style={{ flexDirection: 'column', alignItems: 'stretch', minHeight: 'calc(100vh - 64px - 80px)', padding: '64px 0 60px 0' }}>
-        <h2 style={{ marginBottom: '2.5rem', color: 'var(--accent)', fontSize: '2.1rem', fontWeight: 700, textAlign: 'center' }}>Users Dashboard</h2>
-        {loading ? (
+      
+      <div className="dashboard-header">
+        <h2 className="dashboard-title">Users Dashboard</h2>
+        
+        <button
+          className="button-primary add-user-button"
+          onClick={() => navigate('/add-user')}
+        >
+          <span className="plus-icon">+</span> Add User
+        </button>
+      </div>
+      
+      {loading ? (
+        <div className="loading-container">
           <Loading />
-        ) : (
-          <div style={{ overflowX: 'auto', width: '100%', background: 'var(--surface)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', border: '1px solid var(--border)', padding: '2.5rem 2.2rem 2rem 2.2rem', margin: '0 auto', maxWidth: 900 }}>
-            {users.length === 0 ? (
-              <div>No users found.</div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        </div>
+      ) : (
+        <div className="table-container">
+          {users.length === 0 ? (
+            <div className="no-data-message">No users found.</div>
+          ) : (
+            <div className="responsive-table">
+              <table className="users-table">
                 <thead>
-                  <tr style={{ background: 'var(--primary-dark)' }}>
-                    <th style={{ padding: '0.8rem', borderBottom: '2px solid var(--border)', textAlign: 'left' }}>Name</th>
-                    <th style={{ padding: '0.8rem', borderBottom: '2px solid var(--border)', textAlign: 'left' }}>Email</th>
-                    <th style={{ padding: '0.8rem', borderBottom: '2px solid var(--border)', textAlign: 'left' }}>Role</th>
-                    <th style={{ padding: '0.8rem', borderBottom: '2px solid var(--border)', textAlign: 'left' }}>Created</th>
-                    <th style={{ padding: '0.8rem', borderBottom: '2px solid var(--border)' }}></th>
+                  <tr>
+                    <th className="name-column">
+                      <span className="column-title">Name</span>
+                      <span className="gold-underline"></span>
+                    </th>
+                    <th className="email-column">Email</th>
+                    <th className="role-column">Role</th>
+                    <th className="created-column">Created</th>
+                    <th className="actions-column">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user) => (
-                    <tr key={user.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.8rem' }}>{user.name}</td>
-                      <td style={{ padding: '0.8rem' }}>{user.email}</td>
-                      <td style={{ padding: '0.8rem', textTransform: 'capitalize' }}>{user.userType}</td>
-                      <td style={{ padding: '0.8rem' }}>{user.createdAt ? new Date(user.createdAt._seconds ? user.createdAt._seconds * 1000 : user.createdAt).toLocaleString() : '-'}</td>
-                      <td style={{ padding: '0.8rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <button
-                          className="button-secondary"
-                          style={{ marginRight: 8, minWidth: 0, padding: '0.3rem 1rem' }}
-                          onClick={() => navigate(`/edit-user/${user.id}`)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="button-primary"
-                          style={{ background: 'var(--error)', borderColor: 'var(--error)', minWidth: 0, padding: '0.3rem 1rem' }}
-                          onClick={() => handleDelete(user)}
-                        >
-                          Delete
-                        </button>
+                    <tr key={user.id}>
+                      <td data-label="Name">{user.name}</td>
+                      <td data-label="Email" className="email-cell">{user.email}</td>
+                      <td data-label="Role" className="role-cell">{user.userType}</td>
+                      <td data-label="Created" className="date-cell">
+                        {formatDate(user.createdAt)}
+                      </td>
+                      <td className="actions-cell">
+                        <div className="action-buttons">
+                          <button
+                            className="icon-button edit-button"
+                            onClick={() => navigate(`/edit-user/${user.id}`)}
+                            title="Edit User"
+                            aria-label={`Edit ${user.name}`}
+                          >
+                            <svg 
+                              width="16" 
+                              height="16" 
+                              viewBox="0 0 24 24" 
+                              fill="none" 
+                              stroke="white"
+                              strokeWidth="2" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round"
+                            >
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                          </button>
+                          
+                          <button
+                            className="icon-button delete-button"
+                            onClick={() => handleDelete(user)}
+                            title="Delete User"
+                            aria-label={`Delete ${user.name}`}
+                          >
+                            <svg 
+                              width="16" 
+                              height="16" 
+                              viewBox="0 0 24 24" 
+                              fill="none" 
+                              stroke="white" 
+                              strokeWidth="2" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round"
+                            >
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              <line x1="10" y1="11" x2="10" y2="17"></line>
+                              <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
-        )}
-      </main>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

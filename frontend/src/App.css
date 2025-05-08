@@ -34,6 +34,19 @@
 html, body, #root {
   height: 100%;
   min-height: 100vh;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overflow-x: hidden;
+}
+
+html::-webkit-scrollbar, 
+body::-webkit-scrollbar, 
+#root::-webkit-scrollbar, 
+.app-container::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+  background: transparent;
 }
 
 body {
@@ -81,6 +94,11 @@ body::-webkit-scrollbar-thumb:hover,
   flex-direction: column;
   background: var(--background);
   height: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overflow-x: hidden;
+  position: relative;
+  padding-bottom: 60px; /* Height of the footer */
 }
 
 .navbar {
@@ -95,13 +113,14 @@ body::-webkit-scrollbar-thumb:hover,
   left: 0;
   z-index: 100;
   height: 64px;
+  padding: 0;
 }
 
 .navbar-content {
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
-  padding: 0 2rem;
+  padding: 0 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -140,15 +159,14 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--surface);
   color: var(--text-light);
   text-align: center;
-  padding: 1.2rem 0 1.2rem 0;
+  padding: 1.2rem 0;
   font-size: 1rem;
   width: 100%;
-  box-shadow: 0 -2px 12px rgba(0,0,0,0.10);
-  position: static;
-  left: 0;
+  position: fixed;
   bottom: 0;
-  z-index: 100;
-  margin-top: 0;
+  left: 0;
+  border-top: 1px solid #E2E8F0;
+  z-index: 10;
 }
 
 header {
@@ -182,20 +200,37 @@ header .subtitle {
 }
 
 .main-content {
-  flex: 1 1 auto;
+  flex: 1;
   display: flex;
-  flex-wrap: nowrap;
-  gap: 2.5rem;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 2.5rem 2.5rem 2.5rem; /* Increase left/right padding for balance */
-  width: 100vw;
-  min-height: 0;
-  height: auto;
-  box-sizing: border-box;
-  max-width: 1400px;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100vw;
+  padding-top: 64px; /* Adjust based on your navbar height */
+  padding-bottom: 60px; /* Add padding to account for footer */
+}
+
+.page-content-wrapper {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
-  overflow-y: auto;
+  padding: 0 1rem;
+}
+
+/* Breadcrumb styles for app-wide consistency */
+.breadcrumb-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 1rem auto;
+  padding: 0 1rem;
+}
+
+.page-content {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 0;
+  margin-bottom: 60px; /* Matches footer height */
 }
 
 .form-section {
@@ -215,6 +250,8 @@ header .subtitle {
   min-width: 320px;
   max-width: 460px; /* was 400px, now slightly wider */
   margin-right: 1.5rem; /* add space between form and preview */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .form-section::-webkit-scrollbar,
@@ -222,6 +259,24 @@ header .subtitle {
 .form-section::-webkit-scrollbar-track,
 .form-section::-webkit-scrollbar-corner {
   display: none;
+}
+
+.furniture-content-container, 
+.form-section, 
+.preview-section, 
+.form-scroll-inner {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.furniture-content-container::-webkit-scrollbar,
+.form-section::-webkit-scrollbar,
+.preview-section::-webkit-scrollbar,
+.form-scroll-inner::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+  background: transparent;
 }
 
 /* Add a scrollable inner wrapper for the form */
@@ -283,6 +338,8 @@ header .subtitle {
   align-items: stretch;
   height: auto;
   max-height: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .preview-section canvas {
@@ -338,6 +395,10 @@ header .subtitle {
   min-height: 100%;
   height: 100%;
   justify-content: flex-start;
+  background-color: #FFFFFF;
+  padding: 1.5rem;
+  border-radius: 8px;
+  width: 100%;
 }
 
 .furniture-form h2 {
@@ -350,44 +411,58 @@ header .subtitle {
 }
 
 .form-section-title {
-  color: var(--primary-light);
-  font-size: 1rem;
+  color: #006A71;
+  border-bottom: 2px solid #66B2B8;
+  position: relative;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
   font-weight: 600;
-  margin: 1rem 0 0.4rem 0;
-  display: flex;
-  align-items: center;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 1.2rem;
+}
+
+.form-section-title:not(:first-child) {
+  margin-top: 1.5rem;
 }
 
 .form-section-title::after {
   content: '';
-  flex-grow: 1;
-  height: 1px;
-  background: var(--border);
-  margin-left: 1rem;
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 60px;
+  height: 2px;
+  background-color: #ECC94B;
 }
 
 .form-group {
   margin-bottom: 0.7rem;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+  width: 100%;
 }
 
 .form-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.7rem;
-  margin-bottom: 0;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  margin: 0 -0.5rem;
 }
 
 .form-group.half {
   flex: 1 1 calc(50% - 0.5rem);
   min-width: 150px;
+  flex: 1;
+  min-width: 200px;
+  padding: 0 0.5rem;
 }
 
 .form-group.third {
   flex: 1 1 calc(33.333% - 0.67rem);
   min-width: 120px;
+  padding: 0 0.5rem;
 }
 
 .form-group.checkbox {
@@ -411,12 +486,16 @@ header .subtitle {
   color: var(--text-light);
   margin-bottom: 0.5rem;
   cursor: default;
+  margin-bottom: 0.4rem;
+  font-weight: 500;
+  color: #00474C;
 }
 
 .furniture-form label[htmlFor] {
   cursor: pointer;
 }
 
+/* Consistent form inputs - update these styles */
 .furniture-form input[type="text"],
 .furniture-form input[type="number"],
 .furniture-form input[type="password"],
@@ -426,12 +505,12 @@ header .subtitle {
   display: block;
   width: 100%;
   padding: 0.85rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
   font-size: 1rem;
-  background-color: var(--surface-lighter);
-  color: var(--text);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: #F7FAFC;
+  color: #2D3748;
+  transition: all 0.3s ease;
   outline: none;
   font-family: inherit;
   line-height: 1.5;
@@ -439,30 +518,13 @@ header .subtitle {
   box-sizing: border-box;
 }
 
-.file-input-wrapper .file-input-display{
-  border: 3px dotted var(--border);
-  height: 200px;
-}
-
-.furniture-form input.disabled,
-.furniture-form textarea.disabled,
-.furniture-form select.disabled {
-  background-color: var(--surface-lighter);
-  opacity: 0.75;
-  cursor: not-allowed;
-}
-
-.helper-text {
-  color: var(--text-light);
-  font-size: 0.88rem;
-  margin-top: 0.4rem;
-}
-
+/* Make textareas match other inputs but allow for more height */
 .furniture-form textarea {
-  min-height: 100px;
+  min-height: 120px;
   resize: vertical;
 }
 
+/* Select elements need the same styling but with dropdown arrow */
 .furniture-form select {
   appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23006A71' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
@@ -470,45 +532,69 @@ header .subtitle {
   background-position: right 1rem center;
   background-size: 1em;
   padding-right: 2.5rem;
+  cursor: pointer;
+  background-color: #F7FAFC;
 }
 
-.furniture-form input::placeholder,
-.furniture-form textarea::placeholder {
-  color: var(--text-lighter);
-  opacity: 0.8;
-}
-
-.furniture-form input[type="text"]:hover,
-.furniture-form input[type="number"]:hover,
-.furniture-form input[type="password"]:hover,
-.furniture-form textarea:hover,
-.furniture-form select:hover,
-.file-input-wrapper:hover .file-input-display {
-  border-color: var(--primary-light);
-}
-
+/* Consistent focus states */
 .furniture-form input[type="text"]:focus,
 .furniture-form input[type="number"]:focus,
 .furniture-form input[type="password"]:focus,
 .furniture-form textarea:focus,
 .furniture-form select:focus,
 .file-input-wrapper .file-input-native:focus + .file-input-display {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(154, 203, 208, 0.13);
+  border-color: #66B2B8;
+  box-shadow: 0 0 0 2px rgba(102, 178, 184, 0.2);
+  outline: none;
 }
 
+/* Consistent placeholder styling */
+.furniture-form input::placeholder,
+.furniture-form textarea::placeholder {
+  color: #A0AEC0;
+  opacity: 0.8;
+}
+
+/* File input wrapper styling to match other inputs */
+.file-input-wrapper .file-input-display {
+  border: 1px dashed #E2E8F0;
+  height: 120px;
+  background-color: #F7FAFC;
+}
+
+/* Hover state should be consistent */
+.furniture-form input[type="text"]:hover,
+.furniture-form input[type="number"]:hover,
+.furniture-form input[type="password"]:hover,
+.furniture-form textarea:hover,
+.furniture-form select:hover,
+.file-input-wrapper:hover .file-input-display {
+  border-color: #CBD5E0;
+}
+
+/* Error states */
 .furniture-form input.error,
 .furniture-form textarea.error,
 .furniture-form select.error,
 .file-input-wrapper.error .file-input-display {
-  border-color: var(--error);
+  border-color: #9B2C2C;
 }
 
 .furniture-form input.error:focus,
 .furniture-form textarea.error:focus,
 .furniture-form select.error:focus,
 .file-input-wrapper.error .file-input-native:focus + .file-input-display {
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.13);
+  border-color: #9B2C2C;
+  box-shadow: 0 0 0 2px rgba(155, 44, 44, 0.2);
+}
+
+.helper-text {
+  color: var(--text-light);
+  font-size: 0.88rem;
+  margin-top: 0.4rem;
+  color: #66B2B8;
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
 }
 
 .error-message {
@@ -516,6 +602,9 @@ header .subtitle {
   font-size: 0.88rem;
   margin-top: 0.4rem;
   display: block;
+  color: #9B2C2C;
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
 }
 
 /* Checkbox */
@@ -648,6 +737,13 @@ header .subtitle {
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #E2E8F0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  flex-direction: row;
 }
 
 .button-primary,
@@ -671,6 +767,15 @@ header .subtitle {
   color: var(--surface);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--primary-dark);
+  background-color: #006A71;
+  color: white;
+  border: none;
+  border-left: 3px solid #ECC94B;
+  border-radius: 4px;
+  padding: 0.7rem 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .button-primary:hover:not(:disabled) {
@@ -678,6 +783,7 @@ header .subtitle {
   color: var(--primary);
   box-shadow: 0 4px 12px rgba(0,106,113,0.10);
   transform: translateY(-1px);
+  background-color: #00474C;
 }
 
 .button-primary:active:not(:disabled) {
@@ -692,18 +798,30 @@ header .subtitle {
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .button-secondary {
   background: var(--primary-light);
   color: var(--surface);
   border-color: var(--primary-dark);
+  background-color: #FFFFFF;
+  color: #006A71;
+  border: 1px solid #66B2B8;
+  border-radius: 4px;
+  padding: 0.7rem 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .button-secondary:hover:not(:disabled) {
   background: var(--primary-dark);
   color: var(--accent);
   border-color: var(--accent);
+  background-color: #F7FAFC;
+  color: #00474C;
 }
 
 .button-secondary:disabled {
@@ -731,7 +849,7 @@ header .subtitle {
 .preview-container {
   position: relative;
   width: 100%;
-  height: 400px;
+  height: clamp(250px, 50vw, 400px);
   background: var(--primary-dark) !important;
   border-radius: var(--radius-sm);
   overflow: hidden;
@@ -774,6 +892,8 @@ header .subtitle {
   width: 54px;
   height: 54px;
   box-sizing: border-box;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .texture-switcher button.selected {
@@ -929,7 +1049,6 @@ header .subtitle {
     flex-direction: column;
     align-items: stretch;
     gap: 1.5rem;
-    padding: 88px 1rem 2.5rem 1rem;
     max-width: 100vw;
     height: auto;
   }
@@ -950,9 +1069,7 @@ header .subtitle {
     padding-right: 0.5rem;
     max-width: 100vw;
   }
-  .main-content {
-    padding: 0 0.5rem;
-  }
+
   .form-section, .preview-section {
     padding: 0.4rem 0.2rem 0.4rem 0.2rem;
   }
@@ -1009,5 +1126,304 @@ header .subtitle {
   .button-primary, .button-secondary {
     width: 100%;
     padding: 0.8rem 1rem;
+  }
+}
+
+/* Add these improved responsive styles to the end of your App.css file */
+
+/* Responsive Container System */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 5vw, 2rem);
+  box-sizing: border-box;
+}
+
+.container-sm {
+  max-width: 640px;
+}
+
+.container-md {
+  max-width: 768px;
+}
+
+.container-lg {
+  max-width: 1024px;
+}
+
+.container-xl {
+  max-width: 1280px;
+}
+
+/* Flexible grid system */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin: -0.5rem;
+}
+
+.col {
+  padding: 0.5rem;
+  flex: 1 0 100%;
+  max-width: 100%;
+}
+
+/* Mobile-first columns */
+.col-6 { flex: 0 0 50%; max-width: 50%; }
+.col-12 { flex: 0 0 100%; max-width: 100%; }
+
+/* Responsive breakpoints */
+@media (min-width: 576px) {
+  .col-sm-6 { flex: 0 0 50%; max-width: 50%; }
+  .col-sm-12 { flex: 0 0 100%; max-width: 100%; }
+}
+
+@media (min-width: 768px) {
+  .col-md-4 { flex: 0 0 33.333%; max-width: 33.333%; }
+  .col-md-6 { flex: 0 0 50%; max-width: 50%; }
+  .col-md-8 { flex: 0 0 66.666%; max-width: 66.666%; }
+  .col-md-12 { flex: 0 0 100%; max-width: 100%; }
+}
+
+@media (min-width: 992px) {
+  .col-lg-3 { flex: 0 0 25%; max-width: 25%; }
+  .col-lg-4 { flex: 0 0 33.333%; max-width: 33.333%; }
+  .col-lg-6 { flex: 0 0 50%; max-width: 50%; }
+  .col-lg-8 { flex: 0 0 66.666%; max-width: 66.666%; }
+  .col-lg-9 { flex: 0 0 75%; max-width: 75%; }
+}
+
+/* Fix furniture dashboard display */
+.furniture-content-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+}
+
+.furniture-form-section,
+.furniture-preview-section {
+  width: 100%;
+}
+
+@media (min-width: 992px) {
+  .furniture-content-container {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  
+  .furniture-form-section {
+    flex: 1;
+    max-width: 50%;
+    padding-right: 1rem;
+  }
+  
+  .furniture-preview-section {
+    flex: 1;
+    max-width: 50%;
+    padding-left: 1rem;
+  }
+}
+
+/* More responsive form layout */
+.form-row {
+  margin: 0 -0.5rem;
+}
+
+.form-group.half,
+.form-group.third {
+  padding: 0 0.5rem;
+}
+
+@media (max-width: 576px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .form-group.half,
+  .form-group.third {
+    flex: 0 0 100%;
+    min-width: 100%;
+  }
+  
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 0.75rem;
+  }
+  
+  .form-actions button {
+    width: 100%;
+  }
+}
+
+/* Make cards responsive */
+@media (max-width: 768px) {
+  .preview-section {
+    margin-top: 2rem;
+  }
+}
+
+/* Proper responsive form actions */
+.form-actions {
+  flex-direction: row;
+}
+
+@media (max-width: 576px) {
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+  
+  .form-actions button {
+    width: 100%;
+  }
+}
+
+/* Fix overflow issues on small screens */
+@media (max-width: 576px) {
+  .main-content {
+    
+    padding-top: 80px; /* Account for fixed navbar */
+  }
+  
+  .app-container {
+    overflow-x: hidden;
+  }
+}
+
+/* Better touch targets on mobile */
+@media (max-width: 768px) {
+  button, 
+  input, 
+  select, 
+  textarea, 
+  .file-input-display {
+    min-height: 44px; /* Minimum touch target size */
+  }
+  
+  .texture-switcher button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Make preview properly responsive */
+.preview-container {
+  height: 300px;
+}
+
+@media (min-width: 768px) {
+  .preview-container {
+    height: 350px;
+  }
+}
+
+@media (min-width: 992px) {
+  .preview-container {
+    height: 400px;
+  }
+}
+
+/* Fix scrolling issues */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Improve spacing in mobile view */
+@media (max-width: 576px) {
+  .section-title, .form-section-title {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .furniture-form h2, 
+  .preview-section h2 {
+    margin-bottom: 1rem;
+  }
+  
+  .main-content {
+    gap: 1rem;
+  }
+}
+
+/* Add these styles to your App.css to support the new layout structure */
+
+.page-content {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 0;
+  margin-bottom: 60px; /* Matches footer height */
+}
+
+.page-title {
+  color: var(--accent);
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+/* Consistent form containers */
+.form-container {
+  width: 100%;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 2rem;
+  border: 1px solid var(--border);
+}
+
+/* Dashboard headers (for users, furniture, projects pages) */
+.dashboard-header,
+.projects-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  width: 100%;
+}
+
+.dashboard-title,
+.projects-title {
+  color: var(--accent);
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Error containers */
+.error-container {
+  text-align: center;
+  padding: 2rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  margin: 2rem auto;
+  max-width: 600px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard-header,
+  .projects-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .add-user-button,
+  .create-project-button {
+    width: 100%;
+  }
+  
+  .page-title {
+    font-size: 1.8rem;
+  }
+  
+  .form-container {
+    padding: 1.5rem;
   }
 }

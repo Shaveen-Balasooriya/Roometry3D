@@ -1,25 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Loading from '../../components/Loading';
 import Popup from '../../components/Popup';
-import { auth, getUserRole } from '../../services/firebase'; // Import auth and getUserRole
-
-// Add CSS for disabled fields
-const styles = {
-  disabledField: {
-    backgroundColor: '#f0f0f0',
-    color: '#888',
-    cursor: 'not-allowed',
-    border: '1px solid #ccc',
-  },
-  designerNotice: {
-    backgroundColor: '#fff3cd',
-    color: '#856404',
-    padding: '10px 15px',
-    borderRadius: '4px',
-    marginBottom: '20px',
-    border: '1px solid #ffeeba',
-  }
-};
+import { auth } from '../../services/firebase'; // Import auth
 
 const initialState = {
   name: '',
@@ -54,27 +36,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
   const [isTextureDragging, setIsTextureDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [popup, setPopup] = useState({ open: false, type: 'success', message: '' });
-  // Add userRole state
-  const [userRole, setUserRole] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const API_URL = import.meta.env.VITE_BACKEND_URL;
-  
-  // Fetch user role on component mount
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      try {
-        const role = await getUserRole();
-        setUserRole(role);
-      } catch (error) {
-        console.error('Error fetching user role:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchUserRole();
-  }, []);
-
   useEffect(() => {
     if (initialData) {
       const dataForState = {
@@ -95,9 +57,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
     }
     setErrors({});
   }, [initialData, onChange]);
-
-  // Check if user is a designer and form is in update mode
-  const isDesignerWithLimitedAccess = userRole === 'designer' && !!initialData;
 
   const validateField = (name, value) => {
     switch (name) {
@@ -121,11 +80,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
 
     if (e.key === 'Enter') {
       e.preventDefault();
-    }
-
-    // If designer role and not price or quantity field, ignore changes
-    if (isDesignerWithLimitedAccess && name !== 'price' && name !== 'quantity') {
-      return;
     }
 
     let newValue = value;
@@ -165,7 +119,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
     setForm(updatedFormState);
     onChange(updatedFormState);
     setErrors(fieldErrors);
-  }, [errors, form, onChange, isDesignerWithLimitedAccess]);
+  }, [errors, form, onChange]);
 
   const handleObjDragOver = (e) => { e.preventDefault(); setIsObjDragging(true); };
   const handleObjDragLeave = () => { setIsObjDragging(false); };
@@ -175,12 +129,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
 
   const handleDrop = (e, fieldName) => {
     e.preventDefault();
-    
-    // If designer role, prevent file uploads
-    if (isDesignerWithLimitedAccess) {
-      return;
-    }
-    
     let updatedForm = { ...form };
     let fieldErrors = { ...errors };
 
@@ -209,12 +157,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
 
   const removeObjFile = useCallback((e) => {
     e.stopPropagation();
-    
-    // If designer role, prevent removing files
-    if (isDesignerWithLimitedAccess) {
-      return;
-    }
-    
     const updatedFormState = { ...form, objFile: null };
     setForm(updatedFormState);
     onChange(updatedFormState);
@@ -223,20 +165,14 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
       delete newErrors.objFile;
       return newErrors;
     });
-  }, [form, onChange, isDesignerWithLimitedAccess]);
+  }, [form, onChange]);
 
   const removeAllTextures = useCallback((e) => {
     e.stopPropagation();
-    
-    // If designer role, prevent removing textures
-    if (isDesignerWithLimitedAccess) {
-      return;
-    }
-    
     const updatedFormState = { ...form, textures: [] };
     setForm(updatedFormState);
     onChange(updatedFormState);
-  }, [form, onChange, isDesignerWithLimitedAccess]);
+  }, [form, onChange]);
 
   const handleReset = useCallback(() => {
     if (initialData) {
@@ -272,28 +208,17 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
     setIsSubmitting(true);
 
     const fieldErrors = {};
-    
-    // If designer with limited access, only validate price and quantity
-    if (isDesignerWithLimitedAccess) {
-      const priceError = validateField('price', form.price);
-      if (priceError) fieldErrors.price = priceError;
-      
-      const quantityError = validateField('quantity', form.quantity);
-      if (quantityError) fieldErrors.quantity = quantityError;
-    } else {
-      // Normal validation for other roles
-      Object.entries(form).forEach(([key, value]) => {
-        if (key !== 'objFile' && key !== 'textures' && key !== 'wallMountable' && key !== 'id' && key !== 'createdAt' && key !== 'objFileUrl' && key !== 'textureUrls' && key !== 'modelEndpoint') {
-          const error = validateField(key, value);
-          if (error) {
-            fieldErrors[key] = error;
-          }
+    Object.entries(form).forEach(([key, value]) => {
+      if (key !== 'objFile' && key !== 'textures' && key !== 'wallMountable' && key !== 'id' && key !== 'createdAt' && key !== 'objFileUrl' && key !== 'textureUrls' && key !== 'modelEndpoint') {
+        const error = validateField(key, value);
+        if (error) {
+          fieldErrors[key] = error;
         }
-      });
-
-      if (!initialData && !form.objFile) {
-        fieldErrors.objFile = '3D model is required';
       }
+    });
+
+    if (!initialData && !form.objFile) {
+      fieldErrors.objFile = '3D model is required';
     }
 
     setErrors(fieldErrors);
@@ -301,39 +226,21 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
     if (Object.keys(fieldErrors).length === 0) {
       try {
         const formData = new FormData();
-        
-        // For designer role, only include price and quantity in formData
-        if (isDesignerWithLimitedAccess) {
-          formData.append('price', form.price);
-          formData.append('quantity', form.quantity);
-          
-          // Include all other fields from initialData to prevent nulls in API
-          Object.entries(initialData).forEach(([key, value]) => {
-            if (key !== 'price' && key !== 'quantity' && key !== 'id' && 
-                key !== 'createdAt' && key !== 'updatedAt' && 
-                key !== 'objFileUrl' && key !== 'textureUrls' && 
-                key !== 'modelEndpoint') {
-              formData.append(key, value);
-            }
-          });
-        } else {
-          // Normal form submission for other roles
-          Object.entries(form).forEach(([key, value]) => {
-            if (key !== 'objFile' && key !== 'textures' && key !== 'id' && key !== 'createdAt' && key !== 'objFileUrl' && key !== 'textureUrls' && key !== 'modelEndpoint') {
-              formData.append(key, value);
-            }
-          });
+        Object.entries(form).forEach(([key, value]) => {
+          if (key !== 'objFile' && key !== 'textures' && key !== 'id' && key !== 'createdAt' && key !== 'objFileUrl' && key !== 'textureUrls' && key !== 'modelEndpoint') {
+            formData.append(key, value);
+          }
+        });
 
-          if (form.objFile instanceof File) {
-            formData.append('objFile', form.objFile);
-          }
-          if (form.textures && form.textures.length > 0) {
-            form.textures.forEach((file) => {
-              if (file instanceof File) {
-                formData.append('textures', file);
-              }
-            });
-          }
+        if (form.objFile instanceof File) {
+          formData.append('objFile', form.objFile);
+        }
+        if (form.textures && form.textures.length > 0) {
+          form.textures.forEach((file) => {
+            if (file instanceof File) {
+              formData.append('textures', file);
+            }
+          });
         }
 
         const isUpdate = !!initialData;
@@ -399,18 +306,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
 
   const isUpdateMode = !!initialData;
 
-  // Helper function to get the appropriate style for input fields
-  const getFieldStyle = (fieldName) => {
-    if (isDesignerWithLimitedAccess && fieldName !== 'price' && fieldName !== 'quantity') {
-      return styles.disabledField;
-    }
-    return {};
-  };
-
-  if (isLoading) {
-    return <Loading />;
-  }
-
   return (
     <>
       <Popup
@@ -419,16 +314,10 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
         message={popup.message}
         onClose={() => setPopup({ ...popup, open: false })}
       />
-      
-      {isDesignerWithLimitedAccess && (
-        <div style={styles.designerNotice}>
-          <p><strong>Designer Mode:</strong> You can only update the price and quantity of this item. Other fields are disabled and shown in grey.</p>
-        </div>
-      )}
-      
       <div className="form-scroll-inner">
         <form className="furniture-form" onSubmit={handleSubmit} autoComplete="off">
           {isSubmitting && <Loading overlay />}
+
 
           <div className="form-section-title">Basic Information</div>
           <div className="form-group">
@@ -442,8 +331,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
               required
               className={errors.name ? 'error' : ''}
               placeholder="e.g., Modern Sofa"
-              disabled={isDesignerWithLimitedAccess}
-              style={getFieldStyle('name')}
             />
             {errors.name && <div className="error-message">{errors.name}</div>}
           </div>
@@ -457,8 +344,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
               onChange={handleChange}
               required
               className={errors.category ? 'error' : ''}
-              disabled={isDesignerWithLimitedAccess}
-              style={getFieldStyle('category')}
             >
               <option value="" disabled>Select category</option>
               {categories.map(cat => (
@@ -477,8 +362,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
               required
               rows={4}
               placeholder="Enter a brief description..."
-              disabled={isDesignerWithLimitedAccess}
-              style={getFieldStyle('description')}
             />
           </div>
 
@@ -497,7 +380,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
                 required
                 className={errors.price ? 'error' : ''}
                 placeholder="e.g., 499.99"
-                // Always enabled for designers - no special style needed
               />
               {errors.price && <div className="error-message">{errors.price}</div>}
             </div>
@@ -514,7 +396,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
                 required
                 className={errors.quantity ? 'error' : ''}
                 placeholder="e.g., 10"
-                // Always enabled for designers - no special style needed
               />
               {errors.quantity && <div className="error-message">{errors.quantity}</div>}
             </div>
@@ -536,8 +417,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
                 required
                 className={errors.height ? 'error' : ''}
                 placeholder="e.g., 0.8"
-                disabled={isDesignerWithLimitedAccess}
-                style={getFieldStyle('height')}
               />
               {errors.height && <div className="error-message">{errors.height}</div>}
             </div>
@@ -554,8 +433,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
                 required
                 className={errors.width ? 'error' : ''}
                 placeholder="e.g., 2.1"
-                disabled={isDesignerWithLimitedAccess}
-                style={getFieldStyle('width')}
               />
               {errors.width && <div className="error-message">{errors.width}</div>}
             </div>
@@ -572,8 +449,6 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
                 required
                 className={errors.length ? 'error' : ''}
                 placeholder="e.g., 0.95"
-                disabled={isDesignerWithLimitedAccess}
-                style={getFieldStyle('length')}
               />
               {errors.length && <div className="error-message">{errors.length}</div>}
             </div>
@@ -586,103 +461,85 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
               type="checkbox"
               checked={form.wallMountable}
               onChange={handleChange}
-              disabled={isDesignerWithLimitedAccess}
-              style={isDesignerWithLimitedAccess ? { cursor: 'not-allowed', opacity: 0.6 } : {}}
             />
-            <label 
-              htmlFor="furnitureWallMountable"
-              style={isDesignerWithLimitedAccess ? { color: '#888', cursor: 'not-allowed' } : {}}
-            >
-              Wall Mountable
-            </label>
+            <label htmlFor="furnitureWallMountable">Wall Mountable</label>
           </div>
 
-          {/* Only show 3D Model & Textures section if not designer role */}
-          {!isDesignerWithLimitedAccess && (
-            <>
-              <div className="form-section-title">3D Model & Textures</div>
-              <div className="form-group">
-                <label htmlFor="objFileInput">3D Model (.obj) {isUpdateMode && '(Leave blank to keep existing)'}</label>
-                <div
-                  id="objFileDropArea"
-                  className={`file-input-wrapper ${isObjDragging ? 'dragging' : ''} ${errors.objFile ? 'error' : ''}`}
-                  onDragEnter={handleObjDragOver}
-                  onDragOver={handleObjDragOver}
-                  onDragLeave={handleObjDragLeave}
-                  onDrop={(e) => handleDrop(e, 'objFile')}
-                >
-                  <input
-                    id="objFileInput"
-                    name="objFile"
-                    type="file"
-                    accept=".obj"
-                    onChange={handleChange}
-                    className="file-input-native"
-                    aria-describedby="objFileDropArea"
-                  />
-                  <div className="file-input-display">
-                    {form.objFile ? (
-                      <div className="file-info">
-                        <span className="file-name">{form.objFile.name}</span>
-                        <span className="file-size">
-                          ({(form.objFile.size / 1024).toFixed(1)} KB)
-                          <button type="button" onClick={removeObjFile} className="remove-file-btn" title="Remove file">&times;</button>
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="file-placeholder">
-                        <span>{isUpdateMode ? 'Drop new .obj or click to replace' : 'Drop .obj file or click to browse'}</span>
-                      </div>
-                    )}
+          <div className="form-section-title">3D Model & Textures</div>
+          <div className="form-group">
+            <label htmlFor="objFileInput">3D Model (.obj) {isUpdateMode && '(Leave blank to keep existing)'}</label>
+            <div
+              id="objFileDropArea"
+              className={`file-input-wrapper ${isObjDragging ? 'dragging' : ''} ${errors.objFile ? 'error' : ''}`}
+              onDragEnter={handleObjDragOver}
+              onDragOver={handleObjDragOver}
+              onDragLeave={handleObjDragLeave}
+              onDrop={(e) => handleDrop(e, 'objFile')}
+            >
+              <input
+                id="objFileInput"
+                name="objFile"
+                type="file"
+                accept=".obj"
+                onChange={handleChange}
+                className="file-input-native"
+                aria-describedby="objFileDropArea"
+              />
+              <div className="file-input-display">
+                {form.objFile ? (
+                  <div className="file-info">
+                    <span className="file-name">{form.objFile.name}</span>
+                    <span className="file-size">
+                      ({(form.objFile.size / 1024).toFixed(1)} KB)
+                      <button type="button" onClick={removeObjFile} className="remove-file-btn" title="Remove file">&times;</button>
+                    </span>
                   </div>
-                </div>
-                {errors.objFile && <div className="error-message">{errors.objFile}</div>}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="texturesInput">Texture Files (Images) {isUpdateMode && '(Replaces existing)'}</label>
-                <div
-                  id="textureDropArea"
-                  className={`file-input-wrapper ${isTextureDragging ? 'dragging' : ''}`}
-                  onDragEnter={handleTextureDragOver}
-                  onDragOver={handleTextureDragOver}
-                  onDragLeave={handleTextureDragLeave}
-                  onDrop={(e) => handleDrop(e, 'textures')}
-                >
-                  <input
-                    id="texturesInput"
-                    name="textures"
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleChange}
-                    className="file-input-native"
-                    aria-describedby="textureDropArea"
-                  />
-                  <div className="file-input-display">
-                    {form.textures && form.textures.length > 0 ? (
-                      <div className="file-info">
-                        <span className="file-name">
-                          {form.textures.length} new texture(s) selected
-                          <button type="button" onClick={removeAllTextures} className="remove-file-btn" title="Remove all new textures">&times;</button>
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="file-placeholder">
-                        <span>{isUpdateMode ? 'Drop new textures or click to replace' : 'Drop texture images or click to browse'}</span>
-                      </div>
-                    )}
+                ) : (
+                  <div className="file-placeholder">
+                    <span>{isUpdateMode ? 'Drop new .obj or click to replace' : 'Drop .obj file or click to browse'}</span>
                   </div>
-                </div>
+                )}
               </div>
-            </>
-          )}
-          {/* If designer, show disabled section notice */}
-          {isDesignerWithLimitedAccess && (
-            <div style={{ ...styles.designerNotice, marginTop: '15px', backgroundColor: '#e9ecef' }}>
-              <p><strong>3D Model & Textures:</strong> This section is only available for admin users.</p>
             </div>
-          )}
+            {errors.objFile && <div className="error-message">{errors.objFile}</div>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="texturesInput">Texture Files (Images) {isUpdateMode && '(Replaces existing)'}</label>
+            <div
+              id="textureDropArea"
+              className={`file-input-wrapper ${isTextureDragging ? 'dragging' : ''}`}
+              onDragEnter={handleTextureDragOver}
+              onDragOver={handleTextureDragOver}
+              onDragLeave={handleTextureDragLeave}
+              onDrop={(e) => handleDrop(e, 'textures')}
+            >
+              <input
+                id="texturesInput"
+                name="textures"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleChange}
+                className="file-input-native"
+                aria-describedby="textureDropArea"
+              />
+              <div className="file-input-display">
+                {form.textures && form.textures.length > 0 ? (
+                  <div className="file-info">
+                    <span className="file-name">
+                      {form.textures.length} new texture(s) selected
+                      <button type="button" onClick={removeAllTextures} className="remove-file-btn" title="Remove all new textures">&times;</button>
+                    </span>
+                  </div>
+                ) : (
+                  <div className="file-placeholder">
+                    <span>{isUpdateMode ? 'Drop new textures or click to replace' : 'Drop texture images or click to browse'}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
           <div className="form-actions">
             {isUpdateMode && (
@@ -695,7 +552,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
                 Revert Changes
               </button>
             )}
-            {!isUpdateMode && !isDesignerWithLimitedAccess && (
+            {!isUpdateMode && (
               <button
                 type="button"
                 className="button-secondary"

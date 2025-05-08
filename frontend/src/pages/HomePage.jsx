@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MetricCard from './components/MetricCard';
 import './HomePage.css';
-import { auth } from '../services/firebase'; // Adjust the path as needed
+import { auth } from '../services/firebase';
 
 // Enhanced icon components with better accessibility
 const IconFurniture = () => <div className="icon-placeholder" aria-hidden="true">F</div>;
 const IconUsers = () => <div className="icon-placeholder" aria-hidden="true">U</div>;
 const IconProjects = () => <div className="icon-placeholder" aria-hidden="true">P</div>;
 const IconOrders = () => <div className="icon-placeholder" aria-hidden="true">O</div>;
+const IconHomeScan = () => <div className="icon-placeholder" aria-hidden="true">H</div>;
 const API_URL = import.meta.env.VITE_BACKEND_URL;
+
 export default function HomePage() {
   // State for metrics - will be populated from backend
   const [metrics, setMetrics] = useState({
@@ -77,17 +79,17 @@ export default function HomePage() {
   const navLinks = [
     { title: "Add Furniture", path: "/add-furniture", icon: <IconFurniture />, ariaLabel: "Navigate to Add Furniture page" },
     { title: "Furniture Dashboard", path: "/furniture-dashboard", icon: <IconFurniture />, ariaLabel: "Navigate to Furniture Dashboard page" },
+    { title: "Upload Room", path: "/upload-room", icon: <IconHomeScan />, ariaLabel: "Navigate to Upload Room page" },
     { title: "Add User", path: "/add-user", icon: <IconUsers />, ariaLabel: "Navigate to Add User page" },
     { title: "Users Dashboard", path: "/users-dashboard", icon: <IconUsers />, ariaLabel: "Navigate to Users Dashboard page" }
   ];
 
   return (
-    <main className="home-content">
+    <div className="home-content">
       <section className="welcome-section">
         <h2>Welcome to Roometry 3D Admin</h2>
       </section>
       
-      {/* Dashboard Stats Section */}
       <h3 className="section-title">Dashboard Overview</h3>
       {error && <div className="error-message" role="alert">Error loading metrics: {error}</div>}
       
@@ -114,10 +116,8 @@ export default function HomePage() {
         />
       </div>
       
-      {/* Clear section separator */}
       <div className="section-separator" role="separator"></div>
       
-      {/* Quick Navigation Section */}
       <h3 className="section-title">Quick Navigation</h3>
       <nav className="quick-nav-links">
         {navLinks.map((link, index) => (
@@ -132,6 +132,6 @@ export default function HomePage() {
           </Link>
         ))}
       </nav>
-    </main>
+    </div>
   );
 }
