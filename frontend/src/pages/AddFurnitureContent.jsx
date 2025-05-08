@@ -4,8 +4,8 @@ import FurniturePreview from './components/FurniturePreview';
 import '../App.css';
 
 export default function AddFurnitureContent({ initialData = null }) {
-  const [furniture, setFurniture] = useState({});
-  const isUpdateMode = !!initialData; // Determine if it's update mode
+  const [furniture, setFurniture] = useState(initialData || {});
+  const isUpdateMode = !!initialData;
 
   // Use useMemo to calculate dimensions, providing defaults
   const previewDimensions = useMemo(() => ({
@@ -15,23 +15,68 @@ export default function AddFurnitureContent({ initialData = null }) {
   }), [furniture.width, furniture.height, furniture.length]);
 
   return (
-    <div className="content-section">
-      {/* Form Section */}
-      <div className="form-section">
+    <div className="furniture-content-container">
+      <div className="furniture-form-section">
         <FurnitureForm
           initialData={initialData}
           onChange={setFurniture}
         />
       </div>
 
-      {/* Preview Section */}
-      <div className="preview-section">
+      <div className="furniture-preview-section">
         <FurniturePreview
           objFile={furniture.objFile}
           textures={furniture.textures}
           dimensions={previewDimensions}
+          initialObjUrl={initialData?.objUrl}
+          initialTextureUrls={initialData?.textureUrls || []}
+          furnitureId={initialData?.id}
+          isEditMode={isUpdateMode}
         />
       </div>
+
+      <style jsx>{`
+        .furniture-content-container {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+          width: 100%;
+        }
+        
+        .furniture-form-section,
+        .furniture-preview-section {
+          width: 100%;
+        }
+        
+        @media (min-width: 992px) {
+          .furniture-content-container {
+            flex-direction: row;
+            align-items: flex-start;
+          }
+          
+          .furniture-form-section {
+            flex: 1;
+            max-width: 50%;
+            padding-right: 1rem;
+          }
+          
+          .furniture-preview-section {
+            flex: 1;
+            max-width: 50%;
+            padding-left: 1rem;
+          }
+        }
+        
+        @media (min-width: 1200px) {
+          .furniture-form-section {
+            padding-right: 2rem;
+          }
+          
+          .furniture-preview-section {
+            padding-left: 2rem;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -1,0 +1,374 @@
+.room-viewer-container {
+  width: 100%;
+  height: 100%; /* Fill the .room-viewer-section */
+  min-height: 400px; /* Ensure a minimum height */
+  position: relative;
+  background-color: #e9ecef; /* Light grey background for the viewer area */
+  border-radius: var(--border-radius);
+  overflow: hidden; /* Ensures canvas corners are rounded if container has border-radius */
+}
+
+.room-viewer-container canvas {
+  display: block; /* Removes extra space below canvas */
+  width: 100%;
+  height: 100%;
+  cursor: pointer; /* Indicates the model is interactive */
+}
+
+.room-viewer-container canvas:hover {
+  cursor: pointer; /* Hand cursor when hovering to indicate clickable elements */
+}
+
+.viewer-placeholder,
+.viewer-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 2rem;
+  text-align: center;
+  font-size: 1rem;
+  color: var(--secondary-color);
+}
+
+.viewer-error p {
+  color: #dc3545; /* Bootstrap danger color */
+  font-weight: 500;
+}
+
+/* Loading Spinner Styles */
+.loading-spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.loading-spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border-left-color: var(--primary-color);
+  animation: spin 1s ease infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-spinner-container p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.loading-error {
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 20px;
+  border-radius: 8px;
+  color: #dc3545;
+  font-size: 0.9rem;
+  max-width: 80%;
+  text-align: center;
+}
+
+/* Viewer controls */
+.viewer-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.control-button {
+  background-color: rgba(41, 98, 255, 0.85); /* Match the primary blue from our design */
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.control-button:hover {
+  background-color: rgba(0, 60, 200, 0.9);
+  transform: translateY(-1px);
+}
+
+.control-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(41, 98, 255, 0.5);
+}
+
+.control-button:active {
+  transform: translateY(1px);
+}
+
+/* Texture preview styles */
+.texture-preview-container {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 10;
+  background-color: rgba(255, 255, 255, 0.92);
+  border-radius: var(--border-radius);
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.texture-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 150px;
+}
+
+.texture-preview img {
+  max-width: 100%;
+  max-height: 100px;
+  object-fit: contain;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.texture-preview p {
+  font-size: 0.8rem;
+  margin: 0;
+  word-break: break-all;
+  text-align: center;
+  color: var(--text-color);
+}
+
+/* Selection hint for users */
+.selection-hint {
+  background-color: rgba(41, 98, 255, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  pointer-events: none; /* Don't block clicks on the model */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  animation: pulse 2s infinite;
+  white-space: nowrap;
+  z-index: 100;
+  opacity: 0.9;
+  transform: translateY(-80px); /* Position above the model */
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: translateY(-80px) scale(1);
+  }
+  50% {
+    transform: translateY(-80px) scale(1.05);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Selected component info */
+.selected-component-info {
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 12px;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  animation: fadeIn 0.3s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.selected-component-info span {
+  opacity: 0.9;
+}
+
+.selected-component-info strong {
+  font-family: monospace;
+  margin-left: 4px;
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+}
+
+/* Component tag badge inside selected component info */
+.component-tag-badge {
+  background-color: rgba(255, 255, 255, 0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-left: 0.5rem;
+}
+
+/* Component Tag Legend - visual guide for tag colors */
+.component-tag-legend {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: var(--border-radius);
+  padding: 10px 15px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  animation: fadeIn 0.5s ease-out;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.legend-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #455a64;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding-bottom: 4px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 0.8rem;
+  color: #455a64;
+}
+
+.color-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.color-swatch.wall {
+  background-color: #3a87f2; /* Blue color for walls */
+}
+
+.color-swatch.floor {
+  background-color: #4caf50; /* Green color for floors */
+}
+
+/* Component status bar shown below the viewer */
+.component-status-bar {
+  background-color: #f8f9fa;
+  border-top: 1px solid #e0e0e0;
+  padding: 12px;
+  font-size: 0.9rem;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-hint.prominent {
+  font-weight: 500;
+  color: #1976d2;
+}
+
+.status-hint.prominent::before {
+  content: "💡";
+}
+
+/* WebGL context loss warning */
+.webgl-error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .viewer-controls {
+    bottom: 10px;
+    right: 10px;
+  }
+  
+  .texture-preview-container {
+    bottom: 10px;
+    left: 10px;
+    padding: 8px;
+  }
+  
+  .texture-preview img {
+    max-height: 80px;
+  }
+  
+  .selection-hint {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    transform: translateY(-60px);
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      transform: translateY(-60px) scale(1);
+    }
+    50% {
+      transform: translateY(-60px) scale(1.05);
+    }
+  }
+  
+  .component-tag-legend {
+    bottom: 10px;
+    left: 10px;
+    padding: 8px 12px;
+  }
+  
+  .selected-component-info {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+}
