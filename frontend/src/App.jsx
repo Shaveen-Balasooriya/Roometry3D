@@ -17,6 +17,7 @@ import MyProjectsPage from "./pages/MyProjectsPage";
 import CreateProjectPage from "./pages/CreateProjectPage";
 import ViewProjectPage from "./pages/ViewProjectPage";
 import EditProjectPage from "./pages/EditProjectPage";
+import UploadRoomPage from "./pages/UploadRoomPage"; // Added import for the new page
 
 // Unauthorized page component
 function Unauthorized() {
@@ -140,6 +141,18 @@ export default function App() {
               <div className="app-container">
                 <Navbar />
                 <EditUserPage />
+                <Footer />
+              </div>
+            }
+          />
+          <Route
+            path="/upload-room"
+            element={
+              <div className="app-container">
+                <Navbar />
+                <main className="main-content">
+                  <UploadRoomPage />
+                </main>
                 <Footer />
               </div>
             }
