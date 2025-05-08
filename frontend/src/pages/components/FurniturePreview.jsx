@@ -33,7 +33,6 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
 
         const parsedObj = loaderRef.current.parse(objText);
 
-        // --- Scaling Logic (same as before, consider centering as well) ---
         const box = new THREE.Box3().setFromObject(parsedObj);
         const originalSize = box.getSize(new THREE.Vector3());
         const originalCenter = box.getCenter(new THREE.Vector3());
@@ -65,10 +64,9 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
               child.material.needsUpdate = true;
             }
           });
-          setObject(parsedObj); // Set the final object
+          setObject(parsedObj);
         };
 
-        // --- Texture Loading Logic (same as before, using textureUrl) ---
         if (textureUrl) {
           const textureLoader = new THREE.TextureLoader();
           textureLoader.load(
@@ -105,7 +103,6 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
               roughness: 0.8
           }));
         }
-        // --- End Texture Loading ---
 
       } catch (error) {
         if (!cancelled) {
@@ -117,14 +114,12 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
 
     loadObjFromBlob();
 
-    // Cleanup function
     return () => {
       cancelled = true;
       if (currentMaterial) {
         if (currentMaterial.map) currentMaterial.map.dispose();
         currentMaterial.dispose();
       }
-      // No need to explicitly dispose geometry/object here if managed by parent/React
     };
   }, [objBlob, textureUrl, targetWidth, targetHeight, targetLength]);
 
@@ -147,7 +142,6 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
   const fileInputRef = useRef(null);
   const isUpdateMode = initialObjUrl || initialTextureUrls.length > 0;
 
-  // Effect to create/revoke URLs for user-uploaded textures
   useEffect(() => {
     const validTextures = textures?.filter(t => t instanceof Blob) || [];
     if (validTextures.length > 0) {
@@ -167,18 +161,15 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
       prevLocalUrlsRef.current = [];
     };
-  }, [textures]); // Rerun only when user-provided textures change
+  }, [textures]);
 
-  // Effect to combine and manage all texture URLs 
   useEffect(() => {
-    // If we have new local textures to add or replace, use them
     if (localTextureUrls.length > 0) {
       setCombinedTextureUrls([...localTextureUrls]);
       if (localTextureUrls.length > 0 && selectedTextureIndex >= localTextureUrls.length) {
         setSelectedTextureIndex(0);
       }
     } else {
-      // Otherwise use the initial textures
       setCombinedTextureUrls([...initialTextureUrls]);
       if (initialTextureUrls.length > 0 && selectedTextureIndex >= initialTextureUrls.length) {
         setSelectedTextureIndex(0);
@@ -194,7 +185,6 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       
       const fetchInitialObj = async () => {
         try {
-          // Get current user's auth token
           const user = auth.currentUser;
           if (!user) {
             throw new Error('You must be logged in to access this model');
@@ -273,7 +263,6 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
     };
   }, []);
 
-  // Handle the file input change for adding new textures
   const handleAddTextures = useCallback(async (e) => {
     const files = Array.from(e.target.files).filter(file => file.type.startsWith('image/'));
     
@@ -282,7 +271,6 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
     setIsUploadingTextures(true);
     
     try {
-      // Get current user's auth token
       const user = auth.currentUser;
       if (!user) {
         throw new Error('You must be logged in to add textures');
@@ -290,13 +278,11 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       
       const idToken = await user.getIdToken();
       
-      // Create form data for the upload
       const formData = new FormData();
       files.forEach(file => {
         formData.append('textures', file);
       });
       
-      // Send the textures to the server
       const response = await fetch(`http://localhost:3001/api/furniture/${furnitureId}/textures`, {
         method: 'PUT',
         headers: {
@@ -312,35 +298,22 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       
       const result = await response.json();
       
-      // Clean up any existing local texture URLs
       prevLocalUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
       prevLocalUrlsRef.current = [];
       setLocalTextureUrls([]);
       
-      // Store and update the texture URLs from the server
       if (result.textureUrls && Array.isArray(result.textureUrls)) {
         console.log("Texture upload successful, refreshing page to display new textures");
-        
-        // For complete page refresh:
-        // Option 1: Use window.location.reload() for full page refresh
         window.location.reload();
-        
-        // Note: The code below won't execute due to page reload above
-        // But keeping it as fallback in case reload is prevented
         setCombinedTextureUrls(result.textureUrls);
-        
-        // Select the first of the newly added textures if available
         if (result.newTextureUrls && result.newTextureUrls.length > 0) {
           const firstNewTextureUrl = result.newTextureUrls[0];
           const newIndex = result.textureUrls.findIndex(url => url === firstNewTextureUrl);
           setSelectedTextureIndex(newIndex >= 0 ? newIndex : 0);
         }
-        
-        // Force 3D scene refresh
         setForceUpdateKey(prev => prev + 1);
       }
       
-      // Reset the file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -353,7 +326,6 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
     }
   }, [furnitureId]);
 
-  // Handle deleting the selected texture
   const handleDeleteTexture = useCallback(async () => {
     if (combinedTextureUrls.length <= 1) {
       alert("Cannot delete the last texture. At least one texture is required.");
@@ -364,13 +336,11 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       return;
     }
     
-    // Get the URL of the texture to delete
     const textureToDelete = combinedTextureUrls[selectedTextureIndex];
     
     setIsDeletingTexture(true);
     
     try {
-      // Get current user's auth token
       const user = auth.currentUser;
       if (!user) {
         throw new Error('You must be logged in to delete textures');
@@ -378,7 +348,6 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       
       const idToken = await user.getIdToken();
       
-      // Send the delete request to the server
       const response = await fetch(`http://localhost:3001/api/furniture/${furnitureId}/textures/delete`, {
         method: 'DELETE',
         headers: {
@@ -397,19 +366,11 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       
       const result = await response.json();
       
-      // Update the texture URLs
       if (result.success) {
         console.log("Texture deleted successfully, refreshing page");
-        
-        // For complete page refresh
         window.location.reload();
-        
-        // Note: The code below won't execute due to page reload above
-        // But keeping it as fallback in case reload is prevented
         const updatedTextures = combinedTextureUrls.filter((_, index) => index !== selectedTextureIndex);
         setCombinedTextureUrls(updatedTextures);
-        
-        // Update selected index if needed
         if (selectedTextureIndex >= updatedTextures.length) {
           setSelectedTextureIndex(Math.max(0, updatedTextures.length - 1));
         }
@@ -424,37 +385,80 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
   }, [furnitureId, combinedTextureUrls, selectedTextureIndex]);
 
   return (
-    <div className="furniture-preview" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
-      <h2 style={{ marginLeft: 0, marginRight: 0, textAlign: 'left' }}>3D Preview</h2>
-      <div
-        className="preview-container"
-        style={{
-          marginLeft: 0,
-          marginRight: 0,
-          width: '100%',
-          boxSizing: 'border-box',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-        }}
-      >
+    <div className="furniture-preview">
+      <div style={{ 
+        color: '#00474C',
+        position: 'relative',
+        paddingBottom: '0.5rem',
+        marginBottom: '1rem',
+        borderBottom: '2px solid #66B2B8',
+      }}>
+        <h2 style={{ 
+          marginLeft: 0, 
+          marginRight: 0, 
+          textAlign: 'left',
+          fontSize: '1.5rem',
+          fontWeight: 600,
+          margin: 0,
+        }}>
+          3D Preview
+        </h2>
+        <span style={{
+          position: 'absolute',
+          bottom: '-2px',
+          left: '0',
+          width: '60px',
+          height: '2px',
+          backgroundColor: '#ECC94B'
+        }}></span>
+      </div>
+
+      <div className="preview-container">
         {showLoading ? (
-           <div style={{ textAlign: 'center', color: 'var(--text-light)' }}>
+           <div style={{ 
+             textAlign: 'center',
+             display: 'flex',
+             flexDirection: 'column',
+             alignItems: 'center',
+             justifyContent: 'center',
+             height: '100%',
+             color: '#718096'
+           }}>
              <Loading size={40} />
              <p style={{ marginTop: '10px' }}>Loading Initial Model...</p>
            </div>
         ) : canPreview ? (
           <ErrorBoundary fallbackMessage="Failed to render 3D preview.">
             {isContextLost && (
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, textAlign: 'center', padding: '1rem', borderRadius: 'inherit' }}>
+              <div style={{ 
+                position: 'absolute', 
+                top: 0, 
+                left: 0, 
+                right: 0, 
+                bottom: 0, 
+                background: 'rgba(0,0,0,0.7)', 
+                color: 'white', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                zIndex: 10, 
+                textAlign: 'center', 
+                padding: '1rem', 
+                borderRadius: 'inherit' 
+              }}>
                 WebGL Context Lost. Please wait or try reloading the model.
               </div>
             )}
             <Canvas
               ref={canvasRef}
               key={forceUpdateKey}
-              style={{ background: '#9ACBD0', width: '100%', height: '100%', display: 'block', opacity: isContextLost ? 0.5 : 1 }}
+              style={{ 
+                background: '#E2F0F1',
+                width: '100%', 
+                height: '100%', 
+                display: 'block', 
+                opacity: isContextLost ? 0.5 : 1 
+              }}
               camera={{ position: [0, 1, 5], fov: 50 }}
               frameloop="demand"
               dpr={[1, 2]}
@@ -475,7 +479,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
               <Suspense fallback={
                 <mesh position={[0,0,0]}>
                    <boxGeometry args={[1, 1, 1]} />
-                   <meshStandardMaterial color="orange" />
+                   <meshStandardMaterial color="#66B2B8" />
                 </mesh>
               }>
                 <Bounds fit clip observe margin={1.5}>
@@ -503,7 +507,6 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
           </div>
         )}
 
-        {/* Hidden file input for adding textures */}
         <input
           ref={fileInputRef}
           type="file"
@@ -514,19 +517,55 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
         />
         
         {isUploadingTextures && (
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}>
-            <div style={{ background: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+          <div style={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
+            background: 'rgba(0,71,76,0.5)',
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 20 
+          }}>
+            <div style={{ 
+              background: 'white', 
+              padding: '20px', 
+              borderRadius: '8px', 
+              textAlign: 'center',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              borderLeft: '3px solid #ECC94B'
+            }}>
               <Loading size={30} />
-              <p style={{ marginTop: '10px' }}>Uploading textures...</p>
+              <p style={{ marginTop: '10px', color: '#00474C' }}>Uploading textures...</p>
             </div>
           </div>
         )}
         
         {isDeletingTexture && (
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20 }}>
-            <div style={{ background: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+          <div style={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
+            background: 'rgba(0,71,76,0.5)',
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 20 
+          }}>
+            <div style={{ 
+              background: 'white', 
+              padding: '20px', 
+              borderRadius: '8px', 
+              textAlign: 'center',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              borderLeft: '3px solid #ECC94B'
+            }}>
               <Loading size={30} />
-              <p style={{ marginTop: '10px' }}>Deleting texture...</p>
+              <p style={{ marginTop: '10px', color: '#00474C' }}>Deleting texture...</p>
             </div>
           </div>
         )}
@@ -549,7 +588,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
                   <button 
                     className="delete-texture-button"
                     onClick={handleDeleteTexture}
-                    disabled={isUploadingTextures || isDeletingTexture}
+                    disabled={isUploadingTextures || isDeletingTexture || combinedTextureUrls.length <= 1}
                     title="Delete selected texture"
                   >
                     <span>-</span> Delete Texture
@@ -562,7 +601,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
             <div className="texture-switcher">
               {combinedTextureUrls.map((url, index) => (
                 <button
-                  key={`texture-${url}-${index}`} // Added index to ensure unique keys
+                  key={`texture-${index}`}
                   className={index === selectedTextureIndex ? 'selected' : ''}
                   onClick={() => setSelectedTextureIndex(index)}
                   title={`Texture ${index + 1}`}

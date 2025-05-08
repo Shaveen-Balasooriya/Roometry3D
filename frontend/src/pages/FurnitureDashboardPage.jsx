@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import FurnitureCard from './components/FurnitureCard'
-import CategoryFilter from './components/FurnitureCategoryFilter' // Import the new component
+import CategoryFilter from './components/FurnitureCategoryFilter'
 import Loading from '../components/Loading'
 import Popup from '../components/Popup'
 import { auth } from '../services/firebase'
@@ -71,35 +71,40 @@ export default function FurnitureDashboardPage() {
   }
 
   return (
-    <div className="app-container">
+    <div className="page-content">
       <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
-      <main className="main-content" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-        <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)' }}>Furniture Dashboard</h2>
-        
-        {/* Add the category filter component */}
-        <CategoryFilter 
-          selectedCategory={selectedCategory} 
-          onCategoryChange={handleCategoryChange} 
-        />
-        
-        {loading ? (
-          <Loading />
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
-            {furniture.length === 0 ? (
-              <div>No furniture found.</div>
-            ) : (
-              furniture.map(item => (
-                <FurnitureCard
-                  key={item.id}
-                  furniture={item}
-                  onDeleteSuccess={handleDeleteSuccess}
-                />
-              ))
-            )}
-          </div>
-        )}
-      </main>
+      <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)' }}>Furniture Dashboard</h2>
+      
+      <CategoryFilter 
+        selectedCategory={selectedCategory} 
+        onCategoryChange={handleCategoryChange} 
+      />
+      
+      {loading ? (
+        <Loading />
+      ) : (
+        <div style={{ 
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: '2rem',
+          justifyItems: 'center',
+          alignItems: 'stretch',
+          width: '100%',
+          marginTop: '1rem'
+        }}>
+          {furniture.length === 0 ? (
+            <div>No furniture found.</div>
+          ) : (
+            furniture.map(item => (
+              <FurnitureCard
+                key={item.id}
+                furniture={item}
+                onDeleteSuccess={handleDeleteSuccess}
+              />
+            ))
+          )}
+        </div>
+      )}
     </div>
   )
 }

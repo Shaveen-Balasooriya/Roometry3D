@@ -17,27 +17,19 @@ import MyProjectsPage from "./pages/MyProjectsPage";
 import CreateProjectPage from "./pages/CreateProjectPage";
 import ViewProjectPage from "./pages/ViewProjectPage";
 import EditProjectPage from "./pages/EditProjectPage";
+import Breadcrumb from "./components/Breadcrumb";
 
 // Unauthorized page component
 function Unauthorized() {
   return (
-    <div className="app-container">
-      <Navbar />
-      <main
-        className="main-content"
-        style={{ justifyContent: "center", alignItems: "center" }}
-      >
-        <div>
-          <h2 style={{ color: "var(--error)", marginBottom: "1.5rem" }}>
-            Access Denied
-          </h2>
-          <p style={{ color: "var(--text-light)", marginBottom: "2rem" }}>
-            You don't have permission to access this page. Please contact an
-            administrator.
-          </p>
-        </div>
-      </main>
-      <Footer />
+    <div className="page-content">
+      <h2 style={{ color: "var(--error)", marginBottom: "1.5rem" }}>
+        Access Denied
+      </h2>
+      <p style={{ color: "var(--text-light)", marginBottom: "2rem" }}>
+        You don't have permission to access this page. Please contact an
+        administrator.
+      </p>
     </div>
   );
 }
@@ -45,110 +37,51 @@ function Unauthorized() {
 export default function App() {
   return (
     <Router>
-      <Routes>
-        {/* Public route */}
-        <Route path="/login" element={<LoginPage />} />
+      <div className="app-container">
+        <Navbar />
+        <main className="main-content">
+          <Breadcrumb />
+          <div className="page-content-wrapper">
+            <Routes>
+              {/* Public route */}
+              <Route path="/login" element={<LoginPage />} />
 
-        {/* Protected routes - require any authenticated user */}
-        <Route element={<AuthGuard allowedRoles={[]} />}>
-          <Route path="/profile" element={<ProfilePage />} />
-        </Route>
+              {/* Protected routes - require any authenticated user */}
+              <Route element={<AuthGuard allowedRoles={[]} />}>
+                <Route path="/profile" element={<ProfilePage />} />
+              </Route>
 
-        {/* Routes accessible to designers and client */}
-        <Route element={<AuthGuard allowedRoles={["client", "designer"]} />}>
-          {/* Project routes - accessible to all authenticated users */}
-          <Route path="/my-projects" element={<MyProjectsPage />} />
-          <Route path="/create-project" element={<CreateProjectPage />} />
-          <Route path="/view-project/:id" element={<ViewProjectPage />} />{" "}
-          {/* Updated path to match the URL in the links */}
-          <Route path="/edit-project/:id" element={<EditProjectPage />} />
-        </Route>
+              {/* Routes accessible to designers and client */}
+              <Route element={<AuthGuard allowedRoles={["client", "designer"]} />}>
+                {/* Project routes - accessible to all authenticated users */}
+                <Route path="/my-projects" element={<MyProjectsPage />} />
+                <Route path="/create-project" element={<CreateProjectPage />} />
+                <Route path="/view-project/:id" element={<ViewProjectPage />} />
+                <Route path="/edit-project/:id" element={<EditProjectPage />} />
+              </Route>
 
-        {/* Routes accessible to designers and admin */}
-        <Route element={<AuthGuard allowedRoles={["admin", "designer"]} />}>
-          <Route
-            path="/furniture-dashboard"
-            element={
-              <div className="app-container">
-                <Navbar />
-                <FurnitureDashboardPage />
-                <Footer />
-              </div>
-            }
-          />
-          <Route
-            path="/update-furniture/:id"
-            element={
-              <div className="app-container">
-                <Navbar />
-                <main className="main-content">
-                  <UpdateFurniturePage />
-                </main>
-                <Footer />
-              </div>
-            }
-          />
-          <Route
-            path="/add-furniture"
-            element={
-              <div className="app-container">
-                <Navbar />
-                <main className="main-content">
-                  <AddFurniturePage />
-                </main>
-                <Footer />
-              </div>
-            }
-          />
-        </Route>
+              {/* Routes accessible to designers and admin */}
+              <Route element={<AuthGuard allowedRoles={["admin", "designer"]} />}>
+                <Route path="/furniture-dashboard" element={<FurnitureDashboardPage />} />
+                <Route path="/update-furniture/:id" element={<UpdateFurniturePage />} />
+                <Route path="/add-furniture" element={<AddFurniturePage />} />
+              </Route>
 
-        {/* Routes accessible only to admin */}
-        <Route element={<AuthGuard allowedRoles={["admin"]} />}>
-          <Route
-            path="/"
-            element={
-              <div className="app-container">
-                <Navbar />
-                <HomePage />
-                <Footer />
-              </div>
-            }
-          />
-          <Route
-            path="/add-user"
-            element={
-              <div className="app-container">
-                <Navbar />
-                <UserManagementPage />
-                <Footer />
-              </div>
-            }
-          />
-          <Route
-            path="/users-dashboard"
-            element={
-              <div className="app-container">
-                <Navbar />
-                <UsersDashboardPage />
-                <Footer />
-              </div>
-            }
-          />
-          <Route
-            path="/edit-user/:id"
-            element={
-              <div className="app-container">
-                <Navbar />
-                <EditUserPage />
-                <Footer />
-              </div>
-            }
-          />
-        </Route>
+              {/* Routes accessible only to admin */}
+              <Route element={<AuthGuard allowedRoles={["admin"]} />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/add-user" element={<UserManagementPage />} />
+                <Route path="/users-dashboard" element={<UsersDashboardPage />} />
+                <Route path="/edit-user/:id" element={<EditUserPage />} />
+              </Route>
 
-        {/* Unauthorized route */}
-        <Route path="/unauthorized" element={<Unauthorized />} />
-      </Routes>
+              {/* Unauthorized route */}
+              <Route path="/unauthorized" element={<Unauthorized />} />
+            </Routes>
+          </div>
+        </main>
+        <Footer />
+      </div>
     </Router>
   );
 }

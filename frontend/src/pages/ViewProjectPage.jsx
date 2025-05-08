@@ -204,38 +204,28 @@ export default function ViewProjectPage() {
 
   if (loading) {
     return (
-      <div className="app-container">
-        <Navbar />
-        <main className="main-content">
-          <div className="loading-container">
-            <Loading size={40} />
-          </div>
-        </main>
-        <Footer />
+      <div className="page-content">
+        <Loading />
       </div>
     );
   }
 
-  if (error || !project) {
+  if (error) {
     return (
-      <div className="app-container">
-        <Navbar />
-        <main className="main-content">
-          <div className="error-container">
-            <h2>Error</h2>
-            <p>{error || 'Project not found'}</p>
-            <Link to="/my-projects" className="button-secondary">
-              Back to Projects
-            </Link>
-          </div>
-        </main>
-        <Footer />
+      <div className="page-content">
+        <div className="error-container">
+          <h2>Error</h2>
+          <p>{error}</p>
+          <button className="button-secondary" onClick={() => navigate('/my-projects')}>
+            Back to Projects
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="app-container">
+    <div className="page-content">
       <Navbar />
       <main className="main-content project-view-page">
         {notification && (

@@ -57,23 +57,32 @@ export default function UpdateFurniturePage() {
   };
 
   if (loading) {
-    return <Loading overlay />;
+    return (
+      <div className="page-content">
+        <Loading overlay />
+      </div>
+    );
   }
 
   if (!initialData && !loading) {
-    // Render error state or redirect if data couldn't be loaded
     return (
-      <div>
+      <div className="page-content">
         <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
-        <p>Could not load furniture data. <button onClick={() => navigate('/furniture-dashboard')}>Go Back</button></p>
+        <div className="error-container">
+          <p>Could not load furniture data.</p>
+          <button className="button-primary" onClick={() => navigate('/furniture-dashboard')}>Go Back</button>
+        </div>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="page-content">
       <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} duration={popup.duration || 3000} />
-      {initialData && <UpdateFurnitureContent initialData={initialData} onUpdateSuccess={handleUpdateSuccess} />}
-    </>
+      <h1 className="page-title">Update Furniture</h1>
+      <div className="form-container">
+        {initialData && <UpdateFurnitureContent initialData={initialData} onUpdateSuccess={handleUpdateSuccess} />}
+      </div>
+    </div>
   );
 }
