@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser, registerUser, getCurrentUser, getUserRole } from '../services/firebase';
+import { loginUser, registerUser, getCurrentUser, getUserRole, resetPassword } from '../services/firebase';
 import Loading from '../components/Loading';
 import './LoginPage.css';
 
@@ -16,6 +16,11 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [forgotPasswordModal, setForgotPasswordModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetEmailError, setResetEmailError] = useState('');
+  const [resetEmailSuccess, setResetEmailSuccess] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -125,6 +130,55 @@ export default function LoginPage() {
     setSuccess('');
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    
+    // Reset states
+    setResetEmailError('');
+    setResetEmailSuccess('');
+    
+    // Validate email
+    if (!resetEmail || !/\S+@\S+\.\S+/.test(resetEmail)) {
+      setResetEmailError('Please enter a valid email address');
+      return;
+    }
+    
+    setResetLoading(true);
+    try {
+      await resetPassword(resetEmail);
+      setResetEmailSuccess('Password reset link sent! Check your email inbox.');
+      setResetEmail('');
+      
+      // Auto close modal after success (3 seconds)
+      setTimeout(() => {
+        setForgotPasswordModal(false);
+        setResetEmailSuccess('');
+      }, 3000);
+    } catch (err) {
+      console.error('Password reset error:', err);
+      if (err.code === 'auth/user-not-found') {
+        setResetEmailError('No account found with this email address.');
+      } else {
+        setResetEmailError(err.message || 'Failed to send reset email. Please try again.');
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const openForgotPassword = () => {
+    setForgotPasswordModal(true);
+    setResetEmail(formData.email || ''); // Pre-fill with login email if available
+    setResetEmailError('');
+    setResetEmailSuccess('');
+  };
+
+  const closeForgotPassword = () => {
+    setForgotPasswordModal(false);
+    setResetEmailError('');
+    setResetEmailSuccess('');
+  };
+
   if (initialLoading) {
     return <div className="loading-container"><Loading size={40} /></div>;
   }
@@ -204,7 +258,11 @@ export default function LoginPage() {
             </button>
 
             <div className="form-footer">
-              <button type="button" className="text-button">
+              <button 
+                type="button" 
+                className="text-button"
+                onClick={openForgotPassword}
+              >
                 Forgot password?
               </button>
             </div>
@@ -286,6 +344,67 @@ export default function LoginPage() {
           </form>
         )}
       </div>
+
+      {/* Forgot Password Modal */}
+      {forgotPasswordModal && (
+        <div className="forgot-password-overlay">
+          <div className="forgot-password-modal">
+            <div className="forgot-password-header">
+              <h3>Reset Your Password</h3>
+              <button 
+                className="close-modal-button" 
+                onClick={closeForgotPassword}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+            
+            <div className="forgot-password-content">
+              <p>Enter your email address and we'll send you a link to reset your password.</p>
+              
+              {resetEmailError && <div className="error-message">{resetEmailError}</div>}
+              {resetEmailSuccess && <div className="success-message">{resetEmailSuccess}</div>}
+              
+              <form onSubmit={handleForgotPassword} className="forgot-password-form">
+                <div className="form-group">
+                  <label htmlFor="reset-email">Email Address</label>
+                  <div className="input-with-icon">
+                    <span className="input-icon">📧</span>
+                    <input
+                      type="email"
+                      id="reset-email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      placeholder="Enter your email address"
+                      autoComplete="email"
+                      disabled={resetLoading}
+                    />
+                  </div>
+                </div>
+                
+                <div className="forgot-password-actions">
+                  <button 
+                    type="button" 
+                    className="button-secondary" 
+                    onClick={closeForgotPassword}
+                    disabled={resetLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="button-primary"
+                    disabled={resetLoading}
+                  >
+                    {resetLoading ? <Loading size={20} className="loading-spinner" /> : 'Send Reset Link'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
