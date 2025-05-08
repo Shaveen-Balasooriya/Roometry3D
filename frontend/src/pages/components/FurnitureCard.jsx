@@ -13,7 +13,6 @@ function ModelPreview({ objFile, textureUrl, dimensions }) {
   const [object, setObject] = useState(null)
   const loaderRef = useRef(new OBJLoader())
   const { width = 1, height = 1, length = 1 } = dimensions || {}
-  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     let currentMaterial = null
     let cancelled = false
@@ -146,7 +145,7 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' })
   const [showConfirmPopup, setShowConfirmPopup] = useState(false)
   const navigate = useNavigate()
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => { setSelectedTextureIndex(0) }, [textureUrls])
 
   const currentTextureUrl = useMemo(() => {
