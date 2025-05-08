@@ -22,7 +22,10 @@ export default function ViewProjectPage() {
   const [userRole, setUserRole] = useState(null);
   const [animateModel, setAnimateModel] = useState(true);
   const [notification, setNotification] = useState(null);
+  const [modelLoading, setModelLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('rotate'); // 'rotate', 'pan', 'zoom'
   const API_URL = import.meta.env.VITE_BACKEND_URL;
+
   useEffect(() => {
     async function fetchProjectData() {
       try {
@@ -202,6 +205,10 @@ export default function ViewProjectPage() {
     }
   };
 
+  const handleModelLoaded = () => {
+    setModelLoading(false);
+  };
+
   if (loading) {
     return (
       <div className="app-container">
@@ -268,34 +275,95 @@ export default function ViewProjectPage() {
               </div>
               
               <div className="project-view-actions">
-                <Link to={`/edit-project/${project.id}`} className="action-btn btn-edit" aria-label="Edit Project">
-                  <i className="fas fa-edit"></i>
-                  <span>Edit</span>
+                <Link 
+                  to={`/edit-project/${project.id}`} 
+                  className="icon-button edit-button" 
+                  title="Edit Project"
+                  aria-label="Edit Project"
+                >
+                  <svg 
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="white"
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  >
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
                 </Link>
                 
                 <button 
                   onClick={handleShareProject} 
-                  className="action-btn btn-share" 
+                  className="icon-button share-button" 
+                  title="Share Project"
                   aria-label="Share Project"
                 >
-                  <i className="fas fa-share-alt"></i>
-                  <span>Share</span>
+                  <svg 
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="white" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                  </svg>
                 </button>
                 
                 {canDeleteProject() && (
                   <button 
                     onClick={() => setDeleteConfirmOpen(true)}
-                    className="action-btn btn-danger"
+                    className="icon-button delete-button"
+                    title="Delete Project"
                     aria-label="Delete Project"
                   >
-                    <i className="fas fa-trash"></i>
-                    <span>Delete</span>
+                    <svg 
+                      width="16" 
+                      height="16" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="white" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      <line x1="10" y1="11" x2="10" y2="17"></line>
+                      <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
                   </button>
                 )}
                 
-                <Link to="/my-projects" className="action-btn btn-back" aria-label="Back to Projects">
-                  <i className="fas fa-arrow-left"></i>
-                  <span>Back</span>
+                <Link 
+                  to="/my-projects" 
+                  className="icon-button back-button" 
+                  title="Back to Projects"
+                  aria-label="Back to Projects"
+                >
+                  <svg 
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="white" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  >
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                  </svg>
                 </Link>
               </div>
             </div>
@@ -338,13 +406,44 @@ export default function ViewProjectPage() {
                         className={`model-control-button ${animateModel ? 'active' : ''}`}
                         onClick={() => setAnimateModel(!animateModel)}
                         aria-label={animateModel ? "Pause model rotation" : "Start model rotation"}
+                        title={animateModel ? "Pause rotation" : "Start rotation"}
                       >
                         <i className={`fas ${animateModel ? 'fa-pause' : 'fa-play'}`}></i>
                       </button>
+                      
+                      <button 
+                        className={`model-control-button ${viewMode === 'zoom' ? 'active' : ''}`}
+                        onClick={() => setViewMode('zoom')}
+                        aria-label="Zoom view mode"
+                        title="Zoom mode"
+                      >
+                        <i className="fas fa-search-plus"></i>
+                      </button>
+                      
+                      <button 
+                        className={`model-control-button ${viewMode === 'pan' ? 'active' : ''}`}
+                        onClick={() => setViewMode('pan')}
+                        aria-label="Pan view mode"
+                        title="Pan mode"
+                      >
+                        <i className="fas fa-hand-paper"></i>
+                      </button>
                     </div>
+                    
                     <div className="project-3d-model">
-                      <ProjectModelViewer projectId={project.id} />
+                      {modelLoading && (
+                        <div className="model-loading">
+                          <i className="fas fa-cube"></i>
+                        </div>
+                      )}
+                      <ProjectModelViewer 
+                        projectId={project.id} 
+                        onLoad={handleModelLoaded} 
+                        animateModel={animateModel}
+                        viewMode={viewMode}
+                      />
                     </div>
+                    
                     <div className="model-actions">
                       <a 
                         href={project.objFileUrl} 

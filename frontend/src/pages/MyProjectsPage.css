@@ -1,61 +1,176 @@
-/* MyProjectsPage.css */
-.my-projects-page {
+/* MyProjectsPage.css - Classes aligned with JSX */
+
+/* Main Container */
+.app-container {
   width: 100%;
-  padding: 2rem 0;
-  min-height: calc(100vh - 64px);
-  background-color: var(--background);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.container {
+.main-content {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: calc(100vh - 64px - 80px); /* leave space for navbar/footer */
+  padding: 64px 0 60px 0; /* top/bottom space for navbar/footer */
+  background: var(--background);
+  flex: 1;
+}
+
+.page-content {
+  width: 100%;
+}
+
+/* Page Header */
+.page-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1.5rem;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2.5rem;
+.page-title {
+  margin-bottom: 0.5rem;
+  color: var(--accent);
+  font-size: 2.1rem;
+  font-weight: 700;
 }
 
-.page-header h1 {
-  margin: 0;
-  font-size: 2rem;
+/* Button Styles - Updated to match provided design */
+.create-project-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #008B8B; /* Teal color matching image */
+  color: white;
+  padding: 0.8rem 1.5rem;
+  border-radius: 25px; /* More rounded corners to match image */
+  font-size: 0.97rem;
   font-weight: 600;
-  color: var(--text-dark);
-  position: relative;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
 
-.page-header h1::after {
-  content: '';
-  position: absolute;
-  bottom: -8px;
-  left: 0;
-  width: 40px;
-  height: 3px;
-  background-color: var(--primary);
-  border-radius: 2px;
+.create-project-button:hover {
+  background-color: #006666; /* Darker shade of teal for hover */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-.create-project-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0.75rem 1.25rem;
-  font-weight: 500;
-  border-radius: 6px;
-  transition: transform 0.2s, box-shadow 0.2s;
+.create-project-icon {
+  margin-right: 0.5rem;
+  font-size: 1rem;
 }
 
-.plus-icon {
-  font-size: 1.2rem;
-  font-weight: 500;
+.button-primary {
+  /* These styles will be applied in addition to .create-project-button */
+  background-color: #006A71;
 }
 
-.create-project-btn:hover {
+.button-secondary {
+  background: var(--primary-dark);
+  color: var(--surface);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--primary-dark);
+  background-color: #006A71;
+  color: white;
+  border: none;
+  border-left: 3px solid #ECC94B;
+  border-radius: 4px;
+  padding: 0.7rem 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.button-secondary:hover {
+  background-color: #EDF2F7;
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading, Error, and Empty States */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  width: 100%;
+}
+
+.error-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.error-message-box {
+  background-color: rgba(244, 67, 54, 0.05);
+  border-left: 4px solid #F44336;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.error-message-title {
+  font-weight: 600;
+  color: #F44336;
+  margin: 0.5rem 0;
+}
+
+.error-message-text {
+  margin: 0.5rem 0;
+  color: var(--text-medium);
+}
+
+.empty-projects-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.empty-projects-content {
+  text-align: center;
+  padding: 4rem 1rem;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  max-width: 500px;
+}
+
+.empty-projects-icon {
+  font-size: 3.5rem;
+  margin-bottom: 1.5rem;
+  opacity: 0.6;
+}
+
+.empty-projects-title {
+  margin: 0 0 1rem;
+  color: var(--text-dark);
+  font-size: 1.4rem;
+}
+
+.empty-projects-text {
+  color: var(--text-medium);
+  margin-bottom: 2rem;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Projects Container and Grid */
+.projects-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
 }
 
 .projects-grid {
@@ -64,42 +179,64 @@
   gap: 2rem;
 }
 
+/* Project Card Styling */
 .project-card {
-  background: var(--surface);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  background-color: #FFFFFF;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
   padding: 1.5rem;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  position: relative;
-  border: 1px solid var(--border);
-  overflow: hidden;
 }
 
-.project-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-}
-
-.project-card:before {
+.project-card::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(90deg, var(--primary), var(--accent));
+  width: 4px;
+  height: 100%;
+  background-color: #ECC94B; /* Gold accent from MetricCard */
 }
 
-.project-header {
+.project-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 80px;
+  height: 80px;
+  background-color: #FEFCBF;
+  border-radius: 50%;
+  transform: translate(40%, 40%);
+  opacity: 0.2;
+  z-index: 0;
+}
+
+.project-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.project-card-header {
+  display: none; /* As per your JSX, it's present but should be hidden */
+}
+
+.project-card-top {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1.25rem;
+  position: relative;
+  z-index: 1;
 }
 
-.project-status {
+/* Project Status Badge */
+.project-status-badge {
   display: inline-block;
   padding: 0.35rem 0.85rem;
   border-radius: 50px;
@@ -108,6 +245,25 @@
   letter-spacing: 0.2px;
 }
 
+.status-draft {
+  background-color: #E6F2F2;
+  color: #00474C;
+  border: 1px solid rgba(0, 106, 113, 0.2);
+}
+
+.status-progress {
+  background-color: rgba(255, 152, 0, 0.1);
+  color: #f90;
+  border: 1px solid rgba(255, 152, 0, 0.2);
+}
+
+.status-completed {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+/* Project Actions */
 .project-actions {
   display: flex;
   gap: 0.75rem;
@@ -128,28 +284,19 @@
 }
 
 .action-button:hover {
-  background-color: var(--background-light);
-  color: var(--primary);
+  background-color: rgba(0, 106, 113, 0.1);
+  color: var(--accent);
 }
 
-.view-button:hover {
-  color: var(--primary);
-}
-
-.edit-button:hover {
-  color: #2196F3;
-}
-
-.delete-button:hover {
-  color: #F44336;
-}
-
-.project-name {
+/* Project Content */
+.project-title {
   font-size: 1.3rem;
   margin: 0 0 0.75rem;
   color: var(--text-dark);
   font-weight: 600;
   line-height: 1.3;
+  position: relative;
+  z-index: 1;
 }
 
 .project-description {
@@ -162,133 +309,66 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   flex-grow: 1;
+  position: relative;
+  z-index: 1;
 }
 
-.project-details {
+/* Project Footer */
+.project-footer {
   border-top: 1px solid var(--border-light);
   padding-top: 1.25rem;
   margin-top: auto;
+  position: relative;
+  z-index: 1;
 }
 
-.detail-item {
+.project-meta-row {
   display: flex;
   justify-content: space-between;
   font-size: 0.85rem;
   margin-bottom: 0.75rem;
 }
 
-.detail-label {
+.meta-label {
   color: var(--text-light);
   font-weight: 500;
 }
 
-.detail-value {
+.meta-value {
   font-weight: 600;
   color: var(--text-medium);
 }
 
-.model-preview {
-  margin-top: 1.25rem;
-  text-align: center;
-}
-
-.model-link {
+/* 3D Model Button - Updated to match same style */
+.model-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(45deg, var(--primary), var(--primary-dark));
+  background-color: #008B8B; /* Teal color matching image */
   color: white;
-  padding: 0.65rem 1.25rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
+  padding: 0.8rem 1.5rem;
+  border-radius: 25px; /* More rounded corners to match image */
+  font-size: 0.97rem;
   font-weight: 600;
   text-decoration: none;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.3s ease;
   width: 100%;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
+
 }
 
-.model-link i {
+.model-button:hover {
+  background-color: #006666; /* Darker shade of teal for hover */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.model-button-icon {
   margin-right: 0.5rem;
 }
 
-.model-link:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
-}
-
-.empty-state {
-  text-align: center;
-  padding: 4rem 1rem;
-  border-radius: 12px;
-  background: var(--surface);
-  border: 1px dashed var(--border);
-  max-width: 500px;
-  margin: 0 auto;
-}
-
-.empty-state-icon {
-  font-size: 3.5rem;
-  margin-bottom: 1.5rem;
-  opacity: 0.6;
-}
-
-.empty-state h3 {
-  margin: 0 0 1rem;
-  color: var(--text-dark);
-  font-size: 1.4rem;
-}
-
-.empty-state p {
-  color: var(--text-medium);
-  margin-bottom: 2rem;
-  font-size: 1rem;
-  line-height: 1.6;
-}
-
-/* Status colors */
-.status-draft {
-  background-color: rgba(var(--primary-rgb), 0.1);
-  color: var(--primary);
-}
-
-.status-progress {
-  background-color: rgba(255, 152, 0, 0.1);
-  color: #f90;
-}
-
-.status-completed {
-  background-color: rgba(76, 175, 80, 0.1);
-  color: #4caf50;
-}
-
-/* Loading state */
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 300px;
-}
-
-/* Error state */
-.error-message {
-  background-color: rgba(244, 67, 54, 0.05);
-  border-left: 4px solid #f44336;
-  padding: 1.5rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
-}
-
-.error-message p {
-  margin: 0.5rem 0;
-  color: var(--text-medium);
-}
-
-.error-message p:first-child {
-  font-weight: 600;
-  color: #f44336;
-}
-
-/* Responsive adjustments */
+/* Responsive Styles */
 @media (max-width: 900px) {
   .projects-grid {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -297,56 +377,33 @@
 }
 
 @media (max-width: 768px) {
-  .my-projects-page {
-    padding: 1.5rem 0;
-  }
-
-  .container {
-    padding: 0 1rem;
-  }
-
-  .page-header {
+  .page-header-container {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 2rem;
   }
   
-  .create-project-btn {
+  .create-project-button,
+  .button-primary,
+  .button-secondary {
     width: 100%;
-    justify-content: center;
   }
   
   .projects-grid {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .my-projects-page {
-    padding: 1rem 0;
-  }
-  
-  .container {
-    padding: 0 0.75rem;
-  }
-  
-  .page-header h1 {
-    font-size: 1.75rem;
-  }
-  
-  .page-header h1::after {
-    width: 30px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
   
   .project-card {
     padding: 1.25rem;
-    border-radius: 10px;
   }
   
-  .project-name {
+  .project-title {
     font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 1.8rem;
   }
   
   .project-description {
@@ -354,52 +411,20 @@
     margin-bottom: 1.25rem;
   }
   
-  .empty-state {
+  .empty-projects-content {
     padding: 3rem 1rem;
   }
   
-  .empty-state-icon {
+  .empty-projects-icon {
     font-size: 3rem;
   }
   
-  .empty-state h3 {
+  .empty-projects-title {
     font-size: 1.2rem;
   }
-}
-
-@media (max-width: 360px) {
-  .container {
-    padding: 0 0.5rem;
-  }
   
-  .page-header h1 {
-    font-size: 1.5rem;
-  }
-  
-  .project-card {
-    padding: 1rem;
-  }
-  
-  .project-header {
-    margin-bottom: 1rem;
-  }
-  
-  .project-status {
-    padding: 0.25rem 0.7rem;
-    font-size: 0.75rem;
-  }
-  
-  .action-button {
-    width: 28px;
-    height: 28px;
-  }
-  
-  .detail-item {
+  .project-meta-row {
     flex-direction: column;
     gap: 0.25rem;
-  }
-  
-  .empty-state {
-    padding: 2rem 0.75rem;
   }
 }

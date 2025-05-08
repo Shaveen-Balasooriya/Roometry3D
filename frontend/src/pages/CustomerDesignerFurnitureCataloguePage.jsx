@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react'
-import CustomerDesignerFurnitureCard from './components/CustomerDesignerFurnitureCard'
-import CategoryFilter from './components/FurnitureCategoryFilter'
-import Loading from '../components/Loading'
+import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import Popup from '../components/Popup'
-import { auth } from '../services/firebase'
+import Loading from '../components/Loading';
+import CategoryFilter from './components/FurnitureCategoryFilter';
+import CustomerDesignerFurnitureCard from './components/CustomerDesignerFurnitureCard';
+import Popup from '../components/Popup';
+import { auth } from '../services/firebase';
 
 export default function CustomerDesignerFurnitureCataloguePage() {
   const [furniture, setFurniture] = useState([])
@@ -64,32 +64,70 @@ export default function CustomerDesignerFurnitureCataloguePage() {
   return (
     <div className="app-container">
       <Navbar />
-      <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
-      <main className="main-content" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-        <h2 style={{ marginBottom: '1.5rem', color: 'var(--accent)' }}>Furniture Catalogue</h2>
-        
-        {/* Add the category filter component */}
-        <CategoryFilter 
-          selectedCategory={selectedCategory} 
-          onCategoryChange={handleCategoryChange} 
-        />
-        
-        {loading ? (
-          <Loading />
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
-            {furniture.length === 0 ? (
-              <div>No furniture found.</div>
-            ) : (
-              furniture.map(item => (
-                <CustomerDesignerFurnitureCard
-                  key={item.id}
-                  furniture={item}
-                />
-              ))
-            )}
-          </div>
-        )}
+      <main className="main-content" style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center',
+        padding: '0 1rem',
+        maxWidth: '1200px',
+        margin: '0 auto',
+        width: '100%'
+      }}>
+        <div className="page-content" style={{ width: '100%' }}>
+          <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
+          
+          {/* Exactly matching the h2 style from FurnitureDashboardPage */}
+          <h2 style={{ 
+            marginBottom: '1.5rem', 
+            color: 'var(--accent)',
+            fontSize: '2.1rem',
+            fontWeight: '700'
+          }}>Furniture Catalogue</h2>
+          
+          <CategoryFilter 
+            selectedCategory={selectedCategory} 
+            onCategoryChange={handleCategoryChange} 
+          />
+          
+          {loading ? (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              minHeight: '200px',
+              width: '100%'
+            }}>
+              <Loading />
+            </div>
+          ) : (
+            <div style={{ 
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '2rem',
+              justifyItems: 'center',
+              alignItems: 'stretch',
+              width: '100%',
+              marginTop: '1rem'
+            }}>
+              {furniture.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '2rem',
+                  color: '#718096',
+                  gridColumn: '1 / -1',
+                  width: '100%'
+                }}>No furniture found.</div>
+              ) : (
+                furniture.map(item => (
+                  <CustomerDesignerFurnitureCard
+                    key={item.id}
+                    furniture={item}
+                  />
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </main>
       <Footer />
     </div>
