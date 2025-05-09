@@ -19,8 +19,6 @@ export default function CreateProjectPage() {
 
   return (
     <div className="app-container">
-
-      <Navbar />
       <main
         className="main-content"
         style={{

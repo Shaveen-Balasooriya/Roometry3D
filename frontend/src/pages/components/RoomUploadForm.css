@@ -306,12 +306,11 @@
   opacity: 0.7;
 }
 
-.texture-application-section .button-primary,
+.texture-application-section ,
 .button-primary {
   margin-top: 1rem;
-  width: 100%;
+  width: 30%;
   padding: 0.75rem;
-  background-color: #2962ff;
   color: white;
   border: none;
   border-radius: var(--border-radius);

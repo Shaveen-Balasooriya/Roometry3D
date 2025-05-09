@@ -438,7 +438,6 @@ button:disabled {
 /* Ensure this CSS works with the updated form */
 .furniture-form {
   width: 100%;
-  max-width: 800px;
 }
 
 .form-section-title {

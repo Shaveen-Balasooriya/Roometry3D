@@ -23,8 +23,7 @@ import EditProjectPage from "./pages/EditProjectPage";
 import CustomerDesignerFurnitureCataloguePage from "./pages/CustomerDesignerFurnitureCataloguePage";
 import CartPage from "./pages/CartPage";
 import Breadcrumb from "./components/Breadcrumb";
-import UploadRoomPage from "./pages/UploadRoomPage"; // Added import for the new page
-
+import UploadRoomPage from "./pages/UploadRoomPage";
 
 // Unauthorized page component
 function Unauthorized() {
@@ -60,10 +59,8 @@ export default function App() {
                 <Route path="/change-password" element={<ChangePasswordPage />} />
               </Route>
 
-
               {/* Routes accessible to designers and client */}
               <Route element={<AuthGuard allowedRoles={["client", "designer"]} />}>
-                {/* Project routes - accessible to all authenticated users */}
                 <Route path="/" element={<ClientDesignerHomePage />} />
                 <Route path="/my-projects" element={<MyProjectsPage />} />
                 <Route path="/create-project" element={<CreateProjectPage />} />
@@ -85,7 +82,7 @@ export default function App() {
 
               {/* Routes accessible only to admin */}
               <Route element={<AuthGuard allowedRoles={["admin"]} />}>
-                <Route path="/" element={<HomePage />} />
+                <Route path="/admin" element={<HomePage />} /> {/* FIX: Added /admin route for admin homepage */}
                 <Route path="/add-user" element={<UserManagementPage />} />
                 <Route path="/users-dashboard" element={<UsersDashboardPage />} />
                 <Route path="/edit-user/:id" element={<EditUserPage />} />

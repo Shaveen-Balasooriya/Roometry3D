@@ -139,7 +139,6 @@ export default function MyProjectsPage() {
   return (
 
     <div className="app-container">
-      <Navbar />
       <main className="main-content">
         <Popup
           open={popup.open}

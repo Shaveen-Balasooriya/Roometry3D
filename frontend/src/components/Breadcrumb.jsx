@@ -1,5 +1,7 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { auth } from '../services/firebase'; 
+import { useState, useEffect } from 'react';
 import './Breadcrumb.css';
 
 /**
@@ -9,15 +11,54 @@ import './Breadcrumb.css';
  */
 function Breadcrumb({ customPaths }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [userRole, setUserRole] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        try {
+          // Get the ID token result which contains the custom claims
+          const idTokenResult = await user.getIdTokenResult();
+          // Set the user role from custom claims
+          setUserRole(idTokenResult.claims.role);
+        } catch (error) {
+          console.error("Error fetching user role:", error);
+        }
+      } else {
+        setUserRole(null);
+      }
+      setLoading(false);
+    });
+    
+    // Clean up subscription
+    return () => unsubscribe();
+  }, []);
+  
+  const handleHomeClick = (e) => {
+    e.preventDefault();
+    if (userRole === 'admin') {
+      navigate('/admin');
+    } else if (userRole === 'client' || userRole === 'designer') {
+      navigate('/client-home');
+    } else {
+      navigate('/login');
+    }
+  };
   
   // If custom paths are provided, use those instead of automatically generating from URL
   const pathSegments = customPaths || getPathSegmentsFromUrl(location.pathname);
+  
+  if (loading) {
+    return null; // Don't render anything while loading
+  }
   
   return (
     <nav className="breadcrumb-container" aria-label="Breadcrumb">
       <ol className="breadcrumb">
         <li className="breadcrumb-item">
-          <Link to="/">
+          <a href="#" onClick={handleHomeClick}>
             <span className="breadcrumb-home-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -25,7 +66,7 @@ function Breadcrumb({ customPaths }) {
               </svg>
             </span>
             <span>Home</span>
-          </Link>
+          </a>
         </li>
         
         {pathSegments.map((segment, index) => (
@@ -56,16 +97,20 @@ function getPathSegmentsFromUrl(pathname) {
   
   // Path mapping from URL segments to user-friendly names
   const pathMapping = {
+    'admin': 'Admin Dashboard',
     'furniture-dashboard': 'Furniture Dashboard',
     'furniture-list': 'Furniture List',
     'add-furniture': 'Add Furniture',
-    'edit-furniture': 'Edit Furniture',
+    'update-furniture': 'Update Furniture',
     'projects': 'Projects',
-    'add-project': 'Add Project',
+    'my-projects': 'My Projects',
+    'create-project': 'Create Project',
+    'view-project': 'View Project',
     'edit-project': 'Edit Project',
     'users-dashboard': 'Users Dashboard',
     'add-user': 'Add User',
-    'edit-user': 'Edit User'
+    'edit-user': 'Edit User',
+    'upload-room': 'Upload Room'
   };
   
   const result = [];
