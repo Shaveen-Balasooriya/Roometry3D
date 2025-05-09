@@ -8,10 +8,10 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
   const [formData, setFormData] = useState({});
   // State for preview component, including initial URLs
   const [previewData, setPreviewData] = useState({
-    objFile: null,
+    modelFile: null, // Changed from objFile to modelFile
     textures: [],
     dimensions: {},
-    initialObjUrl: null, // For fetching initial model
+    initialModelUrl: null, // Changed from initialObjUrl to initialModelUrl
     initialTextureUrls: [], // For showing initial textures
     furnitureId: null, // Pass the furniture ID for texture uploads
   });
@@ -22,25 +22,25 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
     if (initialData) {
       const dataForForm = {
         ...initialData,
-        objFile: null, // Form handles file objects, not URLs initially
+        modelFile: null, // Form handles file objects, not URLs initially
         textures: [],
       };
       setFormData(dataForForm);
 
       setPreviewData({
-        objFile: null, // Will be fetched by preview if needed
+        modelFile: null, // Will be fetched by preview if needed
         textures: [], // Will be fetched by preview if needed
         dimensions: {
           width: Number(initialData.width),
           height: Number(initialData.height),
           length: Number(initialData.length),
         },
-        initialObjUrl: `${API_URL}/api/furniture/${initialData.id}/model`, // Pass the endpoint
+        initialModelUrl: `${API_URL}/api/furniture/${initialData.id}/model`, // Pass the endpoint
         initialTextureUrls: initialData.textureUrls || [],
         furnitureId: initialData.id, // Pass the furniture ID
       });
     }
-  }, [initialData]);
+  }, [initialData, API_URL]);
 
   // Update form data and preview when form changes
   const handleFormChange = useCallback((updatedForm) => {
@@ -49,7 +49,7 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
     // Update preview state based on form changes
     setPreviewData(prev => ({
       ...prev,
-      objFile: updatedForm.objFile, // User selected file takes precedence
+      modelFile: updatedForm.modelFile, // User selected file takes precedence
       textures: updatedForm.textures, // User selected textures take precedence
       dimensions: {
         width: Number(updatedForm.width),
@@ -57,7 +57,7 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
         length: Number(updatedForm.length),
       },
       // Keep initial URLs unless new files are added
-      initialObjUrl: updatedForm.objFile ? null : prev.initialObjUrl,
+      initialModelUrl: updatedForm.modelFile ? null : prev.initialModelUrl,
     }));
   }, []);
 
@@ -72,10 +72,10 @@ export default function UpdateFurnitureContent({ initialData, onUpdateSuccess })
       </div>
       <div className="furniture-preview-section">
         <FurniturePreview
-          objFile={previewData.objFile}
+          objFile={previewData.modelFile}
           textures={previewData.textures}
           dimensions={previewData.dimensions}
-          initialObjUrl={previewData.initialObjUrl}
+          initialObjUrl={previewData.initialModelUrl}
           initialTextureUrls={previewData.initialTextureUrls}
           furnitureId={previewData.furnitureId}
           isEditMode={true}

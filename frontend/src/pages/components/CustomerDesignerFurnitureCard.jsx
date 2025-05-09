@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Environment, Bounds } from '@react-three/drei'
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader'
+import { Environment, Bounds, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../../components/Loading'
@@ -9,49 +8,68 @@ import Popup from '../../components/Popup'
 import { auth } from '../../services/firebase'
 import { getUserRole } from '../../services/firebase' // Import the getUserRole function
 
-function ModelPreview({ objFile, textureUrl, dimensions }) {
+function ModelPreview({ modelFile, textureUrl, dimensions }) {
   const [object, setObject] = useState(null)
-  const loaderRef = useRef(new OBJLoader())
+  const modelObjectUrl = useRef(null)
   const { width = 1, height = 1, length = 1 } = dimensions || {}
+  
   useEffect(() => {
     let currentMaterial = null
     let cancelled = false
     setObject(null)
 
-    async function loadObj() {
-      let objText = null
-      if (objFile instanceof Blob) {
-        objText = await objFile.text()
-      }
-      if (!objText || cancelled) return
-
+    async function loadModel() {
+      if (!modelFile) return
+      
       try {
-        const parsedObj = loaderRef.current.parse(objText)
-
-        const originalBox = new THREE.Box3().setFromObject(parsedObj)
-        const originalSize = originalBox.getSize(new THREE.Vector3())
+        // Create URL from the blob
+        if (modelObjectUrl.current) {
+          URL.revokeObjectURL(modelObjectUrl.current)
+        }
+        modelObjectUrl.current = URL.createObjectURL(modelFile)
+        
+        if (cancelled) return
+        
+        // Load the model using useGLTF
+        const { scene } = await new Promise((resolve, reject) => {
+          useGLTF.load(
+            modelObjectUrl.current,
+            (gltf) => resolve(gltf),
+            undefined,
+            (error) => reject(error)
+          )
+        })
+        
+        if (cancelled) return
+        
+        // Clone the scene to avoid mutation issues
+        const modelScene = scene.clone()
+        
+        // Calculate bounding box and size
+        const box = new THREE.Box3().setFromObject(modelScene)
+        const originalSize = box.getSize(new THREE.Vector3())
+        const centerOffset = box.getCenter(new THREE.Vector3())
+        
+        // Scale model to match dimensions
         const maxObjDim = Math.max(originalSize.x, originalSize.y, originalSize.z, 0.001)
         const maxTargetDim = Math.max(width, height, length, 0.001)
         const scale = maxTargetDim / maxObjDim
-
-        parsedObj.scale.set(scale, scale, scale)
-
-        const scaledBox = new THREE.Box3().setFromObject(parsedObj)
-        const scaledCenter = scaledBox.getCenter(new THREE.Vector3())
-
+        
+        modelScene.scale.set(scale, scale, scale)
+        
         const applyMaterial = (material) => {
           if (currentMaterial) {
             if (currentMaterial.map) currentMaterial.map.dispose()
             currentMaterial.dispose()
           }
           currentMaterial = material
-          parsedObj.traverse(child => {
+          modelScene.traverse(child => {
             if (child.isMesh) {
               child.material = material
               child.material.needsUpdate = true
             }
           })
-          setObject({ model: parsedObj, centerOffset: scaledCenter.clone() })
+          setObject({ model: modelScene, centerOffset: centerOffset.clone() })
         }
 
         if (textureUrl) {
@@ -89,23 +107,26 @@ function ModelPreview({ objFile, textureUrl, dimensions }) {
             roughness: 0.8
           }))
         }
-
       } catch (error) {
         console.error("Error processing model:", error)
         setObject(null)
       }
     }
 
-    loadObj()
+    loadModel()
 
     return () => {
       cancelled = true
+      if (modelObjectUrl.current) {
+        URL.revokeObjectURL(modelObjectUrl.current)
+        modelObjectUrl.current = null
+      }
       if (currentMaterial) {
         if (currentMaterial.map) currentMaterial.map.dispose()
         currentMaterial.dispose()
       }
     }
-  }, [objFile, textureUrl, width, height, length])
+  }, [modelFile, textureUrl, width, height, length])
 
   return object ? (
     <group position={[-object.centerOffset.x, -object.centerOffset.y, -object.centerOffset.z]}>
@@ -139,7 +160,7 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
   } = furniture
 
   const [selectedTextureIndex, setSelectedTextureIndex] = useState(0)
-  const [objBlob, setObjBlob] = useState(null)
+  const [modelBlob, setModelBlob] = useState(null)
   const [isLoadingBlob, setIsLoadingBlob] = useState(false)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' })
@@ -170,7 +191,7 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
 
   useEffect(() => {
     let isActive = true
-    setObjBlob(null)
+    setModelBlob(null)
     if (modelEndpoint) {
       setIsLoadingBlob(true)
       const fetchModel = async () => {
@@ -189,15 +210,15 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
             }
           });
           
-          if (!response.ok) throw new Error('Failed to fetch OBJ file')
+          if (!response.ok) throw new Error('Failed to fetch GLB file')
           const blob = await response.blob();
           if (isActive) {
-            setObjBlob(blob)
+            setModelBlob(blob)
           }
         } catch (err) {
           console.error("Error fetching blob:", err)
           if (isActive) {
-            setObjBlob(null)
+            setModelBlob(null)
           }
         } finally {
           if (isActive) {
@@ -268,7 +289,7 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
     }
   };
 
-  const previewAvailable = !!objBlob
+  const previewAvailable = !!modelBlob
   const showLoading = isLoadingBlob || (!previewAvailable && modelEndpoint)
 
   return (
@@ -366,7 +387,7 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
               <Environment preset="city" />
               <RotatingBoundsContent>
                 <ModelPreview
-                  objFile={objBlob}
+                  modelFile={modelBlob}
                   textureUrl={currentTextureUrl}
                   dimensions={{ width, height, length }}
                 />
