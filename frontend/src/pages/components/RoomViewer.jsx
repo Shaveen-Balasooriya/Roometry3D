@@ -1,4 +1,4 @@
-import React, { Suspense, useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { Suspense, useRef, useEffect, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
@@ -19,7 +19,7 @@ function Loader() {
 }
 
 // Custom Model component that handles both GLB and GLTF with associated resources
-function Model({ 
+const Model = forwardRef(function Model({ 
   modelFile, 
   associatedFiles = [], 
   onComponentSelect, 
@@ -30,7 +30,7 @@ function Model({
   textureRepeatSettings,
   allowComponentSelection = true, // New prop to control whether components can be selected
   showTagHighlighting = true // New prop to control highlighting in different steps
-}) {
+}, ref) {
   const [scene, setScene] = useState(null);
   const { camera, raycaster, gl } = useThree();
   const [loadError, setLoadError] = useState(null);
@@ -579,6 +579,14 @@ function Model({
     resetMeshHighlights();
   }, [scene, originalMaterials, onComponentSelect, resetMeshHighlights]);
 
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    resetMeshHighlights,
+    highlightMesh,
+    resetMaterials,
+    scene
+  }));
+
   if (loadError) {
     return (
       <Html center>
@@ -602,9 +610,10 @@ function Model({
       )}
     </>
   ) : null;
-}
+});
 
-export default function RoomViewer({ 
+// Use forwardRef to properly handle the ref passed from parent component
+const RoomViewer = forwardRef(function RoomViewer({ 
   modelFile, 
   associatedFiles = [], 
   textures, 
@@ -615,7 +624,7 @@ export default function RoomViewer({
   allowComponentSelection = true, // New prop to control component selection
   showTagHighlighting = true, // New prop to control highlighting in different steps
   showTagLegend = true // New prop to control visibility of the tag legend
-}) {
+}, ref) {
   const [error, setError] = useState(null);
   const controlsRef = useRef();
   const [selectedComponentState, setSelectedComponentState] = useState(null);
@@ -675,6 +684,16 @@ export default function RoomViewer({
       controlsRef.current.reset();
     }
   };
+
+  // Expose the modelRef to parent component via the forwarded ref
+  useImperativeHandle(ref, () => ({
+    resetView: () => {
+      if (controlsRef.current) {
+        controlsRef.current.reset();
+      }
+    },
+    getModelRef: () => modelRef.current
+  }));
 
   return (
     <div className="room-viewer-container" role="application" aria-label="3D Room Preview">
@@ -777,4 +796,6 @@ export default function RoomViewer({
       )}
     </div>
   );
-}
+});
+
+export default RoomViewer;

@@ -89,6 +89,7 @@ export default function App() {
                 <Route path="/add-user" element={<UserManagementPage />} />
                 <Route path="/users-dashboard" element={<UsersDashboardPage />} />
                 <Route path="/edit-user/:id" element={<EditUserPage />} />
+                <Route path="/upload-room" element={<UploadRoomPage />} />
               </Route>
 
               {/* Unauthorized route */}

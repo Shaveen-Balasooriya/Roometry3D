@@ -2,7 +2,13 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import RoomViewer from './components/RoomViewer';
 import RoomUploadForm from './components/RoomUploadForm';
 import ErrorBoundary from './components/ErrorBoundary';
+import TextureApplier from './components/TextureApplier';
 import './UploadRoomPage.css';
+import { v4 as uuidv4 } from 'uuid';
+// Import Firebase services directly
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { getFirestore, collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 export default function UploadRoomPage() {
   const [step, setStep] = useState(1); // Current step (1, 2, or 3)
@@ -281,12 +287,235 @@ export default function UploadRoomPage() {
   };
   
   // Function to finish the room upload process
-  const handleFinish = () => {
-    // Here you would typically save the uploaded room to your backend
-    // For now, just show an alert
-    alert('Room upload successful!');
-    // Reset the form for a new upload
-    handleStartOver();
+  const handleFinish = async () => {
+    // Show loading message to user
+    const loadingMessage = document.createElement('div');
+    loadingMessage.className = 'loading-overlay';
+    loadingMessage.innerHTML = '<div class="loading-content"><div class="loading-spinner"></div><p>Uploading room data to Firebase...</p></div>';
+    document.body.appendChild(loadingMessage);
+    
+    try {
+      // Get Firebase instances
+      const storage = getStorage();
+      const db = getFirestore();
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (!user) {
+        throw new Error("You must be logged in to upload a room");
+      }
+      
+      // Generate a unique ID for this room
+      const roomId = uuidv4();
+      
+      // Define storage paths
+      const modelStoragePath = `rooms/${roomId}/model/${modelFile.name}`;
+      const modelRef = ref(storage, modelStoragePath);
+      
+      // Create progress updater function
+      const updateProgress = (taskName, progress) => {
+        const progressElement = loadingMessage.querySelector('.loading-content p');
+        if (progressElement) {
+          progressElement.textContent = `${taskName}: ${progress}%`;
+        }
+      };
+      
+      // 1. Upload the 3D model file
+      const modelUploadTask = uploadBytesResumable(modelRef, modelFile);
+      
+      // Set up upload monitoring for the model
+      modelUploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          updateProgress("Uploading model", progress);
+        }
+      );
+      
+      // Wait for the model upload to complete
+      await modelUploadTask;
+      
+      // Get download URL for the model
+      const modelUrl = await getDownloadURL(modelRef);
+      
+      // 2. Upload associated files if any
+      const associatedFileUrls = [];
+      if (associatedFiles.length > 0) {
+        let uploadedCount = 0;
+        
+        for (const file of associatedFiles) {
+          const filePath = `rooms/${roomId}/associatedFiles/${file.name}`;
+          const fileRef = ref(storage, filePath);
+          
+          // Upload the file
+          const uploadTask = uploadBytesResumable(fileRef, file);
+          
+          // Update progress
+          uploadTask.on('state_changed', 
+            (snapshot) => {
+              const totalProgress = Math.round((uploadedCount + (snapshot.bytesTransferred / snapshot.totalBytes)) / associatedFiles.length * 100);
+              updateProgress(`Uploading associated files (${uploadedCount + 1}/${associatedFiles.length})`, totalProgress);
+            }
+          );
+          
+          // Wait for this file to upload
+          await uploadTask;
+          
+          // Get the download URL
+          const fileUrl = await getDownloadURL(fileRef);
+          
+          // Add to our list of URLs
+          associatedFileUrls.push({
+            name: file.name,
+            url: fileUrl
+          });
+          
+          uploadedCount++;
+        }
+      }
+      
+      // 3. Upload wall textures
+      const wallTextureUrls = [];
+      if (wallTextureFiles.length > 0) {
+        let uploadedCount = 0;
+        
+        for (const file of wallTextureFiles) {
+          const filePath = `rooms/${roomId}/textures/wall/${file.name}`;
+          const fileRef = ref(storage, filePath);
+          
+          // Upload the file
+          const uploadTask = uploadBytesResumable(fileRef, file);
+          
+          // Update progress
+          uploadTask.on('state_changed', 
+            (snapshot) => {
+              const totalProgress = Math.round((uploadedCount + (snapshot.bytesTransferred / snapshot.totalBytes)) / wallTextureFiles.length * 100);
+              updateProgress(`Uploading wall textures (${uploadedCount + 1}/${wallTextureFiles.length})`, totalProgress);
+            }
+          );
+          
+          // Wait for this file to upload
+          await uploadTask;
+          
+          // Get the download URL
+          const fileUrl = await getDownloadURL(fileRef);
+          
+          // Add to our list of URLs
+          wallTextureUrls.push({
+            name: file.name,
+            url: fileUrl,
+            isActive: activeWallTexture && activeWallTexture.name === file.name
+          });
+          
+          uploadedCount++;
+        }
+      }
+      
+      // 4. Upload floor textures
+      const floorTextureUrls = [];
+      if (floorTextureFiles.length > 0) {
+        let uploadedCount = 0;
+        
+        for (const file of floorTextureFiles) {
+          const filePath = `rooms/${roomId}/textures/floor/${file.name}`;
+          const fileRef = ref(storage, filePath);
+          
+          // Upload the file
+          const uploadTask = uploadBytesResumable(fileRef, file);
+          
+          // Update progress
+          uploadTask.on('state_changed', 
+            (snapshot) => {
+              const totalProgress = Math.round((uploadedCount + (snapshot.bytesTransferred / snapshot.totalBytes)) / floorTextureFiles.length * 100);
+              updateProgress(`Uploading floor textures (${uploadedCount + 1}/${floorTextureFiles.length})`, totalProgress);
+            }
+          );
+          
+          // Wait for this file to upload
+          await uploadTask;
+          
+          // Get the download URL
+          const fileUrl = await getDownloadURL(fileRef);
+          
+          // Add to our list of URLs
+          floorTextureUrls.push({
+            name: file.name,
+            url: fileUrl,
+            isActive: activeFloorTexture && activeFloorTexture.name === file.name
+          });
+          
+          uploadedCount++;
+        }
+      }
+      
+      // Update the status message
+      updateProgress("Creating room record", 0);
+      
+      // 5. Create the room metadata record in Firestore
+      const roomData = {
+        id: roomId,
+        name: roomName,
+        description: roomDescription,
+        category: roomCategory,
+        componentTags: componentTags,
+        files: {
+          model: {
+            name: modelFile.name,
+            url: modelUrl
+          },
+          associatedFiles: associatedFileUrls,
+          wallTextures: wallTextureUrls,
+          floorTextures: floorTextureUrls
+        },
+        appliedTextures: {
+          wall: activeWallTexture ? activeWallTexture.name : null,
+          floor: activeFloorTexture ? activeFloorTexture.name : null
+        },
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      // Write to Firestore
+      const roomDocRef = doc(db, "rooms", roomId);
+      await setDoc(roomDocRef, roomData);
+      
+      // Update progress to 100%
+      updateProgress("Room upload complete", 100);
+      
+      // Remove loading message
+      document.body.removeChild(loadingMessage);
+      
+      // Log the complete room data object to the console
+      console.log("=== ROOM UPLOAD DATA ===");
+      console.log(roomData);
+      console.log("=== COMPONENT TAGS ===");
+      console.log(componentTags);
+      console.log("=== WALL TEXTURES ===");
+      console.log(wallTextureFiles);
+      console.log("=== FLOOR TEXTURES ===");
+      console.log(floorTextureFiles);
+      console.log("=== APPLIED TEXTURES ===");
+      console.log({
+        wall: activeWallTexture ? activeWallTexture.name : "None",
+        floor: activeFloorTexture ? activeFloorTexture.name : "None"
+      });
+      
+      // Show success alert
+      alert(`Room "${roomName}" has been successfully uploaded to Firebase!`);
+      
+      // Reset the form for a new upload
+      handleStartOver();
+    } catch (error) {
+      console.error("Error uploading room data:", error);
+      
+      // Remove loading message
+      if (document.body.contains(loadingMessage)) {
+        document.body.removeChild(loadingMessage);
+      }
+      
+      // Show error alert
+      alert(`Failed to upload room: ${error.message}`);
+    }
   };
   
   return (
@@ -322,7 +551,7 @@ export default function UploadRoomPage() {
             onClick={() => setShowTips(!showTips)} 
             type="button"
           >
-            <span className="tips-icon">💡</span>
+          <span className="tips-icon">💡</span>
             {showTips ? 'Hide Tips' : 'Show Tips'}
           </button>
           
@@ -636,71 +865,22 @@ export default function UploadRoomPage() {
                 </ErrorBoundary>
                 <div className="component-status-bar">
                   <div className="status-hint">
-                    Select textures from the panels on the right to apply them to all walls or floors
+                    Select textures from the panels below to apply them to all walls or floors
                   </div>
                 </div>
               </div>
               
-              <div className="preview-texture-panels">
-                {tagCounts.wall > 0 && (
-                  <div className="preview-texture-panel">
-                    <h3 className="panel-heading">Wall Textures</h3>
-                    {wallTextureFiles.length > 0 ? (
-                      <div className="preview-textures-grid">
-                        {wallTextureFiles.map((texture, index) => (
-                          <div 
-                            key={`preview-wall-${index}`} 
-                            className={`preview-texture-card ${texture === activeWallTexture ? 'active' : ''}`}
-                            onClick={() => handleApplyTextureToTag('wall', texture)}
-                          >
-                            <div className="preview-texture-image">
-                              <img src={URL.createObjectURL(texture)} alt={texture.name} />
-                              {texture === activeWallTexture && (
-                                <div className="active-texture-indicator">Active</div>
-                              )}
-                            </div>
-                            <div className="preview-texture-name">{texture.name}</div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="no-preview-textures">
-                        <p>No wall textures available.</p>
-                        <p>Go back to Step 2 to upload textures.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {tagCounts.floor > 0 && (
-                  <div className="preview-texture-panel">
-                    <h3 className="panel-heading">Floor Textures</h3>
-                    {floorTextureFiles.length > 0 ? (
-                      <div className="preview-textures-grid">
-                        {floorTextureFiles.map((texture, index) => (
-                          <div 
-                            key={`preview-floor-${index}`} 
-                            className={`preview-texture-card ${texture === activeFloorTexture ? 'active' : ''}`}
-                            onClick={() => handleApplyTextureToTag('floor', texture)}
-                          >
-                            <div className="preview-texture-image">
-                              <img src={URL.createObjectURL(texture)} alt={texture.name} />
-                              {texture === activeFloorTexture && (
-                                <div className="active-texture-indicator">Active</div>
-                              )}
-                            </div>
-                            <div className="preview-texture-name">{texture.name}</div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="no-preview-textures">
-                        <p>No floor textures available.</p>
-                        <p>Go back to Step 2 to upload textures.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
+              <div className="preview-texture-area">
+                <ErrorBoundary>
+                  <TextureApplier
+                    wallTextures={wallTextureFiles}
+                    floorTextures={floorTextureFiles}
+                    onApplyWallTexture={(texture) => handleApplyTextureToTag('wall', texture)}
+                    onApplyFloorTexture={(texture) => handleApplyTextureToTag('floor', texture)}
+                    activeWallTexture={activeWallTexture}
+                    activeFloorTexture={activeFloorTexture}
+                  />
+                </ErrorBoundary>
               </div>
             </div>
           )}
@@ -760,13 +940,11 @@ export default function UploadRoomPage() {
             {step === 3 && (
               <>
                 <p className="step-requirement-hint">
-                  {!activeWallTexture && !activeFloorTexture ? 
-                    'Select at least one texture to apply' : ''}
+                  Select textures to preview them on your model
                 </p>
                 <button 
                   className="finish-button" 
                   onClick={handleFinish}
-                  disabled={!activeWallTexture && !activeFloorTexture}
                   type="button"
                 >
                   Finish Room Upload ✓

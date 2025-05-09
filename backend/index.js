@@ -4,55 +4,22 @@ const multer = require('multer');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 const functions = require('firebase-functions');
-const path = require('path');
-const admin = require('firebase-admin');
 
 const app = express();
 
-// Load environment variables
-dotenv.config();
+// Load CORS configuration from file
+const corsConfig = require('./cors-config.json');
 
-// Initialize Firebase Admin SDK
-let serviceAccount;
-try {
-  // First try to load from environment variable
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  } else {
-    // Fallback to service account file if it exists
-    serviceAccount = require('./serviceAccountKey.json');
-  }
-  
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'roometry-3d.appspot.com'
-  });
-} catch (error) {
-  console.error('Firebase initialization error:', error.message);
-  console.error('Please ensure your Firebase service account credentials are properly set up.');
-}
-
-// Check if Firebase is initialized
-const isFirebaseInitialized = () => {
-  try {
-    admin.app();
-    return true;
-  } catch (error) {
-    return false;
-  }
-};
-
-// Configure CORS to allow requests from frontend
+// Apply CORS configuration
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://roometry-3d.web.app', 'https://roometry-3d.firebaseapp.com']
-    : 'http://localhost:5173', // Vite default port
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+  origin: corsConfig[0].origin,
+  methods: corsConfig[0].methods,
+  allowedHeaders: corsConfig[0].allowedHeaders,
+  credentials: corsConfig[0].credentials,
+  maxAge: corsConfig[0].maxAge
 }));
 
 app.use(express.json());
-
 
 // --- Replace Firebase client SDK with Admin SDK ---
 const admin = require('firebase-admin');
@@ -1012,206 +979,635 @@ app.delete('/api/users/:id', async (req, res) => {
 });
 
 // Set up multer for file uploads
-b04c8b1fd3742cf66345746dc51d72adc2cc907e
 const storage = multer.memoryStorage();
-const upload = multer({ 
-  storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-  fileFilter: (req, file, cb) => {
-    // Accept images and 3D model files
-    const allowedTypes = [
-      // Images
-      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-      // 3D Models
-      'model/gltf-binary', 'model/gltf+json', 
-      'application/octet-stream' // For .bin files and some 3D formats
-    ];
-    
-    // Also accept by extension for 3D files that might not have the correct mime type
-    const allowedExtensions = ['.glb', '.gltf', '.bin', '.jpg', '.jpeg', '.png', '.webp'];
-    
-    const fileExtension = path.extname(file.originalname).toLowerCase();
-    
-    if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
-      return cb(null, true);
-    }
-    
-    cb(new Error(`Unsupported file type: ${file.mimetype}`));
-  }
-});
+const uploadProject = multer({ storage });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    environment: process.env.NODE_ENV || 'development',
-    firebase: isFirebaseInitialized() ? 'initialized' : 'not initialized'
-  });
-});
-
-// Upload texture endpoint
-app.post('/api/upload/texture', upload.single('file'), async (req, res) => {
+// Create a new project
+app.post('/api/projects', uploadProject.single('objFile'), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+    const { name, description, clientId, designerId, status = 'draft' } = req.body;
+    
+    if (!name || !description || !clientId || !designerId) {
+      return res.status(400).json({ message: 'Missing required fields' });
     }
     
-    // Check if Firebase is initialized
-    if (!isFirebaseInitialized()) {
-      return res.status(500).json({ 
-        error: 'Firebase not initialized',
-        message: 'Server is not properly configured with Firebase'
-      });
-    }
+    // Create project document in Firestore
+    const projectRef = db.collection('projects').doc();
+    const projectId = projectRef.id;
     
-    const bucket = admin.storage().bucket();
-    const textureType = req.body.type || 'wall'; // wall or floor
+    let objFileUrl = null;
     
-    // Generate a unique filename to prevent conflicts
-    const fileExtension = path.extname(req.file.originalname);
-    const fileName = `${textureType}/${uuidv4()}${fileExtension}`;
-    
-    // Create a reference to the file in Firebase Storage
-    const fileRef = bucket.file(`textures/${fileName}`);
-    
-    // Create a write stream to upload the file
-    const blobStream = fileRef.createWriteStream({
-      metadata: {
-        contentType: req.file.mimetype,
+    // Handle OBJ file upload if present
+    if (req.file) {
+      const objFileName = `projects/${projectId}/model.obj`;
+      const objFileUpload = bucket.file(objFileName);
+      
+      await objFileUpload.save(req.file.buffer, {
         metadata: {
-          originalName: req.file.originalname,
-          uploadedAt: new Date().toISOString()
+          contentType: 'application/octet-stream',
         }
-      }
-    });
-    
-    // Handle stream errors
-    blobStream.on('error', (error) => {
-      console.error('Upload error:', error);
-      res.status(500).json({ 
-        error: 'Upload failed', 
-        message: error.message 
       });
+      
+      // Get signed URL for the file (valid for 7 days)
+      const [url] = await objFileUpload.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+      
+      objFileUrl = url;
+    }
+    
+    // Store project data
+    await projectRef.set({
+      name,
+      description,
+      clientId,
+      designerId,
+      status,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      objFileUrl
     });
     
-    // Handle successful uploads
-    blobStream.on('finish', async () => {
-      try {
-        // Make the file publicly accessible
-        await fileRef.makePublic();
-        
-        // Get the public URL
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileRef.name}`;
-        
-        res.status(200).json({
-          message: 'Upload successful',
-          file: {
-            name: req.file.originalname,
-            type: textureType,
-            url: publicUrl,
-            path: fileRef.name,
-            size: req.file.size
-          }
-        });
-      } catch (error) {
-        console.error('Error making file public:', error);
-        res.status(500).json({ 
-          error: 'Error after upload', 
-          message: error.message 
-        });
-      }
-    });
+    // Add project reference to client's projects
+    const clientProjectRef = db.collection('user_projects').doc(clientId);
+    await clientProjectRef.set({
+      projects: admin.firestore.FieldValue.arrayUnion(projectId)
+    }, { merge: true });
     
-    // Write the file data to the stream
-    blobStream.end(req.file.buffer);
+    // Add project reference to designer's projects
+    const designerProjectRef = db.collection('user_projects').doc(designerId);
+    await designerProjectRef.set({
+      projects: admin.firestore.FieldValue.arrayUnion(projectId)
+    }, { merge: true });
     
-  } catch (error) {
-    console.error('Server error during upload:', error);
-    res.status(500).json({ 
-      error: 'Server error', 
-      message: error.message 
+    res.status(201).json({
+      id: projectId,
+      name,
+      description,
+      clientId,
+      designerId,
+      status,
+      objFileUrl,
+      createdAt: new Date()
     });
+  } catch (err) {
+    console.error('Error creating project:', err);
+    res.status(500).json({ message: 'Failed to create project', details: err.message });
   }
 });
 
-// Get all textures endpoint
-app.get('/api/textures/:type', async (req, res) => {
+// Get all projects for a user
+app.get('/api/users/:userId/projects', async (req, res) => {
   try {
-    if (!isFirebaseInitialized()) {
-      return res.status(500).json({ error: 'Firebase not initialized' });
+    const { userId } = req.params;
+    
+    // Get user's project references
+    const userProjectsDoc = await db.collection('user_projects').doc(userId).get();
+    
+    if (!userProjectsDoc.exists || !userProjectsDoc.data().projects) {
+      return res.json([]);
     }
     
-    const textureType = req.params.type;
-    if (!['wall', 'floor'].includes(textureType)) {
-      return res.status(400).json({ error: 'Invalid texture type. Must be wall or floor' });
-    }
+    const projectIds = userProjectsDoc.data().projects;
     
-    const bucket = admin.storage().bucket();
-    const [files] = await bucket.getFiles({ prefix: `textures/${textureType}/` });
-    
-    const textureList = await Promise.all(files.map(async (file) => {
-      try {
-        const [metadata] = await file.getMetadata();
-        const url = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
-        
-        return {
-          name: metadata.metadata?.originalName || path.basename(file.name),
-          url: url,
-          path: file.name,
-          timeCreated: metadata.timeCreated,
-          size: metadata.size
-        };
-      } catch (err) {
-        console.error(`Error getting metadata for ${file.name}:`, err);
-        return null;
-      }
-    }));
-    
-    // Filter out any entries that failed to get metadata
-    const validTextures = textureList.filter(texture => texture !== null);
-    
-    res.status(200).json(validTextures);
-    
-  } catch (error) {
-    console.error('Error fetching textures:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch textures', 
-      message: error.message 
+    // Get full project details
+    const projectPromises = projectIds.map(async (projectId) => {
+      const projectDoc = await db.collection('projects').doc(projectId).get();
+      if (!projectDoc.exists) return null;
+      
+      const projectData = projectDoc.data();
+      return {
+        id: projectDoc.id,
+        ...projectData,
+        createdAt: projectData.createdAt?.toDate(),
+        updatedAt: projectData.updatedAt?.toDate()
+      };
     });
+    
+    const projects = (await Promise.all(projectPromises)).filter(Boolean);
+    
+    res.json(projects);
+  } catch (err) {
+    console.error('Error fetching user projects:', err);
+    res.status(500).json({ message: 'Failed to fetch projects', details: err.message });
   }
 });
 
-// Delete a texture endpoint
-app.delete('/api/textures/:path(*)', async (req, res) => {
+// Get project by ID
+app.get('/api/projects/:id', async (req, res) => {
   try {
-    if (!isFirebaseInitialized()) {
-      return res.status(500).json({ error: 'Firebase not initialized' });
+    const { id } = req.params;
+    
+    const doc = await db.collection('projects').doc(id).get();
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Project not found' });
     }
     
-    const filePath = req.params.path;
-    if (!filePath.startsWith('textures/')) {
-      return res.status(400).json({ error: 'Invalid file path' });
+    const projectData = doc.data();
+    
+    res.json({
+      id: doc.id,
+      ...projectData,
+      createdAt: projectData.createdAt?.toDate(),
+      updatedAt: projectData.updatedAt?.toDate()
+    });
+  } catch (err) {
+    console.error('Error fetching project:', err);
+    res.status(500).json({ message: 'Failed to fetch project', details: err.message });
+  }
+});
+
+// Update a project
+app.put('/api/projects/:id', uploadProject.single('objFile'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, status } = req.body;
+    
+    const projectRef = db.collection('projects').doc(id);
+    const doc = await projectRef.get();
+    
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Project not found' });
     }
     
-    const bucket = admin.storage().bucket();
-    const file = bucket.file(filePath);
+    const updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    
+    if (name) updateData.name = name;
+    if (description) updateData.description = description;
+    if (status) updateData.status = status;
+    
+    // Handle OBJ file update if present
+    if (req.file) {
+      const objFileName = `projects/${id}/model.obj`;
+      const objFileUpload = bucket.file(objFileName);
+      
+      await objFileUpload.save(req.file.buffer, {
+        metadata: {
+          contentType: 'application/octet-stream',
+        }
+      });
+      
+      // Get signed URL for the file (valid for 7 days)
+      const [url] = await objFileUpload.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+      
+      updateData.objFileUrl = url;
+    }
+    
+    await projectRef.update(updateData);
+    
+    res.json({ message: 'Project updated successfully' });
+  } catch (err) {
+    console.error('Error updating project:', err);
+    res.status(500).json({ message: 'Failed to update project', details: err.message });
+  }
+});
+
+// Delete a project
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if project exists
+    const projectRef = db.collection('projects').doc(id);
+    const doc = await projectRef.get();
+    
+    if (!doc.exists) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    // Get project data
+    const projectData = doc.data();
+    
+    // Remove from user_projects collections
+    if (projectData.clientId) {
+      await db.collection('user_projects').doc(projectData.clientId).update({
+        projects: admin.firestore.FieldValue.arrayRemove(id)
+      });
+    }
+    
+    if (projectData.designerId) {
+      await db.collection('user_projects').doc(projectData.designerId).update({
+        projects: admin.firestore.FieldValue.arrayRemove(id)
+      });
+    }
+    
+    // Delete 3D model file if exists
+    if (projectData.objFileUrl) {
+      try {
+        const objFileName = `projects/${id}/model.obj`;
+        await bucket.file(objFileName).delete();
+      } catch (fileErr) {
+        console.error('Error deleting project file:', fileErr);
+        // Continue with deletion even if file delete fails
+      }
+    }
+    
+    // Delete project document
+    await projectRef.delete();
+    
+    res.json({ message: 'Project deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting project:', err);
+    res.status(500).json({ message: 'Failed to delete project', details: err.message });
+  }
+});
+
+// Project model endpoint - serve the 3D model file
+app.get('/api/projects/:projectId/model', authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const projectId = req.params.projectId;
+    
+    // Get project data to verify access
+    const projectDoc = await db.collection('projects').doc(projectId).get();
+    
+    if (!projectDoc.exists) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    const projectData = projectDoc.data();
+    
+    // Check if user has access to this project
+    const userRole = req.user.role;
+    const isAdmin = userRole === 'admin';
+    const isDesigner = userRole === 'designer' && projectData.designerId === userId;
+    const isClient = userRole === 'client' && projectData.clientId === userId;
+    
+    if (!isAdmin && !isDesigner && !isClient) {
+      return res.status(403).json({ message: 'Access denied to this project' });
+    }
+    
+    // Get the model file from Firebase Storage
+    const file = bucket.file(`projects/${projectId}/model.obj`);
     
     // Check if file exists
     const [exists] = await file.exists();
     if (!exists) {
-      return res.status(404).json({ error: 'File not found' });
+      return res.status(404).json({ message: 'Model file not found' });
     }
+
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     
-    // Delete the file
-    await file.delete();
+    // Stream the file
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="model-${projectId}.obj"`);
     
-    res.status(200).json({ message: 'File deleted successfully' });
+    file.createReadStream()
+      .on('error', (error) => {
+        console.error('Error streaming model file:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ message: 'Error streaming model file' });
+        }
+      })
+      .pipe(res);
     
   } catch (error) {
-    console.error('Error deleting file:', error);
+    console.error('Error serving model file:', error);
+    res.status(500).json({ message: 'Failed to retrieve model file', details: error.message });
+  }
+});
+
+// API to get total number of projects
+app.get('/api/count/totalProjcts', async (req, res) => {
+  try {
+    const projectsCol = db.collection('projects');
+    const snapshot = await projectsCol.count().get();
+    const totalProjects = snapshot.data().count;
+    
+    res.json({ count: totalProjects });
+  } catch (err) {
+    console.error('Error fetching total projects count:', err);
+    res.status(500).json({ error: 'Failed to fetch projects count', details: err.message });
+  }
+});
+
+// API to get count of projects added today
+app.get('/api/count/todayProjects', async (req, res) => {
+  try {
+    // Get today's date at midnight (start of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const projectsCol = db.collection('projects');
+    // Query for documents where createdAt is >= today's start
+    const snapshot = await projectsCol
+      .where('createdAt', '>=', today)
+      .get();
+    
+    res.json({ count: snapshot.size });
+  } catch (err) {
+    console.error('Error fetching today\'s projects count:', err);
+    res.status(500).json({ error: 'Failed to fetch today\'s projects count', details: err.message });
+  }
+});
+
+// API to get count of designers
+app.get('/api/count/designers', async (req, res) => {
+  try {
+    const usersCol = db.collection('users');
+    const snapshot = await usersCol
+      .where('userType', '==', 'designer')
+      .get();
+    
+    res.json({ count: snapshot.size });
+  } catch (err) {
+    console.error('Error fetching designers count:', err);
+    res.status(500).json({ error: 'Failed to fetch designers count', details: err.message });
+  }
+});
+
+
+
+// API endpoint for adding items to cart
+app.post('/api/cart/add', async (req, res) => {
+  try {
+    // Get user ID from the authenticated request
+    const userId = req.user?.uid || req.user?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated or user ID not found' });
+    }
+
+    // Extract furniture details from request body
+    const { furnitureId, quantity = 1, textureUrl } = req.body;
+    
+    if (!furnitureId) {
+      return res.status(400).json({ error: 'Furniture ID is required' });
+    }
+
+    // Fetch the furniture details to ensure it exists and to store complete info
+    const furnitureDoc = await db.collection('furniture').doc(furnitureId).get();
+    if (!furnitureDoc.exists) {
+      return res.status(404).json({ error: 'Furniture not found' });
+    }
+    
+    const furnitureData = furnitureDoc.data();
+    
+    // Reference to the user's cart document
+    const userCartRef = db.collection('carts').doc(userId);
+    
+    // Use a transaction to safely update the cart
+    await db.runTransaction(async (transaction) => {
+      const cartDoc = await transaction.get(userCartRef);
+      
+      let cartItems = [];
+      if (cartDoc.exists) {
+        cartItems = cartDoc.data().items || [];
+      }
+      
+      // Check if the item with the same furnitureId and textureUrl already exists
+      const existingItemIndex = cartItems.findIndex(item => 
+        item.furnitureId === furnitureId && 
+        (item.textureUrl === textureUrl || (!item.textureUrl && !textureUrl))
+      );
+      
+      if (existingItemIndex >= 0) {
+        // Update quantity if item exists
+        cartItems[existingItemIndex].quantity += quantity;
+      } else {
+        // Add new item with full furniture details, ensuring no undefined values
+        const cartItem = {
+          furnitureId,
+          // quantity,
+          textureUrl: textureUrl || null, // Use null instead of undefined
+          dateAdded: new Date().toISOString(),
+          // Store full furniture details with null fallbacks for any undefined values
+          // name: furnitureData.name || "",
+          // price: furnitureData.price || 0,
+          // category: furnitureData.category || "",
+          dimensions: {
+            height: furnitureData.height || 0,
+            width: furnitureData.width || 0,
+            length: furnitureData.length || 0
+          },
+          // wallMountable: furnitureData.wallMountable || false,
+          // Only store the URL, not the actual file
+          // modelEndpoint: furnitureData.modelEndpoint || null,
+          // Preserve the original texture URL list
+          // availableTextures: furnitureData.textureUrls || []
+        };
+        
+        cartItems.push(cartItem);
+      }
+      
+      // Set or update the cart document
+      transaction.set(userCartRef, { 
+        items: cartItems,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+    });
+    
+    // Return success
+    res.status(200).json({ 
+      message: 'Item added to cart successfully',
+      furnitureId,
+      textureUrl: textureUrl || null
+    });
+    
+  } catch (err) {
+    console.error('Error adding item to cart:', err);
     res.status(500).json({ 
-      error: 'Failed to delete file', 
-      message: error.message 
+      error: 'Failed to add item to cart', 
+      details: err.message 
+    });
+  }
+});
+
+// API endpoint to retrieve the cart
+app.get('/api/cart', async (req, res) => {
+  try {
+    const userId = req.user?.uid || req.user?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated or user ID not found' });
+    }
+    
+    const cartDoc = await db.collection('carts').doc(userId).get();
+    if (!cartDoc.exists) {
+      return res.status(200).json({ items: [] });
+    }
+    
+    res.status(200).json(cartDoc.data());
+    
+  } catch (err) {
+    console.error('Error fetching cart:', err);
+    res.status(500).json({ 
+      error: 'Failed to fetch cart', 
+      details: err.message 
+    });
+  }
+});
+
+// API endpoint for uploading room data
+app.post('/api/rooms/upload', authenticateUser, uploadProject.fields([
+  { name: 'model', maxCount: 1 },
+  { name: 'associatedFiles', maxCount: 10 }, 
+  { name: 'wallTextures', maxCount: 10 },
+  { name: 'floorTextures', maxCount: 10 }
+]), async (req, res) => {
+  try {
+    const userId = req.user?.uid;
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    // Extract room details from the request body
+    const { name, description, category, componentTags } = req.body;
+    
+    if (!name || !description || !category) {
+      return res.status(400).json({ message: 'Missing required room details' });
+    }
+
+    if (!req.files.model || req.files.model.length === 0) {
+      return res.status(400).json({ message: 'Missing required model file' });
+    }
+
+    // Generate a unique room ID
+    const roomId = uuidv4();
+    const storageBasePath = `rooms/${roomId}`;
+    const downloadUrls = {};
+
+    // 1. Upload the 3D model file
+    const modelFile = req.files.model[0];
+    const modelFileExt = modelFile.originalname.split('.').pop().toLowerCase();
+    const modelStoragePath = `${storageBasePath}/model.${modelFileExt}`;
+    const modelRef = bucket.file(modelStoragePath);
+    
+    await modelRef.save(modelFile.buffer, {
+      metadata: { contentType: modelFile.mimetype }
+    });
+    
+    const [modelUrl] = await modelRef.getSignedUrl({
+      action: 'read',
+      expires: '03-01-2500' // Long expiry for demonstration
+    });
+    
+    downloadUrls.model = modelUrl;
+
+    // 2. Upload any associated files if provided
+    const associatedFileUrls = [];
+    if (req.files.associatedFiles && req.files.associatedFiles.length > 0) {
+      for (const file of req.files.associatedFiles) {
+        const filePath = `${storageBasePath}/associated/${file.originalname}`;
+        const fileRef = bucket.file(filePath);
+        
+        await fileRef.save(file.buffer, {
+          metadata: { contentType: file.mimetype }
+        });
+        
+        const [fileUrl] = await fileRef.getSignedUrl({
+          action: 'read',
+          expires: '03-01-2500'
+        });
+        
+        associatedFileUrls.push({ 
+          name: file.originalname, 
+          url: fileUrl 
+        });
+      }
+    }
+    
+    downloadUrls.associatedFiles = associatedFileUrls;
+
+    // 3. Upload wall textures if provided
+    const wallTextureUrls = [];
+    if (req.files.wallTextures && req.files.wallTextures.length > 0) {
+      for (const texture of req.files.wallTextures) {
+        const texturePath = `${storageBasePath}/textures/wall/${texture.originalname}`;
+        const textureRef = bucket.file(texturePath);
+        
+        await textureRef.save(texture.buffer, {
+          metadata: { contentType: texture.mimetype }
+        });
+        
+        const [textureUrl] = await textureRef.getSignedUrl({
+          action: 'read',
+          expires: '03-01-2500'
+        });
+        
+        wallTextureUrls.push({ 
+          name: texture.originalname, 
+          url: textureUrl
+        });
+      }
+    }
+    
+    downloadUrls.wallTextures = wallTextureUrls;
+
+    // 4. Upload floor textures if provided
+    const floorTextureUrls = [];
+    if (req.files.floorTextures && req.files.floorTextures.length > 0) {
+      for (const texture of req.files.floorTextures) {
+        const texturePath = `${storageBasePath}/textures/floor/${texture.originalname}`;
+        const textureRef = bucket.file(texturePath);
+        
+        await textureRef.save(texture.buffer, {
+          metadata: { contentType: texture.mimetype }
+        });
+        
+        const [textureUrl] = await textureRef.getSignedUrl({
+          action: 'read',
+          expires: '03-01-2500'
+        });
+        
+        floorTextureUrls.push({ 
+          name: texture.originalname, 
+          url: textureUrl
+        });
+      }
+    }
+    
+    downloadUrls.floorTextures = floorTextureUrls;
+
+    // Parse the componentTags if it's sent as a JSON string
+    let parsedComponentTags = {};
+    try {
+      if (typeof componentTags === 'string') {
+        parsedComponentTags = JSON.parse(componentTags);
+      } else if (componentTags) {
+        parsedComponentTags = componentTags;
+      }
+    } catch (error) {
+      console.error('Error parsing componentTags:', error);
+    }
+
+    // 5. Create the room metadata record in Firestore
+    const roomMetadata = {
+      id: roomId,
+      name,
+      description,
+      category,
+      componentTags: parsedComponentTags,
+      files: downloadUrls,
+      createdBy: userId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Add the room document to Firestore
+    const roomDocRef = await db.collection('rooms').doc(roomId).set(roomMetadata);
+
+    res.status(201).json({
+      message: 'Room uploaded successfully',
+      roomId,
+      name,
+      description,
+      category,
+      files: downloadUrls
+    });
+
+  } catch (err) {
+    console.error('Error uploading room:', err);
+    res.status(500).json({ 
+      message: 'Failed to upload room', 
+      details: err.message 
     });
   }
 });
@@ -1220,13 +1616,10 @@ if (process.env.NODE_ENV === 'development') {
   // Running locally
   const PORT = process.env.PORT || 3001;
   app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Firebase status: ${isFirebaseInitialized() ? 'initialized' : 'not initialized'}`);
+    console.log(`Backend listening on port ${PORT}`);
   });
 } else {
   // Running on Firebase
   exports.api = functions.https.onRequest(app);
 }
-
 
