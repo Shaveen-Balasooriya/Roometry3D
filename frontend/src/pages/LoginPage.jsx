@@ -272,7 +272,7 @@ export default function LoginPage() {
             <div className="form-group">
               <label htmlFor="signup-name">Full Name</label>
               <div className="input-with-icon">
-                <span className="input-icon">👤</span>
+                <span className="input-icon"></span>
                 <input
                   type="text"
                   id="signup-name"
@@ -288,7 +288,7 @@ export default function LoginPage() {
             <div className="form-group">
               <label htmlFor="signup-email">Email</label>
               <div className="input-with-icon">
-                <span className="input-icon">📧</span>
+                <span className="input-icon"></span>
                 <input
                   type="email"
                   id="signup-email"
@@ -304,7 +304,7 @@ export default function LoginPage() {
             <div className="form-group">
               <label htmlFor="signup-password">Password</label>
               <div className="input-with-icon">
-                <span className="input-icon">🔒</span>
+                <span className="input-icon"></span>
                 <input
                   type="password"
                   id="signup-password"
@@ -320,7 +320,7 @@ export default function LoginPage() {
             <div className="form-group">
               <label htmlFor="confirm-password">Confirm Password</label>
               <div className="input-with-icon">
-                <span className="input-icon">🔐</span>
+                <span className="input-icon"></span>
                 <input
                   type="password"
                   id="confirm-password"

@@ -1,14 +1,29 @@
 /* ProjectForm.css */
 .project-form {
   max-width: 800px;
+  width: 100%;
   margin: 0 auto;
-  padding: 2rem;
-  background-color: var(--background-light);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 0;
+  background-color: transparent;
 }
 
-.form-section-title {
+.form-container {
+  width: 100%;
+
+  margin: 0 auto;
+ 
+}
+
+.user-form {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  padding: 2rem;
+  width: 100%;
+}
+
+.form-section-title,
+.section-title {
   font-size: 1.2rem;
   font-weight: 800;
   margin: 1.5rem 0 1rem;
@@ -17,133 +32,251 @@
   color: #006a71;
 }
 
-.form-group {
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-bottom: 2px solid #66B2B8;
+}
+
+.section-title:first-child {
+  margin-top: 0;
+}
+
+.form-group,
+.form-field {
   margin-bottom: 1.5rem;
 }
 
-.form-group label {
+.form-group label,
+.form-field label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
   color: var(--text);
+  font-size: 0.95rem;
 }
 
 .form-group input,
 .form-group textarea,
-.form-group select {
+.form-group select,
+.form-field input,
+.form-field textarea,
+.form-field select {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.8rem;
   border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 1rem;
   color: var(--text);
+  background-color: white;
   transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 .form-group input:focus,
 .form-group textarea:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-field input:focus,
+.form-field textarea:focus,
+.form-field select:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+  border-color: #006a71;
+  box-shadow: 0 0 0 2px rgba(0, 106, 113, 0.2);
 }
 
-.form-group textarea {
+.form-group textarea,
+.form-field textarea {
   min-height: 120px;
   resize: vertical;
 }
 
-.form-group select {
+.form-group select,
+.form-field select {
   cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23555' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: calc(100% - 0.75rem) center;
+  background-position: calc(100% - 0.8rem) center;
   background-size: 12px;
   padding-right: 2rem;
   appearance: none;
 }
 
-.form-group .error-message {
-  color: var(--error);
+.form-group .error-message,
+.error-message {
+  color: #e53e3e;
   font-size: 0.875rem;
   margin-top: 0.5rem;
 }
 
 .form-group input.error,
 .form-group textarea.error,
-.form-group select.error {
-  border-color: var(--error);
+.form-group select.error,
+.form-field input.error,
+.form-field textarea.error,
+.form-field select.error {
+  border-color: #e53e3e;
+  background-color: #fff5f5;
+}
+
+.helper-text {
+  color: #718096;
+  font-size: 0.85rem;
+  margin-top: 0.4rem;
+}
+
+.form-scroll-inner {
+  width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.form-row {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0;
+}
+
+.form-group.half {
+  width: 50%;
+  margin-bottom: 1.5rem;
+}
+
+/* File input styling to match FurnitureForm */
+.file-input-wrapper {
+  position: relative;
+  border: 2px dashed #cbd5e0;
+  border-radius: 4px;
+  padding: 1.5rem;
+  background-color: #f7fafc;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+}
+
+.file-input-wrapper.dragging {
+  background-color: #ebf4ff;
+  border-color: #3182ce;
+}
+
+.file-input-wrapper.error {
+  border-color: #e53e3e;
+  background-color: #fff5f5;
+}
+
+.file-input-native {
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.file-input-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.file-placeholder {
+  color: #718096;
+  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.file-placeholder::before {
+  content: '📄';
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.file-name {
+  color: #006a71;
+  font-weight: 500;
+  word-break: break-all;
+  max-width: 100%;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.file-size {
+  color: #718096;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+}
+
+.remove-file-btn {
+  background: none;
+  border: none;
+  color: #e53e3e;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  margin-left: 0.5rem;
+  line-height: 1;
+}
+
+.file-preview {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.file-preview a {
+  color: #006a71;
+  text-decoration: underline;
 }
 
 .form-actions {
   display: flex;
   justify-content: space-between;
-  margin-top: 2rem;
+  margin-top: 2.5rem;
   gap: 1rem;
 }
 
-.form-actions button {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
+.button-primary, .button-secondary {
+  padding: 0.8rem 1.5rem;
   font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;
-  flex: 1;
-}
-
-.form-actions button[type="submit"] {
-  background-color: var(--primary);
-  color: white;
-}
-
-.form-actions button[type="submit"]:hover {
-  background-color: var(--primary-dark);
-  transform: translateY(-1px);
-}
-
-.form-actions button[type="button"] {
-  background-color: var(--secondary-light);
-  color: var(--text);
-}
-
-.form-actions button[type="button"]:hover {
-  background-color: var(--secondary);
-  transform: translateY(-1px);
-}
-
-.file-upload {
-  display: flex;
-  flex-direction: column;
-}
-
-.file-upload label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  border: 2px dashed var(--border);
   border-radius: 4px;
   cursor: pointer;
-  transition: border-color 0.3s, background-color 0.3s;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-.file-upload label:hover {
-  border-color: var(--primary);
-  background-color: rgba(var(--primary-rgb), 0.05);
+.button-primary {
+  background-color: #006a71;
+  color: white;
+  border: none;
+  min-width: 150px;
 }
 
-.file-upload input[type="file"] {
-  display: none;
+.button-primary:hover:not(:disabled) {
+  background-color: #00565c;
 }
 
-.file-upload .file-name {
-  margin-top: 0.75rem;
-  font-size: 0.875rem;
-  color: var(--primary);
-  word-break: break-all;
+.button-secondary {
+  background-color: transparent;
+  color: #4a5568;
+  border: 1px solid #cbd5e0;
+}
+
+.button-secondary:hover {
+  background-color: #edf2f7;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .loading-container {
@@ -157,13 +290,13 @@
 /* Touch device optimization */
 @media (hover: none) {
   .form-group select,
-  .form-actions button,
-  input[type="submit"] {
+  .button-primary,
+  .button-secondary {
     font-size: 1.1rem;
     padding: 0.85rem 1.5rem;
   }
   
-  .file-upload label {
+  .file-input-wrapper {
     padding: 2rem;
   }
 }
@@ -175,26 +308,40 @@
     margin: 0 0.5rem;
   }
   
-  .form-actions {
+  .form-row {
     flex-direction: column;
+    gap: 0;
   }
   
-  .form-actions button {
+  .form-group.half {
     width: 100%;
-    margin-bottom: 0.75rem;
   }
   
-  .form-section-title {
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 1rem;
+  }
+  
+  .button-primary,
+  .button-secondary {
+    width: 100%;
+  }
+  
+  .form-section-title,
+  .section-title {
     font-size: 1.1rem;
   }
   
-  .file-upload label {
+  .file-input-wrapper {
     padding: 1.25rem;
   }
   
   .form-group input,
   .form-group textarea,
-  .form-group select {
+  .form-group select,
+  .form-field input,
+  .form-field textarea,
+  .form-field select {
     font-size: 16px; /* Prevents iOS zoom */
     padding: 0.7rem;
   }
@@ -218,7 +365,6 @@
   }
 }
 
-/* Even smaller devices */
 @media (max-width: 480px) {
   .project-form {
     padding: 1rem;
@@ -230,40 +376,46 @@
     margin-bottom: 1.25rem;
   }
   
-  .form-section-title {
+  .form-section-title,
+  .section-title {
     margin: 1.25rem 0 0.75rem;
     font-size: 1.1rem;
   }
   
-  .file-upload .file-name {
+  .file-name {
     font-size: 0.75rem;
   }
   
-  .form-group label {
+  .form-group label,
+  .form-field label {
     font-size: 0.9rem;
   }
   
   .form-group input,
   .form-group textarea,
-  .form-group select {
+  .form-group select,
+  .form-field input,
+  .form-field textarea,
+  .form-field select {
     padding: 0.65rem;
     font-size: 0.95rem;
   }
 }
 
-/* Extra small devices */
 @media (max-width: 360px) {
   .project-form {
     padding: 0.75rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
   
-  .form-section-title {
+  .form-section-title,
+  .section-title {
     font-size: 1rem;
     margin: 1rem 0 0.75rem;
   }
   
-  .form-group textarea {
+  .form-group textarea,
+  .form-field textarea {
     min-height: 100px;
   }
   
@@ -279,4 +431,64 @@
   .preview-container {
     min-height: 200px;
   }
+}
+
+/* Ensure this CSS works with the updated form */
+.furniture-form {
+  width: 100%;
+  max-width: 800px;
+}
+
+.form-section-title {
+  color: #006a71;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1.5rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #66B2B8;
+}
+
+.form-section-title:first-child {
+  margin-top: 0;
+}
+
+.form-group label {
+  display: block;
+  color: #333;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  background-color: white;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #006a71;
+  box-shadow: 0 0 0 2px rgba(0, 106, 113, 0.1);
+}
+
+.form-group textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.form-group select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23555' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: calc(100% - 0.8rem) center;
+  background-size: 12px;
+  padding-right: 2rem;
 }

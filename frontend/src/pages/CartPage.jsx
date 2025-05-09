@@ -531,9 +531,9 @@ export default function CartPage() {
   
   const getStockMessage = (furnitureId) => {
     if (isOutOfStock(furnitureId)) {
-      return <span className="out-of-stock">Out of Stock</span>;
+      return <span className="out-of-stock-badge">Out of Stock</span>;
     } else if (lowStockItems[furnitureId]) {
-      return <span className="low-stock">Only {lowStockItems[furnitureId]} left in stock</span>;
+      return <span className="low-stock-badge">Only {lowStockItems[furnitureId]} left in stock</span>;
     }
     return null;
   };
@@ -557,12 +557,12 @@ export default function CartPage() {
         confirmButtonClass="button-danger"
       />
       
-      <main className="main-content" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-        <div className="cart-page-container">
+      <main className="main-content">
+        <div className="page-content cart-page-container">
           <h2 className="cart-page-title">Your Shopping Cart</h2>
           
           {isLoading ? (
-            <div className="cart-loading">
+            <div className="loading-container">
               <Loading />
             </div>
           ) : cartItems.length === 0 ? (
@@ -571,8 +571,8 @@ export default function CartPage() {
               <h3>Your cart is empty</h3>
               <p>Looks like you haven't added any furniture to your cart yet.</p>
               <button 
-                onClick={continueShopping}
                 className="btn-primary"
+                onClick={continueShopping}
               >
                 Browse Furniture Catalogue
               </button>
@@ -603,7 +603,7 @@ export default function CartPage() {
                           shadows
                           camera={{ fov: 45, near: 0.1, far: 50 }}
                         >
-                          <color attach="background" args={['#f5f5f5']} />
+                          <color attach="background" args={['#F7FAFC']} />
                           <ambientLight intensity={0.6} />
                           <directionalLight
                             position={[3, 5, 4]}
@@ -690,20 +690,20 @@ export default function CartPage() {
               <div className="cart-summary">
                 <div className="cart-total">
                   <h3>Order Summary</h3>
-                  <div className="subtotal-row">
+                  <div className="summary-row subtotal-row">
                     <span>Subtotal ({cartItems.filter(item => !isOutOfStock(item.furnitureId)).length} items):</span>
                     <span>${calculateTotal()}</span>
                   </div>
-                  <div className="shipping-row">
+                  <div className="summary-row shipping-row">
                     <span>Shipping:</span>
                     <span>Free</span>
                   </div>
-                  <div className="tax-row">
+                  <div className="summary-row tax-row">
                     <span>Estimated Tax:</span>
                     <span>Calculated at checkout</span>
                   </div>
                   <div className="divider"></div>
-                  <div className="total-row">
+                  <div className="summary-row total-row">
                     <span>Total:</span>
                     <span>${calculateTotal()}</span>
                   </div>
@@ -721,14 +721,14 @@ export default function CartPage() {
                   </button>
                   <button 
                     onClick={continueShopping}
-                    className="continue-shopping-btn"
+                    className="continue-shopping"
                   >
                     Continue Shopping
                   </button>
                 </div>
                 <div className="secure-checkout">
-                  <div className="secure-icon">🔒</div>
-                  <p>Secure Checkout</p>
+                  <div className="secure-checkout-icon">🔒</div>
+                  <p className="secure-checkout-text">Secure Checkout</p>
                 </div>
               </div>
             </div>

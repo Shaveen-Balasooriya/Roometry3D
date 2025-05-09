@@ -62,27 +62,25 @@ body {
 
 /* Section titles */
 .section-title {
-  color: #2D3748; /* Neutral-800 */
-  margin: 1.5rem 0;
   text-align: center;
-  font-size: 1.3rem;
-  border-bottom: 2px solid #66B2B8; /* Lighter teal for border */
-  padding-bottom: 0.5rem;
-  width: 80%;
-  margin-left: auto;
-  margin-right: auto;
+  margin-bottom: 1.5rem;
+  color: var(--text-dark); /* Maintaining your color scheme */
+  font-size: 1.75rem;
+  font-weight: 700;
   position: relative;
+  padding-bottom: 0.75rem;
 }
 
 .section-title::after {
   content: '';
   position: absolute;
-  bottom: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60px;
-  height: 2px;
-  background-color: #ECC94B; /* Secondary-500 - gold accent */
+  bottom: 0;
+  left: 50%; /* Center the underline */
+  transform: translateX(-50%); /* Ensure perfect centering */
+  width: 80px; /* Fixed width for the underline */
+  height: 3px;
+  background-color: #ECC94B; /* Your gold accent color */
+  border-radius: 2px;
 }
 
 /* Error message styling */
