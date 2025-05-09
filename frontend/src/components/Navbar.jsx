@@ -287,6 +287,15 @@ export default function Navbar() {
                 Add Furniture
               </Link>
               <Link
+                to="/upload-room"
+                className={
+                  location.pathname === "/upload-room" ? "active" : ""
+                }
+                aria-label="Upload Room"
+              >
+                Upload Room
+              </Link>
+              <Link
                 to="/furniture-dashboard"
                 className={
                   location.pathname === "/furniture-dashboard" ? "active" : ""

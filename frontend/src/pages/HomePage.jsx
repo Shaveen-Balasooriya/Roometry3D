@@ -111,11 +111,6 @@ export default function HomePage() {
           amount={loading ? 'Loading...' : metrics.totalProjects} 
           icon={<IconProjects />} 
         />
-        <MetricCard 
-          title="Checked Out Projects" 
-          amount={loading ? 'Loading...' : metrics.checkedOutProjects} 
-          icon={<IconOrders />} 
-        />
       </div>
       
       <div className="section-separator" role="separator"></div>
