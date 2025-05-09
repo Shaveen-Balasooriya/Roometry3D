@@ -146,7 +146,6 @@ export default function FurnitureCard({ furniture, onDeleteSuccess }) {
   const [showConfirmPopup, setShowConfirmPopup] = useState(false)
   const navigate = useNavigate()
   const API_URL = import.meta.env.VITE_BACKEND_URL;
-
   useEffect(() => { setSelectedTextureIndex(0) }, [textureUrls])
 
   const currentTextureUrl = useMemo(() => {

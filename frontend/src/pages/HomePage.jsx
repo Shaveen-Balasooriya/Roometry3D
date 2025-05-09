@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MetricCard from './components/MetricCard';
 import './HomePage.css';
-import { auth } from '../services/firebase'; // Adjust the path as needed
+import { auth } from '../services/firebase';
 
 // Enhanced icon components with better accessibility
 const IconFurniture = () => <div className="icon-placeholder" aria-hidden="true">F</div>;
@@ -85,12 +85,13 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="page-content">
+
+    <div className="home-content">
+
       <section className="welcome-section">
         <h2>Welcome to Roometry 3D Admin</h2>
       </section>
       
-      {/* Dashboard Stats Section */}
       <h3 className="section-title">Dashboard Overview</h3>
       {error && <div className="error-message" role="alert">Error loading metrics: {error}</div>}
       
@@ -117,10 +118,8 @@ export default function HomePage() {
         />
       </div>
       
-      {/* Clear section separator */}
       <div className="section-separator" role="separator"></div>
       
-      {/* Quick Navigation Section */}
       <h3 className="section-title">Quick Navigation</h3>
       <nav className="quick-nav-links">
         {navLinks.map((link, index) => (

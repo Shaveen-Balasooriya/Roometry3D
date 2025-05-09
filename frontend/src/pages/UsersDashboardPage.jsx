@@ -14,6 +14,7 @@ export default function UsersDashboardPage() {
   const [confirm, setConfirm] = useState({ open: false, user: null });
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_BACKEND_URL;
+  
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -93,8 +94,27 @@ export default function UsersDashboardPage() {
     }
   };
 
+  const formatDate = (timestamp) => {
+    if (!timestamp) return '-';
+    
+    // Handle Firestore timestamps
+    const date = timestamp._seconds 
+      ? new Date(timestamp._seconds * 1000) 
+      : new Date(timestamp);
+    
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
-    <div className="page-content">
+
+    <div className="page-content users-dashboard-page">
+
       <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
       <ConfirmationPopup
         open={confirm.open}
@@ -109,7 +129,8 @@ export default function UsersDashboardPage() {
         confirmButtonClass="button-primary"
       />
       
-      {/* Dashboard header with consistent spacing */}
+
+
       <div className="dashboard-header">
         <h2 className="dashboard-title">Users Dashboard</h2>
         
@@ -122,10 +143,13 @@ export default function UsersDashboardPage() {
       </div>
       
       {loading ? (
-        <Loading />
+
+        <div className="loading-container">
+          <Loading />
+        </div>
       ) : (
         <div className="table-container">
-          {/* Table content stays the same */}
+
           {users.length === 0 ? (
             <div className="no-data-message">No users found.</div>
           ) : (
@@ -150,11 +174,9 @@ export default function UsersDashboardPage() {
                       <td data-label="Email" className="email-cell">{user.email}</td>
                       <td data-label="Role" className="role-cell">{user.userType}</td>
                       <td data-label="Created" className="date-cell">
-                        {user.createdAt ? new Date(
-                          user.createdAt._seconds 
-                            ? user.createdAt._seconds * 1000 
-                            : user.createdAt
-                        ).toLocaleString() : '-'}
+
+                        {formatDate(user.createdAt)}
+
                       </td>
                       <td className="actions-cell">
                         <div className="action-buttons">

@@ -1,261 +1,263 @@
 /* Dashboard Header */
 .dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2.5rem; /* Increased from 2rem to 2.5rem for more space */
-  max-width: 900px;
-  margin: 0 auto;
-  width: 100%;
-  padding: 0 1rem;
-  margin-bottom: 2.5rem; /* Add explicit margin-bottom to ensure it's applied */
-}
 
-.dashboard-title {
-  color: #00474C;
-  font-size: 2.1rem;
-  font-weight: 700;
-  margin: 0;
-}
-
-.add-user-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #006A71;
-  border-left: 3px solid #ECC94B;
-  transition: all 0.3s ease;
-  padding: 0.6rem 1rem;
-  color: white;
-  font-weight: 500;
-  border-radius: 4px;
-  cursor: pointer;
-  width: 30% !important;
-}
-
-.add-user-button:hover {
-  background-color: #00474C;
-}
-
-.plus-icon {
-  font-size: 1.2rem;
-  line-height: 0;
-}
-
-/* Table Container */
-.table-container {
-  overflow: hidden;
-  width: 100%;
-  background: #FFFFFF;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--border);
-  padding: 1.5rem;
-  margin: 1.5rem auto 0; /* Added top margin */
-  max-width: 900px;
-}
-
-.no-data-message {
-  text-align: center;
-  padding: 2rem;
-  color: #718096;
-}
-
-/* Responsive Table */
-.responsive-table {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.users-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 600px;
-}
-
-.users-table thead {
-  background: #006A71;
-  color: white;
-}
-
-.users-table th {
-  padding: 0.8rem;
-  border-bottom: 2px solid #66B2B8;
-  text-align: left;
-  position: relative;
-  white-space: nowrap;
-}
-
-.name-column {
-  width: 20%;
-  position: relative;
-}
-
-.email-column {
-  width: 30%;
-}
-
-.role-column {
-  width: 15%;
-}
-
-.created-column {
-  width: 20%;
-}
-
-.actions-column {
-  width: 15%;
-  text-align: right !important;
-}
-
-.gold-underline {
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 60px;
-  height: 2px;
-  background-color: #ECC94B;
-}
-
-.users-table td {
-  padding: 0.8rem;
-  border-bottom: 1px solid #E2E8F0;
-  word-break: break-word;
-}
-
-.email-cell {
-  word-break: break-all;
-}
-
-.role-cell {
-  text-transform: capitalize;
-}
-
-.actions-cell {
-  text-align: right;
-  white-space: nowrap;
-}
-
-.action-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.icon-button {
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  padding: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  transition: background-color 0.2s;
-}
-
-.edit-button {
-  background: #66B2B8;
-}
-
-.edit-button:hover {
-  background: #006A71;
-}
-
-.delete-button {
-  background: #9B2C2C;
-}
-
-.delete-button:hover {
-  background: #FC8181;
-}
-
-/* Mobile Responsiveness */
-@media screen and (max-width: 768px) {
-  .dashboard-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .add-user-button {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .table-container {
-    padding: 1rem;
-    border-radius: 6px;
-  }
-
-  .users-table {
-    min-width: unset;
-    border: 0;
-  }
-
-  .users-table thead {
-    display: none;
-  }
-
-  .users-table tbody tr {
-    display: block;
-    margin-bottom: 1rem;
-    border: 1px solid #E2E8F0;
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  }
-
-  .users-table tbody td {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: none;
-    padding: 0.6rem 1rem;
-    text-align: right;
-    border-bottom: 1px solid #F0F4F8;
-  }
-
-  .users-table tbody td:last-child {
-    border-bottom: none;
-  }
-
-  .users-table td:before {
-    content: attr(data-label);
-    float: left;
-    font-weight: bold;
-    color: #4A5568;
-  }
-
-  .actions-cell {
-    justify-content: flex-end;
-  }
-}
-
-/* Small mobile devices */
-@media screen and (max-width: 480px) {
-  .dashboard-title {
-    font-size: 1.8rem;
+    margin-bottom: 2.5rem; /* Increased from 2rem to 2.5rem for more space */
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 1rem;
+    margin-bottom: 2.5rem; /* Add explicit margin-bottom to ensure it's applied */
   }
   
-  .table-container {
-    padding: 0.75rem;
+  .dashboard-title {
+    color: #00474C;
+    font-size: 2.1rem;
+    font-weight: 700;
+    margin: 0;
   }
-
-  .users-table tbody td {
-    padding: 0.5rem 0.75rem;
-    flex-direction: column;
-    align-items: flex-start;
+  
+  .add-user-button {
+    display: flex;
+    align-items: center;
     gap: 0.5rem;
+    background-color: #006A71;
+    border-left: 3px solid #ECC94B;
+    transition: all 0.3s ease;
+    padding: 0.6rem 1rem;
+    color: white;
+    font-weight: 500;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 30% !important;
   }
-
-  .actions-cell {
-    flex-direction: row !important;
-    justify-content: space-between;
+  
+  .add-user-button:hover {
+    background-color: #00474C;
   }
-
-  .action-buttons {
+  
+  .plus-icon {
+    font-size: 1.2rem;
+    line-height: 0;
+  }
+  
+  /* Table Container */
+  .table-container {
+    overflow: hidden;
     width: 100%;
-    justify-content: flex-end;
+    background: #FFFFFF;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    margin: 1.5rem auto 0; /* Added top margin */
+    max-width: 900px;
   }
-}
+  
+  .no-data-message {
+    text-align: center;
+    padding: 2rem;
+    color: #718096;
+  }
+  
+  /* Responsive Table */
+  .responsive-table {
+    width: 100%;
+    overflow-x: auto;
+  }
+  
+  .users-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+  }
+  
+  .users-table thead {
+    background: #006A71;
+    color: white;
+  }
+  
+  .users-table th {
+    padding: 0.8rem;
+    border-bottom: 2px solid #66B2B8;
+    text-align: left;
+    position: relative;
+    white-space: nowrap;
+  }
+  
+  .name-column {
+    width: 20%;
+    position: relative;
+  }
+  
+  .email-column {
+    width: 30%;
+  }
+  
+  .role-column {
+    width: 15%;
+  }
+  
+  .created-column {
+    width: 20%;
+  }
+  
+  .actions-column {
+    width: 15%;
+    text-align: right !important;
+  }
+  
+  .gold-underline {
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 60px;
+    height: 2px;
+    background-color: #ECC94B;
+  }
+  
+  .users-table td {
+    padding: 0.8rem;
+    border-bottom: 1px solid #E2E8F0;
+    word-break: break-word;
+  }
+  
+  .email-cell {
+    word-break: break-all;
+  }
+  
+  .role-cell {
+    text-transform: capitalize;
+  }
+  
+  .actions-cell {
+    text-align: right;
+    white-space: nowrap;
+  }
+  
+  .action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  
+  .icon-button {
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    transition: background-color 0.2s;
+  }
+  
+  .edit-button {
+    background: #66B2B8;
+  }
+  
+  .edit-button:hover {
+    background: #006A71;
+  }
+  
+  .delete-button {
+    background: #9B2C2C;
+  }
+  
+  .delete-button:hover {
+    background: #FC8181;
+  }
+  
+  /* Mobile Responsiveness */
+  @media screen and (max-width: 768px) {
+    .dashboard-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+  
+    .add-user-button {
+      width: 100%;
+      justify-content: center;
+    }
+  
+    .table-container {
+      padding: 1rem;
+      border-radius: 6px;
+    }
+  
+    .users-table {
+      min-width: unset;
+      border: 0;
+    }
+  
+    .users-table thead {
+      display: none;
+    }
+  
+    .users-table tbody tr {
+      display: block;
+      margin-bottom: 1rem;
+      border: 1px solid #E2E8F0;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+  
+    .users-table tbody td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: none;
+      padding: 0.6rem 1rem;
+      text-align: right;
+      border-bottom: 1px solid #F0F4F8;
+    }
+  
+    .users-table tbody td:last-child {
+      border-bottom: none;
+    }
+  
+    .users-table td:before {
+      content: attr(data-label);
+      float: left;
+      font-weight: bold;
+      color: #4A5568;
+    }
+  
+    .actions-cell {
+      justify-content: flex-end;
+    }
+  }
+  
+  /* Small mobile devices */
+  @media screen and (max-width: 480px) {
+    .dashboard-title {
+      font-size: 1.8rem;
+    }
+    
+    .table-container {
+      padding: 0.75rem;
+    }
+  
+    .users-table tbody td {
+      padding: 0.5rem 0.75rem;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+  
+    .actions-cell {
+      flex-direction: row !important;
+      justify-content: space-between;
+    }
+  
+    .action-buttons {
+      width: 100%;
+      justify-content: flex-end;
+    }
+  }
+
