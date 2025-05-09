@@ -370,7 +370,7 @@ export default function LoginPage() {
                 <div className="form-group">
                   <label htmlFor="reset-email">Email Address</label>
                   <div className="input-with-icon">
-                    <span className="input-icon">📧</span>
+                    
                     <input
                       type="email"
                       id="reset-email"
