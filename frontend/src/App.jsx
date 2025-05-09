@@ -24,6 +24,7 @@ import CustomerDesignerFurnitureCataloguePage from "./pages/CustomerDesignerFurn
 import CartPage from "./pages/CartPage";
 import Breadcrumb from "./components/Breadcrumb";
 import UploadRoomPage from "./pages/UploadRoomPage";
+import RoomManagementPage from "./pages/RoomManagementPage";
 
 // Unauthorized page component
 function Unauthorized() {
@@ -87,6 +88,8 @@ export default function App() {
                 <Route path="/users-dashboard" element={<UsersDashboardPage />} />
                 <Route path="/edit-user/:id" element={<EditUserPage />} />
                 <Route path="/upload-room" element={<UploadRoomPage />} />
+                <Route path="/room-management" element={<RoomManagementPage />} />
+                
               </Route>
 
               {/* Unauthorized route */}

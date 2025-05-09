@@ -304,6 +304,14 @@ export default function Navbar() {
                 Manage Furniture
               </Link>
               <Link
+                to="/room-management"
+                className={
+                  location.pathname === "/room-management" ? "active" : ""
+                }
+              >
+                Manage Room
+              </Link>
+              <Link
                 to="/add-user"
                 className={location.pathname === "/add-user" ? "active" : ""}
               >
