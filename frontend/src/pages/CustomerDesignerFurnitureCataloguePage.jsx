@@ -63,6 +63,7 @@ export default function CustomerDesignerFurnitureCataloguePage() {
 
   return (
     <div className="app-container">
+
       <Navbar />
       <main className="main-content" style={{ 
         display: 'flex', 
@@ -128,8 +129,9 @@ export default function CustomerDesignerFurnitureCataloguePage() {
             </div>
           )}
         </div>
+
       </main>
-      <Footer />
+
     </div>
   )
 }

@@ -19,6 +19,7 @@ export default function CreateProjectPage() {
 
   return (
     <div className="app-container">
+
       <Navbar />
       <main
         className="main-content"
@@ -54,9 +55,10 @@ export default function CreateProjectPage() {
           <ProjectForm 
             onSuccess={handleProjectCreated} 
           />
+
         </div>
       </main>
-      <Footer />
+  
     </div>
   );
 }

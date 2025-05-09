@@ -68,7 +68,9 @@
   border-radius: 4px;
   font-size: 1rem;
   color: var(--text);
+
   background-color: white;
+
   transition: border-color 0.3s, box-shadow 0.3s;
 }
 

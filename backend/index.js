@@ -1445,15 +1445,181 @@ app.get('/api/cart', async (req, res) => {
   }
 });
 
+// API endpoint for uploading room data
+app.post('/api/rooms/upload', authenticateUser, uploadProject.fields([
+  { name: 'model', maxCount: 1 },
+  { name: 'associatedFiles', maxCount: 10 }, 
+  { name: 'wallTextures', maxCount: 10 },
+  { name: 'floorTextures', maxCount: 10 }
+]), async (req, res) => {
+  try {
+    const userId = req.user?.uid;
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    // Extract room details from the request body
+    const { name, description, category, componentTags } = req.body;
+    
+    if (!name || !description || !category) {
+      return res.status(400).json({ message: 'Missing required room details' });
+    }
+
+    if (!req.files.model || req.files.model.length === 0) {
+      return res.status(400).json({ message: 'Missing required model file' });
+    }
+
+    // Generate a unique room ID
+    const roomId = uuidv4();
+    const storageBasePath = `rooms/${roomId}`;
+    const downloadUrls = {};
+
+    // 1. Upload the 3D model file
+    const modelFile = req.files.model[0];
+    const modelFileExt = modelFile.originalname.split('.').pop().toLowerCase();
+    const modelStoragePath = `${storageBasePath}/model.${modelFileExt}`;
+    const modelRef = bucket.file(modelStoragePath);
+    
+    await modelRef.save(modelFile.buffer, {
+      metadata: { contentType: modelFile.mimetype }
+    });
+    
+    const [modelUrl] = await modelRef.getSignedUrl({
+      action: 'read',
+      expires: '03-01-2500' // Long expiry for demonstration
+    });
+    
+    downloadUrls.model = modelUrl;
+
+    // 2. Upload any associated files if provided
+    const associatedFileUrls = [];
+    if (req.files.associatedFiles && req.files.associatedFiles.length > 0) {
+      for (const file of req.files.associatedFiles) {
+        const filePath = `${storageBasePath}/associated/${file.originalname}`;
+        const fileRef = bucket.file(filePath);
+        
+        await fileRef.save(file.buffer, {
+          metadata: { contentType: file.mimetype }
+        });
+        
+        const [fileUrl] = await fileRef.getSignedUrl({
+          action: 'read',
+          expires: '03-01-2500'
+        });
+        
+        associatedFileUrls.push({ 
+          name: file.originalname, 
+          url: fileUrl 
+        });
+      }
+    }
+    
+    downloadUrls.associatedFiles = associatedFileUrls;
+
+    // 3. Upload wall textures if provided
+    const wallTextureUrls = [];
+    if (req.files.wallTextures && req.files.wallTextures.length > 0) {
+      for (const texture of req.files.wallTextures) {
+        const texturePath = `${storageBasePath}/textures/wall/${texture.originalname}`;
+        const textureRef = bucket.file(texturePath);
+        
+        await textureRef.save(texture.buffer, {
+          metadata: { contentType: texture.mimetype }
+        });
+        
+        const [textureUrl] = await textureRef.getSignedUrl({
+          action: 'read',
+          expires: '03-01-2500'
+        });
+        
+        wallTextureUrls.push({ 
+          name: texture.originalname, 
+          url: textureUrl
+        });
+      }
+    }
+    
+    downloadUrls.wallTextures = wallTextureUrls;
+
+    // 4. Upload floor textures if provided
+    const floorTextureUrls = [];
+    if (req.files.floorTextures && req.files.floorTextures.length > 0) {
+      for (const texture of req.files.floorTextures) {
+        const texturePath = `${storageBasePath}/textures/floor/${texture.originalname}`;
+        const textureRef = bucket.file(texturePath);
+        
+        await textureRef.save(texture.buffer, {
+          metadata: { contentType: texture.mimetype }
+        });
+        
+        const [textureUrl] = await textureRef.getSignedUrl({
+          action: 'read',
+          expires: '03-01-2500'
+        });
+        
+        floorTextureUrls.push({ 
+          name: texture.originalname, 
+          url: textureUrl
+        });
+      }
+    }
+    
+    downloadUrls.floorTextures = floorTextureUrls;
+
+    // Parse the componentTags if it's sent as a JSON string
+    let parsedComponentTags = {};
+    try {
+      if (typeof componentTags === 'string') {
+        parsedComponentTags = JSON.parse(componentTags);
+      } else if (componentTags) {
+        parsedComponentTags = componentTags;
+      }
+    } catch (error) {
+      console.error('Error parsing componentTags:', error);
+    }
+
+    // 5. Create the room metadata record in Firestore
+    const roomMetadata = {
+      id: roomId,
+      name,
+      description,
+      category,
+      componentTags: parsedComponentTags,
+      files: downloadUrls,
+      createdBy: userId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Add the room document to Firestore
+    const roomDocRef = await db.collection('rooms').doc(roomId).set(roomMetadata);
+
+    res.status(201).json({
+      message: 'Room uploaded successfully',
+      roomId,
+      name,
+      description,
+      category,
+      files: downloadUrls
+    });
+
+  } catch (err) {
+    console.error('Error uploading room:', err);
+    res.status(500).json({ 
+      message: 'Failed to upload room', 
+      details: err.message 
+    });
+  }
+});
+
 if (process.env.NODE_ENV === 'development') {
   // Running locally
   const PORT = process.env.PORT || 3001;
   app.listen(PORT, () => {
-    console.log("Backend listening on port ${PORT}");
+    console.log(`Backend listening on port ${PORT}`);
   });
 } else {
   // Running on Firebase
   exports.api = functions.https.onRequest(app);
 }
-
 

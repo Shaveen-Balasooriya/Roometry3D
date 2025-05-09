@@ -144,7 +144,6 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="app-container">
-      <Navbar />
       <Popup
         open={popup.open}
         type={popup.type}
@@ -256,7 +255,7 @@ export default function ChangePasswordPage() {
           </form>
         </div>
       </main>
-      <Footer />
+
     </div>
   );
 }

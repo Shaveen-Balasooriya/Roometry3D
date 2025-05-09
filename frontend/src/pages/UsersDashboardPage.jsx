@@ -112,7 +112,9 @@ export default function UsersDashboardPage() {
   };
 
   return (
+
     <div className="page-content users-dashboard-page">
+
       <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
       <ConfirmationPopup
         open={confirm.open}
@@ -127,6 +129,8 @@ export default function UsersDashboardPage() {
         confirmButtonClass="button-primary"
       />
       
+
+
       <div className="dashboard-header">
         <h2 className="dashboard-title">Users Dashboard</h2>
         
@@ -139,11 +143,13 @@ export default function UsersDashboardPage() {
       </div>
       
       {loading ? (
+
         <div className="loading-container">
           <Loading />
         </div>
       ) : (
         <div className="table-container">
+
           {users.length === 0 ? (
             <div className="no-data-message">No users found.</div>
           ) : (
@@ -168,7 +174,9 @@ export default function UsersDashboardPage() {
                       <td data-label="Email" className="email-cell">{user.email}</td>
                       <td data-label="Role" className="role-cell">{user.userType}</td>
                       <td data-label="Created" className="date-cell">
+
                         {formatDate(user.createdAt)}
+
                       </td>
                       <td className="actions-cell">
                         <div className="action-buttons">

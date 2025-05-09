@@ -142,6 +142,8 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
   const fileInputRef = useRef(null);
   const isUpdateMode = initialObjUrl || initialTextureUrls.length > 0;
 
+
+
   useEffect(() => {
     const validTextures = textures?.filter(t => t instanceof Blob) || [];
     if (validTextures.length > 0) {

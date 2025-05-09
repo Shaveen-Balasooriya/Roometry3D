@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { auth } from '../services/firebase';
 import Loading from '../components/Loading';
 import Popup from '../components/Popup';
@@ -14,6 +14,7 @@ export default function MyProjectsPage() {
   const [error, setError] = useState(null);
   const [popup, setPopup] = useState({ open: false, type: '', message: '' });
   const [userRole, setUserRole] = useState(null);
+  const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_BACKEND_URL;
 
   // Fetch user projects on component mount
@@ -136,6 +137,7 @@ export default function MyProjectsPage() {
   };
 
   return (
+
     <div className="app-container">
       <Navbar />
       <main className="main-content">
@@ -172,6 +174,7 @@ export default function MyProjectsPage() {
                 <div className="empty-projects-icon">📁</div>
                 <h3 className="empty-projects-title">No projects found</h3>
                 <p className="empty-projects-text">
+
                   {userRole === 'client' 
                     ? "You don't have any projects yet. Create your first project to get started!"
                     : userRole === 'designer'
@@ -180,6 +183,7 @@ export default function MyProjectsPage() {
                 </p>
                 {userRole === 'client' && (
                   <Link to="/create-project" className="button-secondary">
+
                     <span style={{ marginRight: '0.5rem' }}>+</span> Create New Project
                   </Link>
                 )}
@@ -220,6 +224,7 @@ export default function MyProjectsPage() {
                           <button 
                             onClick={() => handleDeleteProject(project.id, project.name)}
                             className="action-button"
+
                             title="Delete Project"
                           >
                             <i className="fas fa-trash"></i>
@@ -228,6 +233,7 @@ export default function MyProjectsPage() {
                       </div>
                     </div>
                     
+
                     <h3 className="project-title">{project.name}</h3>
                     
                     <p className="project-description">
@@ -243,24 +249,29 @@ export default function MyProjectsPage() {
                       <div className="project-meta-row">
                         <span className="meta-label">Updated</span>
                         <span className="meta-value">{formatDate(project.updatedAt)}</span>
+
                       </div>
                     </div>
 
                     {project.objFileUrl && (
+
                       <div className="model-button-container">
                         <Link 
                           to={`/view-project/${project.id}`} 
                           className="model-button"
                         >
                           <i className="fas fa-cube model-button-icon"></i> View 3D Model
+
                         </Link>
                       </div>
                     )}
                   </div>
                 ))}
               </div>
+
             </div>
           )}
+
         </div>
       </main>
       <Footer />

@@ -40,7 +40,7 @@ export default function EditUserPage() {
           email: data.email || '',
           password: '',
           confirmPassword: '',
-          userType: data.userType || 'admin'
+          userType: data.userType || 'client'
         });
       } catch (err) {
         console.error('Error fetching user:', err);
@@ -58,62 +58,38 @@ export default function EditUserPage() {
     setTimeout(() => navigate('/users-dashboard'), 1800);
   };
 
-  if (loading) return <Loading overlay />;
+  if (loading) {
+    return (
+      <div className="page-content">
+        <Loading overlay />
+      </div>
+    );
+  }
+  
   if (!formData) {
     return (
-      <div>
+      <div className="page-content">
         <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
-        <p>Could not load user data. <button onClick={() => navigate('/users-dashboard')}>Go Back</button></p>
+        <div className="error-container">
+          <p>Could not load user data.</p>
+          <button className="button-secondary" onClick={() => navigate('/users-dashboard')}>Go Back</button>
+        </div>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="page-content">
       <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
-      <div className="app-container">
-        <main
-          className="main-content"
-          style={{
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: 'calc(100vh - 64px - 80px)',
-            padding: '64px 0 60px 0',
-            background: 'var(--background)',
-          }}
-        >
-          <h2 style={{
-            marginBottom: '2.5rem',
-            color: 'var(--accent)',
-            fontSize: '2.1rem',
-            fontWeight: 700,
-            textAlign: 'center'
-          }}>Edit User</h2>
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 480,
-              background: 'var(--surface)',
-              borderRadius: 'var(--radius)',
-              boxShadow: 'var(--shadow)',
-              border: '1px solid var(--border)',
-              padding: '2.5rem 2.2rem 2rem 2.2rem',
-              margin: '0 auto',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
-            <UserForm
-              initialData={formData}
-              editMode
-              userId={id}
-              onSuccess={handleSuccess}
-            />
-          </div>
-        </main>
+      <h2 className="page-title">Edit User</h2>
+      <div className="form-container">
+        <UserForm
+          initialData={formData}
+          editMode
+          userId={id}
+          onSuccess={handleSuccess}
+        />
       </div>
-    </>
+    </div>
   );
 }

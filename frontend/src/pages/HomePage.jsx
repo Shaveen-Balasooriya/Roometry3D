@@ -85,7 +85,9 @@ export default function HomePage() {
   ];
 
   return (
+
     <div className="home-content">
+
       <section className="welcome-section">
         <h2>Welcome to Roometry 3D Admin</h2>
       </section>

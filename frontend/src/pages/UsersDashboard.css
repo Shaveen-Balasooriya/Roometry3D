@@ -1,5 +1,6 @@
 /* Dashboard Header */
 .dashboard-header {
+
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -259,3 +260,4 @@
       justify-content: flex-end;
     }
   }
+

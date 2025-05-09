@@ -177,7 +177,7 @@ export default function EditProfilePage() {
   if (isLoading) {
     return (
       <div className="app-container">
-        <Navbar />
+
         <main className="main-content" style={{ justifyContent: 'center', alignItems: 'center' }}>
           <Loading size={40} />
         </main>
@@ -188,7 +188,7 @@ export default function EditProfilePage() {
 
   return (
     <div className="app-container">
-      <Navbar />
+      
       <Popup
         open={popup.open}
         type={popup.type}
@@ -306,7 +306,7 @@ export default function EditProfilePage() {
           </form>
         </div>
       </main>
-      <Footer />
+
     </div>
   );
 }
