@@ -2,12 +2,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-
-  padding: 2rem 1rem;
   background: linear-gradient(135deg, var(--background) 0%, var(--background-light) 100%);
   background-size: cover;
   background-position: center;
   font-family: 'Poppins', sans-serif;
+  padding-top: 100px;
 }
 
 .login-card {

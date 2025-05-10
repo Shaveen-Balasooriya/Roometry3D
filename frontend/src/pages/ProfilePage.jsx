@@ -25,7 +25,7 @@ export default function ProfilePage() {
         const idToken = await user.getIdToken();
         
         // Fetch user profile data from backend
-        const response = await fetch('${API_URL}/api/auth/verify', {
+        const response = await fetch(`${API_URL}/api/auth/verify`, {
           headers: {
             'Authorization': `Bearer ${idToken}`
           }

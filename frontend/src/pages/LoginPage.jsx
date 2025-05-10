@@ -184,7 +184,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-container" style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+    <div className="login-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       <div className="login-card">
         <h2>Roometry 3D</h2>
         
