@@ -1,63 +1,33 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../services/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import Loading from '../../components/Loading';
 import Popup from '../../components/Popup';
+
 import './ProjectForm.css';
 
-const API_URL = import.meta.env.VITE_BACKEND_URL;
-
-export default function ProjectForm({ onSuccess, initialData = null, editMode = false, projectId }) {
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    clientId: '',
-    designerId: '',
-    status: 'draft'
+export default function ProjectForm({ onSuccess, onCancel, initialData = {} }) {
+  const [formData, setFormData] = useState({
+    name: initialData.name || '',
+    description: initialData.description || '',
+    type: initialData.type || 'living'
   });
-  const [objFile, setObjFile] = useState(null);
+  
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [serverError, setServerError] = useState(null);
+  const navigate = useNavigate();
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' });
   const [clients, setClients] = useState([]);
   const [designers, setDesigners] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isObjDragging, setIsObjDragging] = useState(false);
 
-  // Fetch clients and designers
   useEffect(() => {
-    async function fetchUsers() {
-      try {
-        setIsLoading(true);
-        
-        // Fetch clients
-        const clientsQuery = query(collection(db, 'users'), where('userType', '==', 'client'));
-        const clientsSnapshot = await getDocs(clientsQuery);
-        const clientsList = clientsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        // Fetch designers
-        const designersQuery = query(collection(db, 'users'), where('userType', '==', 'designer'));
-        const designersSnapshot = await getDocs(designersQuery);
-        const designersList = designersSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        setClients(clientsList);
-        setDesigners(designersList);
-      } catch (error) {
-        console.error("Error fetching users:", error);
-        setPopup({
-          open: true, 
-          type: 'error',
-          message: 'Failed to load users. Please refresh the page.'
-        });
-      } finally {
-        setIsLoading(false);
-      }
+    if (!auth.currentUser) {
+      navigate('/login');
     }
     
     fetchUsers();
@@ -137,13 +107,24 @@ export default function ProjectForm({ onSuccess, initialData = null, editMode = 
 
   const validateForm = () => {
     const newErrors = {};
-    if (!form.name.trim()) newErrors.name = 'Project name is required';
-    if (!form.description.trim()) newErrors.description = 'Description is required';
-    if (!form.clientId) newErrors.clientId = 'Client selection is required';
-    if (!form.designerId) newErrors.designerId = 'Designer selection is required';
-    if (!editMode && !objFile) newErrors.objFile = '3D model file is required';
+    if (!formData.name.trim()) {
+      newErrors.name = 'Project name is required';
+    }
     
-    return newErrors;
+    if (!formData.description.trim()) {
+      newErrors.description = 'Project description is required';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
   };
 
   const handleClearForm = () => {
@@ -160,93 +141,45 @@ export default function ProjectForm({ onSuccess, initialData = null, editMode = 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    setServerError(null);
+    
+    if (!validateForm()) {
       return;
     }
     
     setIsSubmitting(true);
+    
     try {
-      const formData = new FormData();
-      formData.append('name', form.name);
-      formData.append('description', form.description);
-      formData.append('clientId', form.clientId);
-      formData.append('designerId', form.designerId);
-      formData.append('status', form.status);
-      
-      if (objFile) {
-        formData.append('objFile', objFile);
-      }
-      
-      // Get authentication token
       const user = auth.currentUser;
       if (!user) {
-        throw new Error('You must be logged in to perform this action');
+        throw new Error('You must be logged in to create a project');
       }
       
-      const idToken = await user.getIdToken();
+      // Create project data object
+      const projectData = {
+        name: formData.name,
+        description: formData.description,
+        type: formData.type,
+        userId: user.uid,
+        userEmail: user.email,
+        createdAt: serverTimestamp(),
+        status: 'draft'
+      };
       
-      let response;
-      if (editMode) {
-        response = await fetch(`${API_URL}/api/projects/${projectId}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${idToken}`
-          },
-          body: formData,
-        });
-      } else {
-        response = await fetch(`${API_URL}/api/projects`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${idToken}`
-          },
-          body: formData,
-        });
+      // Save project to Firestore
+      const projectsCollection = collection(db, 'projects');
+      const docRef = await addDoc(projectsCollection, projectData);
+      
+      // Call the onSuccess callback with the created project
+      if (onSuccess) {
+        onSuccess({ id: docRef.id, ...projectData });
       }
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save project');
-      }
-      
-      const result = await response.json();
-      setPopup({
-        open: true,
-        type: 'success',
-        message: editMode 
-          ? 'Project updated successfully!' 
-          : `Project ${result.name} created successfully!`,
-        duration: 3000
-      });
-      
-      if (!editMode) {
-        setForm({
-          name: '',
-          description: '',
-          clientId: '',
-          designerId: '',
-          status: 'draft'
-        });
-        setObjFile(null);
-      }
-      
-      if (onSuccess) onSuccess(result);
-    } catch (err) {
-      setPopup({
-        open: true,
-        type: 'error',
-        message: err.message || `Error ${editMode ? 'updating' : 'creating'} project. Please try again.`
-      });
-    } finally {
+    } catch (error) {
+      console.error('Error creating project:', error);
+      setServerError(error.message || 'Failed to create project. Please try again.');
       setIsSubmitting(false);
     }
   };
-
-  if (isLoading) {
-    return <div className="loading-container"><Loading size={30} /></div>;
-  }
 
   return (
     <>

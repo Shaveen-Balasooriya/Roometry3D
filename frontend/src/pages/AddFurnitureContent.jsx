@@ -25,7 +25,7 @@ export default function AddFurnitureContent({ initialData = null }) {
 
       <div className="furniture-preview-section">
         <FurniturePreview
-          objFile={furniture.objFile}
+          objFile={furniture.modelFile}
           textures={furniture.textures}
           dimensions={previewDimensions}
           initialObjUrl={initialData?.objUrl}
@@ -35,7 +35,7 @@ export default function AddFurnitureContent({ initialData = null }) {
         />
       </div>
 
-      <style jsx>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .furniture-content-container {
           display: flex;
           flex-direction: column;
@@ -76,7 +76,7 @@ export default function AddFurnitureContent({ initialData = null }) {
             padding-left: 2rem;
           }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }
