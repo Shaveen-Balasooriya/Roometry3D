@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { db, auth } from '../../services/firebase';
+import { db, auth, getUserRole } from '../../services/firebase';
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import Loading from '../../components/Loading';
 import Popup from '../../components/Popup';
@@ -24,6 +24,9 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
   const [clients, setClients] = useState([]);
   const [designers, setDesigners] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [isAutoAssignedClient, setIsAutoAssignedClient] = useState(false);
+  const [isAutoAssignedDesigner, setIsAutoAssignedDesigner] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -33,14 +36,18 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
       return;
     }
     
-    const loadUsers = async () => {
+    const loadUsersAndSetCurrentUser = async () => {
       if (!isMounted) return;
       
       try {
         setIsLoading(true);
         
-        // Fetch clients
-        const clientsQuery = query(collection(db, 'users'), where('role', '==', 'client'));
+        // Get current user's role
+        const role = await getUserRole();
+        if (isMounted) setCurrentUserRole(role);
+        
+        // Fetch clients - using userType instead of role
+        const clientsQuery = query(collection(db, 'users'), where('userType', '==', 'client'));
         const clientsSnapshot = await getDocs(clientsQuery);
         if (!isMounted) return;
         
@@ -50,8 +57,8 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
         }));
         if (isMounted) setClients(clientsData);
         
-        // Fetch designers
-        const designersQuery = query(collection(db, 'users'), where('role', '==', 'designer'));
+        // Fetch designers - using userType instead of role
+        const designersQuery = query(collection(db, 'users'), where('userType', '==', 'designer'));
         const designersSnapshot = await getDocs(designersQuery);
         if (!isMounted) return;
         
@@ -60,6 +67,27 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
           ...doc.data()
         }));
         if (isMounted) setDesigners(designersData);
+        
+        // Auto-assign client or designer based on current user's role
+        if (isMounted && auth.currentUser) {
+          const currentUserId = auth.currentUser.uid;
+          
+          if (role === 'client' && !editMode) {
+            console.log('Auto-assigning client:', currentUserId);
+            setForm(prev => ({
+              ...prev,
+              clientId: currentUserId
+            }));
+            setIsAutoAssignedClient(true);
+          } else if (role === 'designer' && !editMode) {
+            console.log('Auto-assigning designer:', currentUserId);
+            setForm(prev => ({
+              ...prev,
+              designerId: currentUserId
+            }));
+            setIsAutoAssignedDesigner(true);
+          }
+        }
         
       } catch (error) {
         console.error('Error fetching users:', error);
@@ -75,13 +103,13 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
       }
     };
     
-    loadUsers();
+    loadUsersAndSetCurrentUser();
     
     // Cleanup function
     return () => {
       isMounted = false;
     };
-  }, [navigate]);
+  }, [navigate, editMode]);
 
   // Load initial data if in edit mode
   useEffect(() => {
@@ -100,8 +128,8 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
     try {
       setIsLoading(true);
       
-      // Fetch clients
-      const clientsQuery = query(collection(db, 'users'), where('role', '==', 'client'));
+      // Fetch clients - using userType instead of role
+      const clientsQuery = query(collection(db, 'users'), where('userType', '==', 'client'));
       const clientsSnapshot = await getDocs(clientsQuery);
       const clientsData = clientsSnapshot.docs.map(doc => ({
         id: doc.id,
@@ -109,8 +137,8 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
       }));
       setClients(clientsData);
       
-      // Fetch designers
-      const designersQuery = query(collection(db, 'users'), where('role', '==', 'designer'));
+      // Fetch designers - using userType instead of role
+      const designersQuery = query(collection(db, 'users'), where('userType', '==', 'designer'));
       const designersSnapshot = await getDocs(designersQuery);
       const designersData = designersSnapshot.docs.map(doc => ({
         id: doc.id,
@@ -132,6 +160,12 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // Skip changes to auto-assigned fields
+    if ((isAutoAssignedClient && name === 'clientId') || 
+        (isAutoAssignedDesigner && name === 'designerId')) {
+      return;
+    }
 
     // Prevent form submission on Enter for certain fields
     if (e.key === 'Enter' && e.target.type !== 'textarea') {
@@ -171,8 +205,8 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
     setForm({
       name: '',
       description: '',
-      clientId: '',
-      designerId: '',
+      clientId: isAutoAssignedClient ? form.clientId : '',
+      designerId: isAutoAssignedDesigner ? form.designerId : '',
       status: 'draft'
     });
     setErrors({});
@@ -297,6 +331,8 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
               value={form.clientId || ''}
               onChange={handleChange}
               className={errors.clientId ? 'error' : ''}
+              disabled={isAutoAssignedClient}
+              style={isAutoAssignedClient ? {backgroundColor: '#f5f5f5', cursor: 'not-allowed'} : {}}
             >
               <option value="">Select a client</option>
               {clients.map(client => (
@@ -305,6 +341,7 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
                 </option>
               ))}
             </select>
+            {isAutoAssignedClient && <div className="helper-text">You are assigned as the client for this project.</div>}
             {errors.clientId && <div className="error-message">{errors.clientId}</div>}
           </div>
           
@@ -316,6 +353,8 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
               value={form.designerId || ''}
               onChange={handleChange}
               className={errors.designerId ? 'error' : ''}
+              disabled={isAutoAssignedDesigner}
+              style={isAutoAssignedDesigner ? {backgroundColor: '#f5f5f5', cursor: 'not-allowed'} : {}}
             >
               <option value="">Select a designer</option>
               {designers.map(designer => (
@@ -324,6 +363,7 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {}, edi
                 </option>
               ))}
             </select>
+            {isAutoAssignedDesigner && <div className="helper-text">You are assigned as the designer for this project.</div>}
             {errors.designerId && <div className="error-message">{errors.designerId}</div>}
           </div>
         </div>
