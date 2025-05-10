@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Environment, Bounds } from '@react-three/drei'
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader'
+import { Environment, Bounds, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../../components/Loading'
@@ -9,49 +8,68 @@ import Popup from '../../components/Popup'
 import { auth } from '../../services/firebase'
 import { getUserRole } from '../../services/firebase' // Import the getUserRole function
 
-function ModelPreview({ objFile, textureUrl, dimensions }) {
+function ModelPreview({ modelFile, textureUrl, dimensions }) {
   const [object, setObject] = useState(null)
-  const loaderRef = useRef(new OBJLoader())
+  const modelObjectUrl = useRef(null)
   const { width = 1, height = 1, length = 1 } = dimensions || {}
+  
   useEffect(() => {
     let currentMaterial = null
     let cancelled = false
     setObject(null)
 
-    async function loadObj() {
-      let objText = null
-      if (objFile instanceof Blob) {
-        objText = await objFile.text()
-      }
-      if (!objText || cancelled) return
-
+    async function loadModel() {
+      if (!modelFile) return
+      
       try {
-        const parsedObj = loaderRef.current.parse(objText)
-
-        const originalBox = new THREE.Box3().setFromObject(parsedObj)
-        const originalSize = originalBox.getSize(new THREE.Vector3())
+        // Create URL from the blob
+        if (modelObjectUrl.current) {
+          URL.revokeObjectURL(modelObjectUrl.current)
+        }
+        modelObjectUrl.current = URL.createObjectURL(modelFile)
+        
+        if (cancelled) return
+        
+        // Load the model using useGLTF
+        const { scene } = await new Promise((resolve, reject) => {
+          useGLTF.load(
+            modelObjectUrl.current,
+            (gltf) => resolve(gltf),
+            undefined,
+            (error) => reject(error)
+          )
+        })
+        
+        if (cancelled) return
+        
+        // Clone the scene to avoid mutation issues
+        const modelScene = scene.clone()
+        
+        // Calculate bounding box and size
+        const box = new THREE.Box3().setFromObject(modelScene)
+        const originalSize = box.getSize(new THREE.Vector3())
+        const centerOffset = box.getCenter(new THREE.Vector3())
+        
+        // Scale model to match dimensions
         const maxObjDim = Math.max(originalSize.x, originalSize.y, originalSize.z, 0.001)
         const maxTargetDim = Math.max(width, height, length, 0.001)
         const scale = maxTargetDim / maxObjDim
-
-        parsedObj.scale.set(scale, scale, scale)
-
-        const scaledBox = new THREE.Box3().setFromObject(parsedObj)
-        const scaledCenter = scaledBox.getCenter(new THREE.Vector3())
-
+        
+        modelScene.scale.set(scale, scale, scale)
+        
         const applyMaterial = (material) => {
           if (currentMaterial) {
             if (currentMaterial.map) currentMaterial.map.dispose()
             currentMaterial.dispose()
           }
           currentMaterial = material
-          parsedObj.traverse(child => {
+          modelScene.traverse(child => {
             if (child.isMesh) {
               child.material = material
               child.material.needsUpdate = true
             }
           })
-          setObject({ model: parsedObj, centerOffset: scaledCenter.clone() })
+          setObject({ model: modelScene, centerOffset: centerOffset.clone() })
         }
 
         if (textureUrl) {
@@ -89,23 +107,26 @@ function ModelPreview({ objFile, textureUrl, dimensions }) {
             roughness: 0.8
           }))
         }
-
       } catch (error) {
         console.error("Error processing model:", error)
         setObject(null)
       }
     }
 
-    loadObj()
+    loadModel()
 
     return () => {
       cancelled = true
+      if (modelObjectUrl.current) {
+        URL.revokeObjectURL(modelObjectUrl.current)
+        modelObjectUrl.current = null
+      }
       if (currentMaterial) {
         if (currentMaterial.map) currentMaterial.map.dispose()
         currentMaterial.dispose()
       }
     }
-  }, [objFile, textureUrl, width, height, length])
+  }, [modelFile, textureUrl, width, height, length])
 
   return object ? (
     <group position={[-object.centerOffset.x, -object.centerOffset.y, -object.centerOffset.z]}>
@@ -139,7 +160,7 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
   } = furniture
 
   const [selectedTextureIndex, setSelectedTextureIndex] = useState(0)
-  const [objBlob, setObjBlob] = useState(null)
+  const [modelBlob, setModelBlob] = useState(null)
   const [isLoadingBlob, setIsLoadingBlob] = useState(false)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' })
@@ -170,7 +191,7 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
 
   useEffect(() => {
     let isActive = true
-    setObjBlob(null)
+    setModelBlob(null)
     if (modelEndpoint) {
       setIsLoadingBlob(true)
       const fetchModel = async () => {
@@ -189,15 +210,15 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
             }
           });
           
-          if (!response.ok) throw new Error('Failed to fetch OBJ file')
+          if (!response.ok) throw new Error('Failed to fetch GLB file')
           const blob = await response.blob();
           if (isActive) {
-            setObjBlob(blob)
+            setModelBlob(blob)
           }
         } catch (err) {
           console.error("Error fetching blob:", err)
           if (isActive) {
-            setObjBlob(null)
+            setModelBlob(null)
           }
         } finally {
           if (isActive) {
@@ -236,7 +257,7 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}` // Make sure the format matches what your middleware expects
+          'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
           furnitureId: id,
@@ -249,44 +270,6 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to add item to cart');
       }
-      
-      // Also keep a local copy in localStorage for faster access and offline capabilities
-      // This is optional and can be removed if you want to rely fully on the server
-    //   try {
-    //     const existingCartJSON = localStorage.getItem('cart');
-    //     let cartItems = [];
-        
-    //     if (existingCartJSON) {
-    //       cartItems = JSON.parse(existingCartJSON);
-    //       if (!Array.isArray(cartItems)) {
-    //         cartItems = [];
-    //       }
-    //     }
-        
-    //     const cartItem = {
-    //       furnitureId: id,
-    //       quantity: 1,
-    //       textureUrl: currentTextureUrl,
-    //       dateAdded: new Date().toISOString(),
-    //       name: name,
-    //       price: price
-    //     };
-        
-    //     const existingItemIndex = cartItems.findIndex(item => 
-    //       item.furnitureId === id && item.textureUrl === currentTextureUrl
-    //     );
-        
-    //     if (existingItemIndex >= 0) {
-    //       cartItems[existingItemIndex].quantity += 1;
-    //     } else {
-    //       cartItems.push(cartItem);
-    //     }
-        
-    //     localStorage.setItem('cart', JSON.stringify(cartItems));
-    //   } catch (localStorageError) {
-    //     console.warn("Could not update localStorage cart:", localStorageError);
-    //     // Continue even if localStorage fails
-    //   }
       
       setPopup({ 
         open: true, 
@@ -306,49 +289,74 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
     }
   };
 
-  const previewAvailable = !!objBlob
+  const previewAvailable = !!modelBlob
   const showLoading = isLoadingBlob || (!previewAvailable && modelEndpoint)
 
   return (
     <div
       style={{
         background: '#FFFFFF',
-        border: '2px solid #4382FF',
         borderRadius: '8px',
-        boxShadow: 'var(--shadow-sm)',
+        overflow: 'hidden',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+        border: '1px solid var(--border)',
         padding: '1.5rem 1.2rem 1.2rem 1.2rem',
-        margin: '0.5rem',
-        minWidth: 260,
-        maxWidth: 320,
-        flex: '1 1 260px',
+        margin: '0',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'stretch',
-        gap: '1rem'
+        gap: '1rem',
+        height: '100%', // Make sure it takes full height
+        width: '100%', // Take full width of grid cell
+        maxWidth: '340px', // Set maximum width
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
       }}
     >
       <Popup open={popup.open} type={popup.type} message={popup.message} onClose={() => setPopup({ ...popup, open: false })} />
 
-      <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'  }}>
-        <span style={{fontWeight: 600, fontSize: '20px', color: '#1A365D'  }}>{name}</span>
-        <span style={{ color: '#2C5282', fontWeight: 600, fontSize: '18px' }}>${price}</span>
+      <div style={{ 
+        marginBottom: '0.5rem', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center' 
+      }}>
+        <span style={{
+          fontWeight: 600, 
+          fontSize: '18px', 
+          color: '#00474C' // Darker teal from HomePage
+        }}>{name}</span>
+        <span style={{ 
+          color: '#006A71', // Teal from HomePage
+          fontWeight: 600, 
+          fontSize: '16px' 
+        }}>${price}</span>
       </div>
-      <div style={{  color: '#3182CE', fontSize: '14px', marginBottom: '0.2rem', fontWeight: 400 }}>{category}</div>
+      
+      <div style={{  
+        color: '#66B2B8', // Lighter teal from HomePage
+        fontSize: '14px', 
+        marginBottom: '0.2rem', 
+        fontWeight: 500 
+      }}>{category}</div>
+      
+      {/* Preview container with gold accent at the bottom */}
       <div
         style={{
           width: '100%',
           height: 140,
-          background: '#DBEAFE',
+          background: '#F7FAFC', // Light background from HomePage
           borderRadius: 8,
           marginBottom: 8,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
+          border: '1px solid #E2E8F0',
+          borderBottom: '2px solid #ECC94B', // Added gold accent to preview area
         }}
       >
         {showLoading ? (
-          <div style={{  color: '#4A5568', fontSize: 13, textAlign: 'center'}}>
+          <div style={{ color: '#4A5568', fontSize: 13, textAlign: 'center'}}>
             <Loading size={30} />
             <div style={{ marginTop: '5px', opacity: 0.8 }}>Loading Preview...</div>
           </div>
@@ -358,7 +366,6 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
               width: '100%',
               height: '100%',
               borderRadius: 8,
-              border: '1px solid #4382FF'
             }}
             gl={{ antialias: true, alpha: false, preserveDrawingBuffer: false }}
             dpr={[1, 1.5]}
@@ -366,7 +373,7 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
             shadows
             camera={{ fov: 45, near: 0.1, far: 50 }}
           >
-            <color attach="background" aargs={['#DBEAFE']} />
+            <color attach="background" args={['#F7FAFC']} />
             <ambientLight intensity={0.6} />
             <directionalLight
               position={[3, 5, 4]}
@@ -380,7 +387,7 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
               <Environment preset="city" />
               <RotatingBoundsContent>
                 <ModelPreview
-                  objFile={objBlob}
+                  modelFile={modelBlob}
                   textureUrl={currentTextureUrl}
                   dimensions={{ width, height, length }}
                 />
@@ -393,77 +400,157 @@ export default function CustomerDesignerFurnitureCard({ furniture }) {
           </div>
         )}
       </div>
+      
+      {/* Texture selection buttons with gold accent */}
       {textureUrls.length > 1 && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 4, justifyContent: 'flex-start' }}>
+        <div style={{ 
+          display: 'flex', 
+          gap: 8, 
+          marginBottom: 4, 
+          justifyContent: 'flex-start',
+          padding: '6px 10px',
+          borderRadius: '4px',
+          border: '1px solid #E2E8F0',
+          borderLeft: '2px solid #ECC94B' // Added gold accent to texture selection
+        }}>
           {textureUrls.map((url, idx) => (
             <button
               key={idx}
               onClick={() => setSelectedTextureIndex(idx)}
               style={{
-                border: idx === selectedTextureIndex ? '2px solid #1A365D' : '1px solid #D1D5DB',
+                border: idx === selectedTextureIndex ? `2px solid #006A71` : '1px solid #E2E8F0',
                 borderRadius: '4px',
                 padding: 0,
-                background: 'var(--surface-lighter)',
+                background: '#FFFFFF',
                 width: 24,
                 height: 24,
                 cursor: 'pointer',
                 outline: 'none',
-                boxShadow: idx === selectedTextureIndex ? '0 0 0 2px var(--primary-dark)' : undefined,
+                boxShadow: idx === selectedTextureIndex ? '0 0 0 2px #66B2B8' : undefined,
                 transition: 'border-color 0.2s, box-shadow 0.2s'
               }}
               title={`Texture ${idx + 1}`}
               type="button"
             >
-              <img src={url} alt={`Texture ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }} />
+              <img src={url} alt={`Texture ${idx + 1}`} style={{ 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'cover', 
+                borderRadius: 4 
+              }} />
             </button>
           ))}
         </div>
       )}
+      
+      {/* Product details */}
       <div style={{ fontSize: '12px', marginBottom: '8px', display: 'grid', gridTemplateColumns: '40% 60%' }}>
-        <span style={{ fontWeight: 600, color: '#1A365D', textAlign: 'left' }}>Dimensions:</span>
+        <span style={{ fontWeight: 600, color: '#00474C', textAlign: 'left' }}>Dimensions:</span>
         <span style={{ color: '#4A5568', textAlign: 'left' }}>{height}m (H) × {width}m (W) × {length}m (L)</span>
       </div>
       <div style={{ fontSize: '12px', marginBottom: '8px', display: 'grid', gridTemplateColumns: '40% 60%' }}>
-        <span style={{ fontWeight: 600, color: '#1A365D', textAlign: 'left' }}>Quantity:</span>
+        <span style={{ fontWeight: 600, color: '#00474C', textAlign: 'left' }}>Quantity:</span>
         <span style={{ color: '#4A5568', textAlign: 'left' }}>{quantity}</span>
       </div>
       <div style={{ fontSize: '12px', marginBottom: '8px', display: 'grid', gridTemplateColumns: '40% 60%' }}>
-        <span style={{ fontWeight: 600, color: '#1A365D', textAlign: 'left' }}>Wall Mountable:</span>
+        <span style={{ fontWeight: 600, color: '#00474C', textAlign: 'left' }}>Wall Mountable:</span>
         <span style={{ color: '#4A5568', textAlign: 'left' }}>{wallMountable ? 'Yes' : 'No'}</span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
+      
+      {/* Action buttons with icon styling */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'flex-end', 
+        marginTop: 'auto', // This pushes the buttons to the bottom
+        paddingTop: '1rem',
+        gap: '8px'
+      }}>
+        {/* Edit Button - Only for designers */}
         {userRole === 'designer' && (
           <button
+            className="icon-button"
             onClick={handleEdit}
-            style={{
-              minWidth: '80px', 
-              padding: '0.5rem 1rem', 
-              fontSize: '0.9rem',
-              background: '#3B82F6',
-              color: '#FFFFFF',
+            style={{ 
+              background: '#66B2B8', // Lighter teal from HomePage
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer' 
+              cursor: 'pointer',
+              padding: '6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              transition: 'background-color 0.2s'
             }}
+            title="Edit Furniture"
+            aria-label={`Edit ${name}`}
+            onMouseOver={(e) => e.currentTarget.style.background = '#006A71'} // Darker teal on hover
+            onMouseOut={(e) => e.currentTarget.style.background = '#66B2B8'} // Back to lighter teal
           >
-            Edit
+            <svg 
+              width="16" 
+              height="16" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="white"
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
           </button>
         )}
+        
+        {/* Add to Cart Button */}
         <button
           onClick={handleAddToCart}
-          style={{
-            minWidth: userRole === 'designer' ? '80px' : '100%', 
-            padding: '0.5rem 1rem', 
-            fontSize: '0.9rem', 
-            background: '#4F46E5',
-            color: '#FFFFFF',
+          disabled={isAddingToCart}
+          style={{ 
+            background: '#006A71', // Teal from HomePage
             border: 'none',
             borderRadius: '4px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            padding: '6px 12px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontWeight: 500,
+            fontSize: '14px',
+            transition: 'background-color 0.2s',
+            minWidth: userRole === 'designer' ? 'auto' : '100%',
+            flex: userRole === 'designer' ? '0 1 auto' : '1'
           }}
-          disabled={isAddingToCart}
+          title="Add to Cart"
+          aria-label={`Add ${name} to cart`}
+          onMouseOver={(e) => !isAddingToCart && (e.currentTarget.style.background = '#00474C')} // Darker teal on hover
+          onMouseOut={(e) => !isAddingToCart && (e.currentTarget.style.background = '#006A71')} // Back to original teal
         >
-          {isAddingToCart ? <Loading size={18} /> : 'Add to Cart'}
+          {isAddingToCart ? (
+            <Loading size={16} color="white" />
+          ) : (
+            <>
+              <svg 
+                width="16" 
+                height="16" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="white" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                style={{ marginRight: '6px' }}
+              >
+                <circle cx="9" cy="21" r="1"></circle>
+                <circle cx="20" cy="21" r="1"></circle>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+              </svg>
+              Add to Cart
+            </>
+          )}
         </button>
       </div>
     </div>

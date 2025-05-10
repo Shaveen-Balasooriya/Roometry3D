@@ -16,18 +16,20 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 /* Welcome section styling */
 .welcome-section {
   text-align: center;
   margin-bottom: 2rem;
-  padding: 2rem;
+  padding: 1.5rem;
   background-color: #E6F2F2; /* Light teal background - better contrast with text */
   border-radius: 8px;
   border-left: 4px solid #006A71; /* Primary teal color */
   position: relative;
   overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .welcome-section::after {
@@ -44,8 +46,7 @@ body {
 
 .welcome-section h2 {
   color: #00474C; /* Darker teal for heading - better contrast */
-  margin-top: 0;
-  margin-bottom: 1rem;
+  margin: 0;
   font-size: 1.8rem;
   position: relative;
   z-index: 1;
@@ -61,27 +62,25 @@ body {
 
 /* Section titles */
 .section-title {
-  color: #2D3748; /* Neutral-800 */
-  margin-bottom: 1.5rem;
   text-align: center;
-  font-size: 1.3rem;
-  border-bottom: 2px solid #66B2B8; /* Lighter teal for border */
-  padding-bottom: 0.5rem;
-  width: 80%;
-  margin-left: auto;
-  margin-right: auto;
+  margin-bottom: 1.5rem;
+  color: var(--text-dark); /* Maintaining your color scheme */
+  font-size: 1.75rem;
+  font-weight: 700;
   position: relative;
+  padding-bottom: 0.75rem;
 }
 
 .section-title::after {
   content: '';
   position: absolute;
-  bottom: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60px;
-  height: 2px;
-  background-color: #ECC94B; /* Secondary-500 - gold accent */
+  bottom: 0;
+  left: 50%; /* Center the underline */
+  transform: translateX(-50%); /* Ensure perfect centering */
+  width: 80px; /* Fixed width for the underline */
+  height: 3px;
+  background-color: #ECC94B; /* Your gold accent color */
+  border-radius: 2px;
 }
 
 /* Error message styling */
@@ -93,12 +92,13 @@ body {
   margin-bottom: 1.5rem;
   text-align: center;
   font-weight: 500;
+  width: 80%;
+  margin: 0 auto 1.5rem auto;
 }
 
 /* Metrics container styling - horizontal alignment */
 .metrics-container {
   display: flex;
-  flex-direction: row;
   flex-wrap: wrap;
   gap: 1.5rem;
   margin-bottom: 2.5rem;
@@ -110,8 +110,10 @@ body {
   flex: 1;
   min-width: 200px;
   max-width: 300px;
-  display: flex;
-  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: white;
+  padding: 1rem;
 }
 
 /* Section separator */
@@ -138,7 +140,6 @@ body {
 /* Quick Navigation Styling - horizontal alignment */
 .quick-nav-links {
   display: flex;
-  flex-direction: row;
   flex-wrap: wrap;
   gap: 1rem;
   margin-top: 1rem;
@@ -182,8 +183,8 @@ body {
 
 /* Icon placeholder styling */
 .icon-placeholder {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   background-color: #006A71; /* New teal primary color */
   color: white;
   border-radius: 50%;
@@ -508,47 +509,56 @@ body {
 }
 
 /* Responsive adjustments */
+@media (max-width: 1200px) {
+  .home-content {
+    padding: 1.5rem;
+  }
+}
+
 @media (max-width: 768px) {
   .home-content {
     padding: 1rem;
   }
   
+  .section-title {
+    width: 100%;
+    font-size: 1.2rem;
+  }
+  
+  .metrics-container {
+    gap: 1rem;
+  }
+  
   .metrics-container > div {
-    min-width: 160px;
+    min-width: 150px;
+    padding: 0.75rem;
+  }
+  
+  .quick-nav-links {
+    gap: 0.75rem;
   }
   
   .quick-nav-link {
     min-width: 140px;
-  }
-
-  .hero-section {
-    flex-direction: column;
-    padding: 1.5rem;
-  }
-  
-  .hero-content {
-    text-align: center;
-    margin-bottom: 1.5rem;
-  }
-  
-  .hero-content h1 {
-    font-size: 1.8rem;
-  }
-  
-  .hero-subtitle {
-    font-size: 1rem;
-    max-width: none;
-  }
-  
-  .hero-graphic {
-    flex: 0 0 auto;
+    padding: 0.75rem;
   }
 }
 
 @media (max-width: 480px) {
-  .feature-cards,
-  .recent-projects-grid,
-  .tips-container {
-    grid-template-columns: 1fr;
+  .welcome-section h2 {
+    font-size: 1.5rem;
+  }
+  
+  .metrics-container > div {
+    min-width: 100%;
+  }
+  
+  .quick-nav-link {
+    min-width: 100%;
+    max-width: 100%;
+  }
+  
+  .section-separator {
+    width: 100%;
   }
 }

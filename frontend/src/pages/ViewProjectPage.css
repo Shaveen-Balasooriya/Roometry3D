@@ -1,4 +1,4 @@
-/* ViewProjectPage.css - Enhanced with modern styling and animations */
+/* ViewProjectPage.css - Theme updated to match project style */
 .project-view-page {
   background-color: var(--background);
   min-height: 100vh;
@@ -32,17 +32,17 @@
   align-items: center;
   font-size: 0.9rem;
   margin-bottom: 1rem;
-  color: var(--text-light);
+  color: #48A6A7; /* Using primary-light from App.css */
 }
 
 .breadcrumbs a {
-  color: var(--primary);
+  color: #006A71; /* Using accent from App.css */
   text-decoration: none;
   transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .breadcrumbs a:hover {
-  color: var(--primary-dark);
+  color: #00474C; /* Darker teal on hover */
   text-decoration: underline;
 }
 
@@ -65,9 +65,9 @@
 }
 
 .project-title-wrapper h1 {
-  font-size: 2.2rem;
+  font-size: 2.1rem; /* Matching size in MyProjectsPage */
   margin: 0 0 0.5rem 0;
-  color: var(--text-dark);
+  color: #006A71; /* Using accent color */
   font-weight: 700;
   line-height: 1.2;
 }
@@ -75,28 +75,28 @@
 /* Action buttons */
 .project-view-actions {
   display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .action-btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.7rem 1rem;
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: 0.95rem;
+  padding: 0.7rem 1.2rem; /* Matching padding from App.css buttons */
+  border-radius: 4px; /* Consistent with project buttons */
+  font-weight: 600;
+  font-size: 0.97rem;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: all 0.3s ease;
   text-decoration: none;
   border: none;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border-left: 3px solid #ECC94B; /* Gold accent */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .action-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .action-btn i {
@@ -104,113 +104,173 @@
 }
 
 .btn-edit {
-  background-color: var(--primary);
+  background-color: #006A71; /* Primary action color */
   color: white;
-  border: 1px solid var(--primary);
 }
 
 .btn-edit:hover {
-  background-color: var(--primary-dark);
-  border-color: var(--primary-dark);
+  background-color: #00474C; /* Darker teal on hover */
 }
 
 .btn-share {
-  background-color: #4db6ac;
+  background-color: #006A71;
   color: white;
-  border: 1px solid #4db6ac;
 }
 
 .btn-share:hover {
-  background-color: #26a69a;
-  border-color: #26a69a;
+  background-color: #00474C;
 }
 
 .btn-danger {
-  background-color: #f44336;
+  background-color: #9B2C2C; /* Using error color from project */
   color: white;
-  border: 1px solid #f44336;
+  border-left: 3px solid #FC8181; /* Lighter error color for accent */
 }
 
 .btn-danger:hover {
-  background-color: #d32f2f;
-  border-color: #d32f2f;
+  background-color: #822727;
 }
 
 .btn-back {
-  background-color: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background-color: #FFFFFF;
+  color: #006A71;
+  border: 1px solid #66B2B8;
 }
 
 .btn-back:hover {
-  background-color: var(--background-dark);
+  background-color: #F7FAFC;
+  color: #00474C;
+}
+
+/* Icon button styles matching UsersDashboard */
+.icon-button {
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.edit-button {
+  background: #66B2B8;
+}
+
+.edit-button:hover {
+  background: #006A71;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.share-button {
+  background: #48A6A7; /* Slightly different teal for variety */
+}
+
+.share-button:hover {
+  background: #006A71;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.delete-button {
+  background: #9B2C2C; /* Error red */
+}
+
+.delete-button:hover {
+  background: #822727;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.back-button {
+  background: #4A5568; /* Neutral dark */
+}
+
+.back-button:hover {
+  background: #2D3748;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Status badge */
 .status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.4rem 1rem;
+  padding: 0.35rem 0.85rem;
   border-radius: 50px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.3px;
-  position: relative;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  letter-spacing: 0.2px;
 }
 
 .status-draft {
-  background: linear-gradient(135deg, #fff8e1 0%, #ffe0b2 100%);
-  color: #ff8f00;
+  background-color: #E6F2F2;
+  color: #00474C;
+  border: 1px solid rgba(0, 106, 113, 0.2);
 }
 
 .status-progress {
-  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-  color: #1976d2;
+  background-color: rgba(255, 152, 0, 0.1);
+  color: #f90;
+  border: 1px solid rgba(255, 152, 0, 0.2);
 }
 
 .status-completed {
-  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-  color: #2e7d32;
+  background-color: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.2);
 }
 
 /* Tab navigation */
 .project-tabs {
   display: flex;
   gap: 0.5rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #E2E8F0; /* Using border color from project */
   margin-bottom: 2rem;
   overflow-x: auto;
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .project-tabs::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
+  display: none;
 }
 
 .tab-button {
   position: relative;
-  padding: 1rem 1.5rem;
+  padding: 0.8rem 1.2rem;
   background: transparent;
   border: none;
   font-weight: 500;
-  color: var(--text-light);
+  color: #48A6A7; /* Primary light */
   cursor: pointer;
   transition: all 0.3s ease;
   white-space: nowrap;
-  font-size: 1rem;
+  font-size: 0.97rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
+/* Remove focus outline from tab buttons while maintaining accessibility */
+.tab-button:focus {
+  outline: none;
+}
+
+/* Optional: Add a subtle focus style that doesn't use an outline */
+.tab-button:focus-visible {
+  box-shadow: 0 0 0 2px rgba(0, 106, 113, 0.2);
+}
+
 .tab-button:hover {
-  color: var(--primary);
+  color: #006A71;
 }
 
 .tab-button.active {
-  color: var(--primary);
+  color: #006A71;
   font-weight: 600;
 }
 
@@ -221,7 +281,7 @@
   left: 50%;
   width: 0;
   height: 3px;
-  background-color: var(--primary);
+  background-color: #ECC94B; /* Using gold accent */
   transition: all 0.3s ease;
   transform: translateX(-50%);
   border-radius: 3px 3px 0 0;
@@ -229,10 +289,6 @@
 
 .tab-button.active::after {
   width: 80%;
-}
-
-.tab-button i {
-  font-size: 1.1rem;
 }
 
 /* Tab content */
@@ -257,92 +313,161 @@
   }
 }
 
+/* Enhanced 3D Model Viewer Styling */
 .project-3d-model-wrapper {
   position: relative;
-  border-radius: 12px;
+  border-radius: 12px; /* Increased border radius for modern look */
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-  background: linear-gradient(145deg, #f0f0f0, #ffffff);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Enhanced shadow for depth */
+  background: #FFFFFF;
   margin-bottom: 2rem;
+  border: 1px solid #E2E8F0;
+  border-bottom: 3px solid #ECC94B; /* Thicker gold accent on bottom */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.project-3d-model-wrapper:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 106, 113, 0.15);
 }
 
 .project-3d-model {
-  height: 500px;
+  height: 550px; /* Increased height for better visibility */
   position: relative;
-  background: linear-gradient(to bottom, #e6f7ff, #ffffff);
-  border-radius: 12px;
+  background: linear-gradient(to bottom, #F7FAFC, #EDF2F7); /* Subtle gradient background */
 }
 
+/* Improved model controls */
 .model-controls {
   position: absolute;
   top: 20px;
   right: 20px;
   z-index: 10;
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  padding: 8px;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  backdrop-filter: blur(4px); /* Frosted glass effect */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
 .model-control-button {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%; /* Circular buttons */
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: white;
   border: none;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
+  color: #006A71;
 }
 
 .model-control-button:hover {
-  background-color: white;
-  transform: scale(1.1);
-  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
+  background-color: #F0FFFF; /* Very light cyan */
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .model-control-button.active {
-  background-color: var(--primary);
+  background-color: #006A71;
   color: white;
 }
 
+/* Enhanced download section */
 .model-actions {
   display: flex;
   justify-content: center;
-  margin-top: 1.5rem;
+  padding: 20px;
+  background-color: #F8FAFC;
+  border-top: 1px solid #EDF2F7;
 }
 
 .download-button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.8rem 1.5rem;
-  background-color: var(--primary);
+  justify-content: center;
+  background-color: #008B8B;
   color: white;
-  border-radius: 8px;
-  font-weight: 500;
-  text-decoration: none;
-  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  padding: 0.8rem 2rem; /* Wider button */
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none !important; /* Ensure no underline on hover */
+  transition: all 0.3s ease;
   border: none;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 10px rgba(0, 139, 139, 0.25); /* Shadow with button color */
+  position: relative;
+  overflow: hidden;
+}
+
+.download-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    rgba(255, 255, 255, 0) 0%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    rgba(255, 255, 255, 0) 100%
+  );
+  transition: all 0.6s ease;
+  z-index: 1;
 }
 
 .download-button:hover {
+  background-color: #006666;
+  box-shadow: 0 6px 14px rgba(0, 102, 102, 0.35);
   transform: translateY(-2px);
-  background-color: var(--primary-dark);
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
 }
 
+.download-button:hover::before {
+  left: 100%; /* Animated shine effect on hover */
+}
+
+.download-button i {
+  margin-right: 10px;
+  font-size: 1.1rem;
+  position: relative;
+  z-index: 2;
+}
+
+.download-button span {
+  position: relative;
+  z-index: 2;
+}
+
+/* Enhanced model placeholder */
 .model-placeholder {
-  height: 400px;
+  height: 450px;
   border-radius: 12px;
-  background: linear-gradient(145deg, #f0f0f0, #ffffff);
+  background: linear-gradient(145deg, #F7FAFC, #EDF2F7);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.05);
   text-align: center;
+  border: 1px solid #E2E8F0;
+  overflow: hidden;
+  position: relative;
+}
+
+.model-placeholder::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #ECC94B, #F6AD55);
 }
 
 .placeholder-content {
@@ -352,23 +477,42 @@
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .model-icon {
   font-size: 5rem;
   animation: float 6s ease-in-out infinite;
+  color: #006A71;
+  text-shadow: 0 4px 12px rgba(0, 106, 113, 0.15);
 }
 
 @keyframes float {
-  0% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-  100% {
-    transform: translateY(0);
-  }
+  0% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-10px) rotate(2deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(-5px) rotate(-2deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+/* Add loading animation for model */
+@keyframes rotate-model {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
+}
+
+.model-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.5rem;
+  color: #006A71;
+  animation: rotate-model 3s linear infinite;
 }
 
 /* Details tab styling */
@@ -381,112 +525,45 @@
 
 .project-card {
   background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  border-radius: 8px; /* Consistent rounding */
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
-  border: 1px solid var(--border);
+  border: 1px solid #E2E8F0;
+  border-left: 3px solid #ECC94B; /* Gold accent on left side */
 }
 
 .project-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+  transform: translateY(-4px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 .project-card h3 {
   margin-top: 0;
-  margin-bottom: 1.5rem;
-  color: var(--primary-dark);
-  font-size: 1.4rem;
+  margin-bottom: 1.25rem;
+  color: #00474C; /* Darkest teal */
+  font-size: 1.2rem;
   font-weight: 600;
   position: relative;
   padding-bottom: 0.75rem;
+  border-bottom: 2px solid #66B2B8; /* Lighter teal border */
 }
 
 .project-card h3::after {
   content: '';
   position: absolute;
-  bottom: 0;
+  bottom: -2px;
   left: 0;
   width: 60px;
-  height: 3px;
-  background-color: var(--primary);
-  border-radius: 3px;
+  height: 2px;
+  background-color: #ECC94B; /* Gold accent */
+  border-radius: 2px;
 }
 
 .project-description {
-  font-size: 1rem;
+  font-size: 0.95rem;
   line-height: 1.6;
-  color: var(--text);
-}
-
-/* Timeline styling */
-.timeline {
-  position: relative;
-  padding-left: 3rem;
-}
-
-.timeline::before {
-  content: '';
-  position: absolute;
-  left: 15px;
-  top: 0;
-  height: 100%;
-  width: 2px;
-  background: linear-gradient(to bottom, 
-    var(--primary-light) 0%,
-    var(--accent-light) 100%);
-}
-
-.timeline-item {
-  position: relative;
-  padding-bottom: 2rem;
-}
-
-.timeline-item:last-child {
-  padding-bottom: 0;
-}
-
-.timeline-icon {
-  position: absolute;
-  left: -3rem;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-  z-index: 2;
-}
-
-.timeline-content {
-  padding: 1rem 1.5rem;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s ease;
-}
-
-.timeline-item:hover .timeline-content {
-  transform: translateX(5px);
-  background: white;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-}
-
-.timeline-content h4 {
-  margin: 0 0 0.5rem 0;
-  color: var(--primary-dark);
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.timeline-content p {
-  margin: 0;
-  color: var(--text-light);
-  font-size: 0.9rem;
+  color: #4A5568; /* Neutral text color from project */
 }
 
 /* Team tab styling */
@@ -495,66 +572,81 @@
 }
 
 .team-members {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
 }
 
 .team-card {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
+  background-color: #FFFFFF;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   position: relative;
   overflow: hidden;
+  flex: 1;
+  min-width: 250px;
+}
+
+/* Add gold accent bar on left side */
+.team-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background-color: #ECC94B; /* Gold accent color */
+}
+
+/* Add decorative circle in corner */
+.team-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 80px;
+  height: 80px;
+  background-color: #FEFCBF; /* Light gold */
+  border-radius: 50%;
+  transform: translate(40%, 40%);
+  opacity: 0.2;
+  z-index: 0;
 }
 
 .team-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+  transform: translateY(-4px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
-.client-card {
-  border-top: 4px solid #42a5f5;
-}
-
-.designer-card {
-  border-top: 4px solid #ec407a;
-}
-
+/* Hide the Team card headers with Client/Designer labels */
 .team-card h3 {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 0;
-  margin-bottom: 1.75rem;
-  color: var(--text-dark);
-  font-size: 1.3rem;
+  display: none; /* This completely hides the heading with the labels */
 }
 
-.team-card h3 i {
-  color: var(--primary);
-}
-
+/* Adjust the top spacing of user-profile since we removed the header */
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1rem;
+  z-index: 1;
+  position: relative;
+  margin-top: 0.5rem; /* Add some top margin to replace the spacing from the header */
 }
 
 .user-avatar {
-  width: 60px;
-  height: 60px;
+  background-color: #E6F2F2; /* Light teal */
+  color: #00474C; /* Darker teal */
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  font-weight: 600;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  font-weight: 500;
+  border: 2px solid #ECC94B; /* Gold border */
 }
 
 .user-details {
@@ -563,156 +655,61 @@
 
 .user-details h4 {
   margin: 0 0 0.25rem 0;
-  color: var(--text-dark);
-  font-size: 1.1rem;
+  font-size: 1rem;
+  color: #2D3748; /* Darker text */
 }
 
 .user-details p {
-  margin: 0 0 0.75rem 0;
-  color: var(--text-light);
+  margin: 0 0 0.5rem 0;
+  color: #718096; /* Medium gray */
   font-size: 0.9rem;
 }
 
+/* Enhance the role labels at the bottom to be more prominent */
 .user-role {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 50px;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  padding: 0.3rem 0.75rem;
+  border-radius: 50px;
+  margin-top: 0.5rem;
 }
 
 .user-role.client {
-  background-color: rgba(66, 165, 245, 0.15);
-  color: #1976d2;
+  background-color: #E6F2F2; /* Light teal */
+  color: #00474C; /* Darker teal */
+  border: 1px solid rgba(0, 106, 113, 0.2);
 }
 
 .user-role.designer {
-  background-color: rgba(236, 64, 122, 0.15);
-  color: #c2185b;
+  background-color: rgba(255, 152, 0, 0.1); /* Light orange */
+  color: #f90; /* Orange */
+  border: 1px solid rgba(255, 152, 0, 0.2);
 }
 
 .placeholder-text {
-  text-align: center;
-  padding: 2rem;
-  color: var(--text-light);
+  color: #A0AEC0; /* Light gray */
   font-style: italic;
-}
-
-/* Notification */
-.notification {
-  position: fixed;
-  top: 80px;
-  right: 20px;
-  padding: 1rem 1.5rem;
-  border-radius: 8px;
-  background-color: white;
-  color: var(--text-dark);
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  max-width: 350px;
-  animation: notification-slide-in 0.3s ease-out forwards;
-}
-
-@keyframes notification-slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.notification p {
-  margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.4;
-}
-
-.notification-success {
-  border-left: 4px solid #4caf50;
-}
-
-.notification-success p::before {
-  content: '✅ ';
-}
-
-.notification-error {
-  border-left: 4px solid #f44336;
-}
-
-.notification-error p::before {
-  content: '❌ ';
+  text-align: center;
+  padding: 1rem 0;
 }
 
 /* Responsive styles */
-@media (max-width: 992px) {
-  .project-view-container {
-    padding: 1.25rem;
-  }
-
-  .project-header-content {
-    flex-direction: column;
-  }
-
-  .project-3d-model {
-    height: 400px;
-  }
-
-  .timeline::before {
-    left: 12px;
-  }
-  
-  .timeline-icon {
-    width: 28px;
-    height: 28px;
-    left: -2.5rem;
-    font-size: 0.8rem;
-  }
-}
-
 @media (max-width: 768px) {
-  .project-view-actions {
+  .page-header-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .action-btn, 
+  .button-primary, 
+  .button-secondary, 
+  .download-button {
     width: 100%;
-    justify-content: flex-start;
-  }
-
-  .action-btn {
-    padding: 0.65rem 0.9rem;
-    font-size: 0.85rem;
   }
   
-  .action-btn span {
-    display: none;
-  }
-  
-  .action-btn i {
-    margin: 0;
-    font-size: 1.1rem;
-  }
-
-  .project-title-wrapper h1 {
-    font-size: 1.8rem;
-  }
-
   .project-card {
-    padding: 1.5rem;
-  }
-
-  .project-3d-model {
-    height: 350px;
-  }
-
-  .team-members {
-    grid-template-columns: 1fr;
-  }
-
-  .tab-button {
-    padding: 0.8rem 1.25rem;
-    font-size: 0.9rem;
+    padding: 1.25rem;
   }
 }
 
@@ -720,56 +717,17 @@
   .project-view-container {
     padding: 0.75rem;
   }
-
+  
   .project-title-wrapper h1 {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
   }
-
-  .status-badge {
-    font-size: 0.75rem;
-    padding: 0.3rem 0.8rem;
+  
+  .tab-button {
+    padding: 0.65rem 0.9rem;
+    font-size: 0.85rem;
   }
-
+  
   .project-3d-model {
-    height: 280px;
+    height: 300px;
   }
-
-  .project-card h3 {
-    font-size: 1.2rem;
-  }
-
-  .breadcrumbs {
-    font-size: 0.8rem;
-  }
-
-  .timeline {
-    padding-left: 2rem;
-  }
-
-  .timeline-icon {
-    left: -2rem;
-  }
-
-  .timeline-content {
-    padding: 0.75rem 1rem;
-  }
-
-  .user-avatar {
-    width: 45px;
-    height: 45px;
-    font-size: 1.2rem;
-  }
-
-  .notification {
-    left: 20px;
-    right: 20px;
-    max-width: none;
-  }
-}
-
-/* Fullscreen model mode */
-.fullscreen .project-3d-model {
-  height: 100vh;
-  width: 100vw;
-  border-radius: 0;
 }

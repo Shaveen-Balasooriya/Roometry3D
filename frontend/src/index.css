@@ -30,9 +30,8 @@ a {
   transition: color 0.2s ease;
 }
 
-a:hover {
-  color: #00474C;
-}
+
+
 
 body {
   margin: 0;

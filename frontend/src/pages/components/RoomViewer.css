@@ -1,39 +1,76 @@
+/* RoomViewer.css - Updated to match project theme */
 .room-viewer-container {
   width: 100%;
-  height: 100%; /* Fill the .room-viewer-section */
-  min-height: 400px; /* Ensure a minimum height */
+  height: 100%;
+  min-height: 500px; /* Increased from 400px to provide more space */
   position: relative;
-  background-color: #e9ecef; /* Light grey background for the viewer area */
-  border-radius: var(--border-radius);
-  overflow: hidden; /* Ensures canvas corners are rounded if container has border-radius */
+  background-color: #f7fafc;
+  border-radius: 8px;
+  overflow: visible; /* Changed from hidden to prevent cutting off model */
+  border: 1px solid #E2E8F0;
+  border-bottom: 2px solid #66B2B8; /* Consistent with other components */
+  margin-bottom: 1rem;
+}
+
+.room-viewer-container::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 60px;
+  height: 2px;
+  background-color: #ECC94B;
+  z-index: 1;
 }
 
 .room-viewer-container canvas {
-  display: block; /* Removes extra space below canvas */
+  display: block;
   width: 100%;
   height: 100%;
-  cursor: pointer; /* Indicates the model is interactive */
+  cursor: pointer;
+  /* Ensure the model is centered */
+  object-fit: contain;
 }
 
 .room-viewer-container canvas:hover {
-  cursor: pointer; /* Hand cursor when hovering to indicate clickable elements */
+  cursor: pointer;
+}
+
+/* Add to ensure proper camera positioning */
+.scene-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
 }
 
 .viewer-placeholder,
 .viewer-error {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
   padding: 2rem;
   text-align: center;
   font-size: 1rem;
-  color: var(--secondary-color);
+  color: #718096;
+  background-color: #F7FAFC;
 }
 
 .viewer-error p {
-  color: #dc3545; /* Bootstrap danger color */
+  color: #9B2C2C;
   font-weight: 500;
+  margin-top: 1rem;
+}
+
+.viewer-placeholder-icon,
+.viewer-error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: #CBD5E0;
 }
 
 /* Loading Spinner Styles */
@@ -42,10 +79,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-color);
-  background-color: rgba(255, 255, 255, 0.8);
+  color: #4A5568;
+  background-color: rgba(255, 255, 255, 0.9);
   padding: 20px;
   border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-left: 3px solid #ECC94B;
 }
 
 .loading-spinner {
@@ -53,7 +92,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border-left-color: var(--primary-color);
+  border-left-color: #006A71;
   animation: spin 1s ease infinite;
   margin-bottom: 10px;
 }
@@ -71,16 +110,18 @@
   margin: 0;
   font-size: 0.9rem;
   font-weight: 500;
+  color: #00474C;
 }
 
 .loading-error {
   background-color: rgba(255, 255, 255, 0.9);
   padding: 20px;
   border-radius: 8px;
-  color: #dc3545;
+  color: #9B2C2C;
   font-size: 0.9rem;
   max-width: 80%;
   text-align: center;
+  border-left: 3px solid #9B2C2C;
 }
 
 /* Viewer controls */
@@ -96,33 +137,36 @@
 }
 
 .control-button {
-  background-color: rgba(41, 98, 255, 0.85); /* Match the primary blue from our design */
+  background-color: #006A71;
   color: white;
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 4px;
   padding: 8px 16px;
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  border-left: 3px solid #ECC94B; /* Match the button styling from ViewProjectPage */
+  font-weight: 600;
 }
 
 .control-button:hover {
-  background-color: rgba(0, 60, 200, 0.9);
-  transform: translateY(-1px);
+  background-color: #00474C;
+  transform: translateY(-2px); /* Match hover animation from other buttons */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .control-button:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(41, 98, 255, 0.5);
+  box-shadow: 0 0 0 2px rgba(0, 106, 113, 0.2);
 }
 
 .control-button:active {
-  transform: translateY(1px);
+  transform: translateY(0);
 }
 
 /* Texture preview styles */
@@ -131,52 +175,51 @@
   bottom: 20px;
   left: 20px;
   z-index: 10;
-  background-color: rgba(255, 255, 255, 0.92);
-  border-radius: var(--border-radius);
-  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  padding: 12px 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(0, 0, 0, 0.08);
   animation: fadeIn 0.3s ease-out;
+  border-left: 3px solid #ECC94B;
 }
 
 .texture-preview {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  max-width: 150px;
+  gap: 10px;
 }
 
 .texture-preview img {
-  max-width: 100%;
-  max-height: 100px;
-  object-fit: contain;
+  max-width: 60px;
+  max-height: 60px;
+  object-fit: cover;
   border-radius: 4px;
-  margin-bottom: 6px;
+  border: 1px solid #E2E8F0;
 }
 
 .texture-preview p {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   margin: 0;
-  word-break: break-all;
-  text-align: center;
-  color: var(--text-color);
+  color: #4A5568;
+  font-weight: 500;
 }
 
 /* Selection hint for users */
 .selection-hint {
-  background-color: rgba(41, 98, 255, 0.9);
+  background-color: rgba(0, 106, 113, 0.9);
   color: white;
   padding: 8px 16px;
   border-radius: 20px;
   font-size: 0.9rem;
   font-weight: 500;
-  pointer-events: none; /* Don't block clicks on the model */
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   animation: pulse 2s infinite;
   white-space: nowrap;
   z-index: 100;
   opacity: 0.9;
-  transform: translateY(-80px); /* Position above the model */
+  transform: translateY(-80px);
+  border-left: 3px solid #ECC94B;
 }
 
 @keyframes pulse {
@@ -201,25 +244,26 @@
 
 /* Selected component info */
 .selected-component-info {
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 8px 12px;
-  border-radius: var(--border-radius);
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #00474C;
+  padding: 10px 16px;
+  border-radius: 4px;
   font-size: 0.9rem;
   animation: fadeIn 0.3s ease-out;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  border-left: 3px solid #ECC94B;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .selected-component-info span {
-  opacity: 0.9;
+  font-weight: 500;
 }
 
 .selected-component-info strong {
   font-family: monospace;
-  margin-left: 4px;
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(0, 106, 113, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.85rem;
@@ -231,11 +275,12 @@
 
 /* Component tag badge inside selected component info */
 .component-tag-badge {
-  background-color: rgba(255, 255, 255, 0.25);
+  background-color: #ECC94B;
+  color: #744210;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.8rem;
-  font-weight: 500;
+  font-weight: 600;
   margin-left: 0.5rem;
 }
 
@@ -244,68 +289,80 @@
   position: absolute;
   bottom: 20px;
   left: 20px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: var(--border-radius);
-  padding: 10px 15px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  padding: 12px 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 10;
   animation: fadeIn 0.5s ease-out;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-left: 3px solid #ECC94B;
 }
 
 .legend-title {
   font-size: 0.85rem;
   font-weight: 600;
-  margin-bottom: 8px;
-  color: #455a64;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  padding-bottom: 4px;
+  margin-bottom: 10px;
+  color: #00474C;
+  border-bottom: 2px solid #66B2B8;
+  padding-bottom: 8px;
+  position: relative;
+}
+
+.legend-title::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background-color: #ECC94B;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 6px 0;
+  margin: 8px 0;
   font-size: 0.8rem;
-  color: #455a64;
+  color: #718096;
 }
 
 .color-swatch {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 3px;
+  border: 1px solid #E2E8F0;
 }
 
 .color-swatch.wall {
-  background-color: #3a87f2; /* Blue color for walls */
+  background-color: #3a87f2;
 }
 
 .color-swatch.floor {
-  background-color: #4caf50; /* Green color for floors */
+  background-color: #4caf50;
 }
 
 /* Component status bar shown below the viewer */
 .component-status-bar {
-  background-color: #f8f9fa;
-  border-top: 1px solid #e0e0e0;
-  padding: 12px;
-  font-size: 0.9rem;
-  color: #666;
+  background-color: #F7FAFC;
+  padding: 12px 16px;
+  border-top: 1px solid #E2E8F0;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
 }
 
 .status-hint {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #718096;
 }
 
 .status-hint.prominent {
-  font-weight: 500;
-  color: #1976d2;
+  font-weight: 600;
+  color: #006A71;
 }
 
 .status-hint.prominent::before {
@@ -322,6 +379,7 @@
   background-color: rgba(0, 0, 0, 0.7);
   color: white;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 100;
@@ -329,46 +387,149 @@
   text-align: center;
 }
 
+.webgl-error-overlay h3 {
+  color: #ECC94B;
+  margin-bottom: 1rem;
+}
+
+.webgl-error-overlay button {
+  background-color: #006A71;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  margin-top: 1rem;
+  cursor: pointer;
+  font-weight: 500;
+  border-left: 3px solid #ECC94B;
+}
+
+.webgl-error-overlay button:hover {
+  background-color: #00474C;
+}
+
+/* Model controls help panel */
+.model-controls-help {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  color: #718096;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-left: 3px solid #ECC94B;
+}
+
+.model-controls-help-title {
+  font-weight: 600;
+  color: #00474C;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #E2E8F0;
+  padding-bottom: 6px;
+}
+
+.control-instruction {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.control-key {
+  background-color: #F7FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #00474C;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .viewer-controls {
-    bottom: 10px;
-    right: 10px;
+    bottom: 15px;
+    right: 15px;
+    gap: 8px;
+  }
+  
+  .control-button {
+    padding: 6px 12px;
+    font-size: 0.8rem;
   }
   
   .texture-preview-container {
-    bottom: 10px;
-    left: 10px;
-    padding: 8px;
+    bottom: 15px;
+    left: 15px;
+    padding: 10px;
   }
   
   .texture-preview img {
-    max-height: 80px;
+    max-width: 50px;
+    max-height: 50px;
   }
   
   .selection-hint {
     font-size: 0.8rem;
     padding: 6px 12px;
-    transform: translateY(-60px);
+    transform: translateY(-70px);
   }
   
   @keyframes pulse {
     0%, 100% {
-      transform: translateY(-60px) scale(1);
+      transform: translateY(-70px) scale(1);
     }
     50% {
-      transform: translateY(-60px) scale(1.05);
+      transform: translateY(-70px) scale(1.05);
     }
   }
   
   .component-tag-legend {
-    bottom: 10px;
-    left: 10px;
-    padding: 8px 12px;
+    bottom: 15px;
+    left: 15px;
+    padding: 10px 14px;
   }
   
   .selected-component-info {
     font-size: 0.8rem;
+    padding: 8px 12px;
+  }
+  
+  .model-controls-help {
+    font-size: 0.75rem;
+    padding: 10px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .control-button {
     padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+  
+  .component-tag-legend,
+  .selected-component-info {
+    max-width: 80%;
+  }
+  
+  .texture-preview img {
+    max-width: 40px;
+    max-height: 40px;
+  }
+  
+  .texture-preview p {
+    font-size: 0.75rem;
+  }
+  
+  .model-controls-help {
+    top: auto;
+    bottom: 70px;
+    right: 15px;
+    left: 15px;
+    width: auto;
   }
 }

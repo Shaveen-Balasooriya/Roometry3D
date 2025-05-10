@@ -1,5 +1,5 @@
 .navbar {
-  background: linear-gradient(to right, var(--accent) 0%, var(--primary-light) 100%);
+  background:  var(--accent) ;
   color: white;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   position: sticky;
