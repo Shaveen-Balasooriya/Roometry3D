@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useRef, useState, useCallback } from 'react';
-import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, useProgress, Html, Stats, PerspectiveCamera, ContactShadows } from '@react-three/drei';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { TextureLoader, RepeatWrapping } from 'three';
@@ -11,8 +11,6 @@ import { db } from '../services/firebase';
 import Loading from '../components/Loading';
 import ErrorBoundary from '../components/ErrorBoundary';
 import TextureApplier from './components/TextureApplier';
-import FurnitureCatalog from './components/FurnitureCatalog';
-import FurnitureObject from './components/FurnitureObject';
 import './WorkEnvironment.css';
 import './components/TextureApplier.css';
 
@@ -155,7 +153,7 @@ const StatsPanel = ({ show }) => {
 };
 
 // Tool panel component
-const ToolPanel = ({ onSave, onToggleShowFurniture, showFurniture }) => {
+const ToolPanel = ({ onSave }) => {
   return (
     <div className="tool-panel">
       <div className="tool-panel-header">
@@ -171,11 +169,7 @@ const ToolPanel = ({ onSave, onToggleShowFurniture, showFurniture }) => {
         <button className="tool-button" title="Scale object">
           <span>Scale</span>
         </button>
-        <button 
-          className={`tool-button ${showFurniture ? 'active' : ''}`} 
-          title="Add furniture"
-          onClick={onToggleShowFurniture}
-        >
+        <button className="tool-button" title="Add furniture">
           <span>Add Item</span>
         </button>
       </div>
@@ -186,7 +180,7 @@ const ToolPanel = ({ onSave, onToggleShowFurniture, showFurniture }) => {
       </div>
     </div>
   );
-}
+};
 
 // Main WorkEnvironment component
 export default function WorkEnvironment() {
@@ -194,10 +188,6 @@ export default function WorkEnvironment() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showStats, setShowStats] = useState(false);
-  const [showFurnitureCatalog, setShowFurnitureCatalog] = useState(false);
-  const [placedFurniture, setPlacedFurniture] = useState([]);
-  const [selectedFurniture, setSelectedFurniture] = useState(null);
-  const [isFurnitureLoading, setIsFurnitureLoading] = useState({});
   const canvasRef = useRef(null);
   const params = useParams();
   const location = useLocation();
@@ -256,31 +246,43 @@ export default function WorkEnvironment() {
             let finalUsableModelUrl = null;
             console.log("Original modelUrl from Firestore:", data.modelUrl);
 
+            // According to backend code, we need to check if there's already a modelUrl in Firebase
+            // If not, we need to try to construct it based on the format used in the upload endpoint
+            
+            // Looking at the backend endpoint, modelUrl would be in files.model
             const modelUrlFromFiles = data.files && data.files.model ? data.files.model : null;
             
             if (modelUrlFromFiles) {
               console.log("Found model URL in data.files.model:", modelUrlFromFiles);
               data.modelUrl = modelUrlFromFiles;
             } else if (!data.modelUrl && roomId) {
+              // According to the backend code, model is uploaded to:
+              // `rooms/${roomId}/model.${modelFileExt}` 
+              // The modelFileExt could be glb, gltf, obj, etc. from the original file
               console.log("No modelUrl found in data, constructing path based on backend storage pattern");
               
+              // We need to try each possible extension
               const modelExtensions = ['glb', 'gltf', 'obj', 'fbx'];
-              data.modelUrl = `rooms/${roomId}/model`;
+              data.modelUrl = `rooms/${roomId}/model`;  // Base path without extension
             }
             
+            // Resolve the modelUrl to a downloadable HTTPS URL
             if (data.modelUrl) {
               if (typeof data.modelUrl === 'string') {
                 if (data.modelUrl.startsWith('http://') || data.modelUrl.startsWith('https://') || data.modelUrl.startsWith('blob:')) {
                   console.log("Using direct URL from data:", data.modelUrl);
-                  finalUsableModelUrl = data.modelUrl;
+                  finalUsableModelUrl = data.modelUrl; // Already a usable URL
                 } else { 
+                  // Handle various storage path formats
                   let storagePathToUse = data.modelUrl;
                   
+                  // If it's a gs:// URI, convert it to a storage path
                   if (data.modelUrl.startsWith('gs://')) {
                     const gsUri = data.modelUrl;
                     console.log("Converting gs:// URI to storage path:", gsUri);
+                    // Extract path from gs://bucket-name/path/to/file format
                     const pathParts = gsUri.split('/');
-                    pathParts.splice(0, 3);
+                    pathParts.splice(0, 3); // Remove gs:// and bucket name
                     storagePathToUse = pathParts.join('/');
                     console.log("Converted storage path:", storagePathToUse);
                   }
@@ -288,6 +290,7 @@ export default function WorkEnvironment() {
                   const storage = getStorage();
                   let modelFound = false;
                   
+                  // First try the exact path provided (may be a direct download URL)
                   try {
                     console.log("Trying exact path:", storagePathToUse);
                     const exactPathRef = ref(storage, storagePathToUse);
@@ -298,6 +301,7 @@ export default function WorkEnvironment() {
                     console.log("Exact path not found, trying with extensions...");
                   }
                   
+                  // Check for the path with extensions, exactly matching the backend upload pattern
                   if (!modelFound) {
                     const modelExtensions = ['glb', 'gltf', 'obj', 'fbx'];
                     for (const ext of modelExtensions) {
@@ -312,10 +316,12 @@ export default function WorkEnvironment() {
                         console.log("Found model with extension:", ext);
                         console.log("Resolved model URL:", finalUsableModelUrl);
                       } catch (extError) {
+                        // Continue to next extension
                       }
                     }
                   }
                   
+                  // If still not found, try path + `/model` + extensions
                   if (!modelFound) {
                     const modelExtensions = ['glb', 'gltf', 'obj', 'fbx'];
                     for (const ext of modelExtensions) {
@@ -330,10 +336,12 @@ export default function WorkEnvironment() {
                         console.log("Found model in subdirectory with extension:", ext);
                         console.log("Resolved model URL:", finalUsableModelUrl);
                       } catch (subdirError) {
+                        // Continue to next extension
                       }
                     }
                   }
                   
+                  // If still not found, try listing the directory
                   if (!modelFound) {
                     try {
                       console.log("Trying to list directory contents:", storagePathToUse);
@@ -344,6 +352,7 @@ export default function WorkEnvironment() {
                         console.log(`Found ${dirContents.items.length} items in directory:`, 
                           dirContents.items.map(i => i.name));
                         
+                        // Look for model.* files first (matching backend upload pattern)
                         const modelFile = dirContents.items.find(item => 
                           item.name.startsWith('model.')
                         );
@@ -354,6 +363,7 @@ export default function WorkEnvironment() {
                           modelFound = true;
                           console.log("Resolved model URL from directory listing:", finalUsableModelUrl);
                         } else {
+                          // If no model.* file, look for any .glb or .gltf file
                           const glbOrGltfFile = dirContents.items.find(item => 
                             item.name.toLowerCase().endsWith('.glb') || 
                             item.name.toLowerCase().endsWith('.gltf') ||
@@ -380,9 +390,11 @@ export default function WorkEnvironment() {
                 }
               } else if (typeof data.modelUrl === 'object' && data.modelUrl !== null) {
                 if (data.modelUrl.url && typeof data.modelUrl.url === 'string') {
+                  // It's an object like { url: "some_url_string" }, assume it's usable
                   console.log("Using URL from object property:", data.modelUrl.url);
                   finalUsableModelUrl = data.modelUrl.url;
                 } else if (data.modelUrl.path && typeof data.modelUrl.path === 'string') {
+                  // Try using a path property if it exists
                   console.log("Using path from object property:", data.modelUrl.path);
                   try {
                     const storage = getStorage();
@@ -404,6 +416,7 @@ export default function WorkEnvironment() {
             setRoomData(processedData);
             setComponentTags(processedData.componentTags || {});
 
+            // Fetch textures
             const fetchedWallTextures = await fetchTextureUrls(roomId, 'wall');
             const fetchedFloorTextures = await fetchTextureUrls(roomId, 'floor');
             
@@ -418,14 +431,14 @@ export default function WorkEnvironment() {
             }
           } else {
             setError(`Room with ID ${roomId} not found.`);
-            setIsLoading(false);
+            setIsLoading(false); // No room, so loading is done.
           }
         }
       } catch (err) {
         console.error("Error fetching room data:", err);
         if (isMounted) {
           setError(err.message || "Failed to fetch room data.");
-          setIsLoading(false);
+          setIsLoading(false); // Error occurred, loading is done.
         }
       }
     };
@@ -438,7 +451,7 @@ export default function WorkEnvironment() {
   }, [roomId, navigate, location.state, fetchTextureUrls]);
   
   const handleSaveScene = () => {
-    alert(`Scene saved with ${placedFurniture.length} furniture items! (Functionality will be fully implemented in future updates)`);
+    alert('Scene saving functionality will be implemented in future updates');
   };
   
   const handleModelLoaded = useCallback(() => {
@@ -446,10 +459,6 @@ export default function WorkEnvironment() {
   }, []);
   
   const handleToggleStats = () => setShowStats(prev => !prev);
-  
-  const handleToggleFurnitureCatalog = () => {
-    setShowFurnitureCatalog(prev => !prev);
-  };
   
   const handleBackToRooms = () => {
     if (location.state?.fromProject) {
@@ -467,46 +476,7 @@ export default function WorkEnvironment() {
     setSelectedFloorTexture(textureUrl);
   }, []);
 
-  const handleSelectFurniture = useCallback((furniture) => {
-    console.log('Selected furniture:', furniture);
-    
-    const randomX = (Math.random() - 0.5) * 3;
-    const randomZ = (Math.random() - 0.5) * 3;
-    
-    const furnitureInstance = {
-      ...furniture,
-      instanceId: `${furniture.id}-${Date.now()}`,
-      position: [randomX, 0, randomZ],
-      rotation: [0, Math.random() * Math.PI * 2, 0],
-      scale: 1
-    };
-    
-    setPlacedFurniture(prev => [...prev, furnitureInstance]);
-    
-    setIsFurnitureLoading(prev => ({...prev, [furnitureInstance.instanceId]: true}));
-    
-    setSelectedFurniture(furnitureInstance.instanceId);
-  }, []);
-
-  const handleFurnitureLoaded = useCallback((instanceId) => {
-    console.log(`Furniture ${instanceId} loaded successfully`);
-    setIsFurnitureLoading(prev => ({...prev, [instanceId]: false}));
-  }, []);
-
-  const handleFurnitureError = useCallback((error, instanceId) => {
-    console.error(`Error loading furniture ${instanceId}:`, error);
-    setIsFurnitureLoading(prev => {
-      const newLoadingState = { ...prev };
-      delete newLoadingState[instanceId];
-      return newLoadingState;
-    });
-  }, []);
-
-  const handleFurnitureClick = useCallback((instanceId) => {
-    setSelectedFurniture(instanceId);
-  }, []);
-
-  if (error && !roomData) {
+  if (error && !roomData) { // Only show full page error if roomData couldn't be fetched at all
     return (
       <div className="error-container work-environment-page">
         <h2>Error Loading Environment</h2>
@@ -518,6 +488,7 @@ export default function WorkEnvironment() {
     );
   }
 
+  // modelUrl is now directly from roomData state, pre-processed during fetch.
   const modelUrlToPass = roomData?.modelUrl;
   
   const roomName = roomData?.name || location.state?.name || 'Sample Room';
@@ -543,37 +514,33 @@ export default function WorkEnvironment() {
       </div>
 
       <div className="work-environment-content">
-        <ToolPanel 
-          onSave={handleSaveScene}
-          onToggleShowFurniture={handleToggleFurnitureCatalog}
-          showFurniture={showFurnitureCatalog}
-        />
+        <ToolPanel onSave={handleSaveScene} />
         
         <div className="canvas-container">
-          {isLoading && !modelUrlToPass && (
+          {isLoading && !modelUrlToPass && ( // Show loading only if there's no model URL yet and we are fetching room data
             <div className="canvas-loading-overlay">
               <Loading size={60} />
               <p>Fetching room details...</p>
             </div>
           )}
-          {isLoading && modelUrlToPass && (
+          {isLoading && modelUrlToPass && ( // Show loading for model if modelUrl is present
              <div className="canvas-loading-overlay">
               <Loading size={60} />
               <p>Loading 3D environment...</p>
             </div>
           )}
-          {!isLoading && !modelUrlToPass && roomData && (
+          {!isLoading && !modelUrlToPass && roomData && ( // If done loading room data but no model
             <div className="canvas-loading-overlay">
               <p>No 3D model available for this room.</p>
             </div>
           )}
-          {error && roomData && (
+          {error && roomData && ( // If there was an error but some roomData (like name) loaded
              <div className="canvas-loading-overlay">
-               <p>Error loading model: {error}</p>
+               <p>Error loading model: {error}</p> {/* This error is the general fetch error, RoomModel has its own error display */}
              </div>
           )}
           
-          {modelUrlToPass && (
+          {modelUrlToPass && ( // Only render canvas if modelUrlToPass is available
             <ErrorBoundary fallbackMessage="Failed to render 3D environment">
               <Canvas
                 ref={canvasRef}
@@ -628,19 +595,6 @@ export default function WorkEnvironment() {
                     selectedWallTexture={selectedWallTexture}
                     selectedFloorTexture={selectedFloorTexture}
                   />
-                  
-                  {placedFurniture.map(item => (
-                    <FurnitureObject
-                      key={item.instanceId}
-                      furniture={item}
-                      position={item.position}
-                      rotation={item.rotation}
-                      scale={item.scale}
-                      onLoad={() => handleFurnitureLoaded(item.instanceId)}
-                      onError={(e) => handleFurnitureError(e, item.instanceId)}
-                      selected={selectedFurniture === item.instanceId}
-                    />
-                  ))}
                 </Suspense>
                 
                 <OrbitControls
@@ -656,60 +610,36 @@ export default function WorkEnvironment() {
           )}
         </div>
         
-        {showFurnitureCatalog ? (
-          <div className="properties-panel furniture-catalog-panel">
-            <FurnitureCatalog onSelectFurniture={handleSelectFurniture} />
+        <div className="properties-panel">
+          <div className="properties-panel-header">
+            <h3>Properties</h3>
           </div>
-        ) : (
-          <div className="properties-panel">
-            <div className="properties-panel-header">
-              <h3>Properties</h3>
+          <div className="properties-content">
+            <div className="property-group">
+              <label>Room Type</label>
+              <div className="property-value">{roomData?.type || 'Standard'}</div>
             </div>
-            <div className="properties-content">
-              <div className="property-group">
-                <label>Room Type</label>
-                <div className="property-value">{roomData?.type || 'Standard'}</div>
+            <div className="property-group">
+              <label>Description</label>
+              <div className="property-value description">
+                {roomData?.description || 'No description available'}
               </div>
-              
-              <div className="property-group">
-                <label>Description</label>
-                <div className="property-value description">
-                  {roomData?.description || 'No description available'}
-                </div>
-              </div>
-              
-              {placedFurniture.length > 0 && (
-                <div className="property-group">
-                  <label>Furniture Items</label>
-                  <div className="furniture-list-summary">
-                    {placedFurniture.map(item => (
-                      <div 
-                        key={item.instanceId} 
-                        className={`furniture-list-item ${selectedFurniture === item.instanceId ? 'selected' : ''}`}
-                        onClick={() => handleFurnitureClick(item.instanceId)}
-                      >
-                        <span>{item.name}</span>
-                        {isFurnitureLoading[item.instanceId] && <span className="loading-indicator">Loading...</span>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {wallTextures.length > 0 || floorTextures.length > 0 ? (
-                <TextureApplier
-                  wallTextures={wallTextures}
-                  floorTextures={floorTextures}
-                  onApplyWallTexture={handleApplyWallTexture}
-                  onApplyFloorTexture={handleApplyFloorTexture}
-                  activeWallTexture={selectedWallTexture}
-                  activeFloorTexture={selectedFloorTexture}
-                />
-              ) : null}
             </div>
           </div>
-        )}
+        </div>
       </div>
+      { (wallTextures.length > 0 || floorTextures.length > 0) && (
+        <div className="texture-applier-section">
+          <TextureApplier
+            wallTextures={wallTextures}
+            floorTextures={floorTextures}
+            onApplyWallTexture={handleApplyWallTexture}
+            onApplyFloorTexture={handleApplyFloorTexture}
+            activeWallTexture={selectedWallTexture}
+            activeFloorTexture={selectedFloorTexture}
+          />
+        </div>
+      )}
     </div>
   );
 }
