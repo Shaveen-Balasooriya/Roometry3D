@@ -511,6 +511,48 @@ app.get('/api/furniture', async (req, res) => {
   }
 });
 
+// API endpoint to retrieve a user's projects
+app.get('/api/users/:userId/projects', authenticateUser, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUser = req.user;
+    
+    // Only allow users to access their own projects or admin to access any
+    if (currentUser.uid !== userId && currentUser.role !== 'admin') {
+      console.log(`User ${currentUser.uid} attempted to access projects for user ${userId}`);
+      return res.status(403).json({ message: 'Forbidden: You can only access your own projects' });
+    }
+    
+    console.log(`Fetching projects for user: ${userId}`);
+    
+    // For clients: where they are the client
+    // For designers: where they are the designer
+    // For admins: all projects (already handled by the condition above)
+    let projectsQuery = db.collection('projects');
+    
+    if (currentUser.role === 'client') {
+      projectsQuery = projectsQuery.where('clientId', '==', userId);
+    } else if (currentUser.role === 'designer') {
+      projectsQuery = projectsQuery.where('designerId', '==', userId);
+    }
+    
+    const snapshot = await projectsQuery.get();
+    const projects = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt ? doc.data().createdAt.toDate() : null,
+      updatedAt: doc.data().updatedAt ? doc.data().updatedAt.toDate() : null
+    }));
+    
+    console.log(`Found ${projects.length} projects for user ${userId}`);
+    res.status(200).json(projects);
+    
+  } catch (err) {
+    console.error(`Error fetching projects for user ${req.params.userId}:`, err);
+    res.status(500).json({ message: 'Failed to fetch projects', details: err.message });
+  }
+});
+
 // ===== METRICS API ROUTES =====
 // API to get total number of projects
 app.get('/api/count/totalProjects', async (req, res) => {
@@ -682,6 +724,245 @@ app.get('/api/cart', authenticateUser, async (req, res) => {
       error: 'Failed to fetch cart', 
       details: err.message 
     });
+  }
+});
+
+// API endpoint to get a specific project by ID
+app.get('/api/projects/:id', authenticateUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`Fetching project with ID: ${id}`);
+    
+    const projectDoc = await db.collection('projects').doc(id).get();
+    
+    if (!projectDoc.exists) {
+      console.log(`Project with ID ${id} not found`);
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    const projectData = projectDoc.data();
+    const currentUser = req.user;
+    
+    // Check if user has access to this project (client, designer, or admin)
+    if (currentUser.role !== 'admin' && 
+        currentUser.uid !== projectData.clientId && 
+        currentUser.uid !== projectData.designerId) {
+      console.log(`User ${currentUser.uid} attempted unauthorized access to project ${id}`);
+      return res.status(403).json({ message: 'You do not have permission to access this project' });
+    }
+    
+    console.log(`Returning project data for ID: ${id}`);
+    res.status(200).json({
+      id: projectDoc.id,
+      ...projectData,
+      createdAt: projectData.createdAt ? projectData.createdAt.toDate() : null,
+      updatedAt: projectData.updatedAt ? projectData.updatedAt.toDate() : null
+    });
+    
+  } catch (err) {
+    console.error(`Error fetching project ${req.params.id}:`, err);
+    res.status(500).json({ message: 'Failed to fetch project', details: err.message });
+  }
+});
+
+// API endpoint to get a project's 3D model file
+app.get('/api/projects/:id/model', authenticateUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`Fetching 3D model for project with ID: ${id}`);
+    
+    const projectDoc = await db.collection('projects').doc(id).get();
+    
+    if (!projectDoc.exists) {
+      console.log(`Project with ID ${id} not found`);
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    const projectData = projectDoc.data();
+    const currentUser = req.user;
+    
+    // Check if user has access to this project (client, designer, or admin)
+    if (currentUser.role !== 'admin' && 
+        currentUser.uid !== projectData.clientId && 
+        currentUser.uid !== projectData.designerId) {
+      console.log(`User ${currentUser.uid} attempted unauthorized access to project model ${id}`);
+      return res.status(403).json({ message: 'You do not have permission to access this project' });
+    }
+    
+    // Check if model URL exists
+    if (!projectData.objFileUrl) {
+      console.log(`Project ${id} has no 3D model attached`);
+      return res.status(404).json({ message: 'No 3D model attached to this project' });
+    }
+    
+    // Get the storage path from the URL
+    const modelPath = getStoragePathFromUrl(projectData.objFileUrl);
+    if (!modelPath) {
+      console.log(`Could not determine storage path for project ${id} model`);
+      return res.status(500).json({ message: 'Could not determine model storage path' });
+    }
+    
+    console.log(`Retrieving model file from storage: ${modelPath}`);
+    const file = bucket.file(modelPath);
+    
+    // Check if file exists
+    const [exists] = await file.exists();
+    if (!exists) {
+      console.log(`Model file for project ${id} not found in storage`);
+      return res.status(404).json({ message: 'Model file not found in storage' });
+    }
+    
+    // Get file metadata to set the correct content type
+    const [metadata] = await file.getMetadata();
+    const contentType = metadata.contentType || 'application/octet-stream';
+    
+    // Set appropriate headers
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${path.basename(modelPath)}"`);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    // Stream the file to the response
+    file.createReadStream()
+      .on('error', (err) => {
+        console.error(`Error streaming model file ${modelPath}:`, err);
+        if (!res.headersSent) {
+          res.status(500).json({ message: 'Failed to stream model file', details: err.message });
+        } else {
+          res.end();
+        }
+      })
+      .pipe(res);
+    
+  } catch (err) {
+    console.error(`Error fetching model for project ${req.params.id}:`, err);
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Failed to fetch model file', details: err.message });
+    }
+  }
+});
+
+// API endpoint to delete a project
+app.delete('/api/projects/:id', authenticateUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentUser = req.user;
+    
+    console.log(`Attempting to delete project with ID: ${id} by user ${currentUser.uid}`);
+    
+    const projectDoc = await db.collection('projects').doc(id).get();
+    
+    if (!projectDoc.exists) {
+      console.log(`Project with ID ${id} not found for deletion`);
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    
+    const projectData = projectDoc.data();
+    
+    // Check if user has permission to delete (client who owns it or admin)
+    if (currentUser.role !== 'admin' && currentUser.uid !== projectData.clientId) {
+      console.log(`User ${currentUser.uid} attempted unauthorized deletion of project ${id}`);
+      return res.status(403).json({ message: 'You do not have permission to delete this project' });
+    }
+    
+    // Delete any associated files in storage if they exist
+    if (projectData.objFileUrl) {
+      const objStoragePath = getStoragePathFromUrl(projectData.objFileUrl);
+      if (objStoragePath) {
+        console.log(`Deleting project model file: ${objStoragePath}`);
+        await bucket.file(objStoragePath).delete().catch(err => {
+          console.error(`Non-fatal: Failed to delete project model file ${objStoragePath}:`, err.message);
+        });
+      }
+    }
+    
+    // Delete any thumbnails or other associated images
+    if (projectData.thumbnailUrl) {
+      const thumbnailPath = getStoragePathFromUrl(projectData.thumbnailUrl);
+      if (thumbnailPath) {
+        console.log(`Deleting project thumbnail: ${thumbnailPath}`);
+        await bucket.file(thumbnailPath).delete().catch(err => {
+          console.error(`Non-fatal: Failed to delete project thumbnail ${thumbnailPath}:`, err.message);
+        });
+      }
+    }
+    
+    // Delete the project document
+    await db.collection('projects').doc(id).delete();
+    console.log(`Successfully deleted project with ID: ${id}`);
+    
+    res.status(200).json({ message: 'Project deleted successfully' });
+    
+  } catch (err) {
+    console.error(`Error deleting project ${req.params.id}:`, err);
+    res.status(500).json({ message: 'Failed to delete project', details: err.message });
+  }
+});
+
+// API endpoint to get recent projects
+app.get('/api/projects/recent', authenticateUser, async (req, res) => {
+  try {
+    const currentUser = req.user;
+    const limit = parseInt(req.query.limit) || 3; // Default to 3 if not specified
+    
+    console.log(`Fetching ${limit} recent projects for user ${currentUser.uid} with role ${currentUser.role}`);
+    
+    let projectsQuery = db.collection('projects');
+    
+    // Filter projects based on user role
+    if (currentUser.role === 'client') {
+      projectsQuery = projectsQuery.where('clientId', '==', currentUser.uid);
+    } else if (currentUser.role === 'designer') {
+      projectsQuery = projectsQuery.where('designerId', '==', currentUser.uid);
+    }
+    
+    // Order by most recently updated first and limit the results
+    projectsQuery = projectsQuery.orderBy('updatedAt', 'desc').limit(limit);
+    
+    const snapshot = await projectsQuery.get();
+    
+    const projects = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt ? doc.data().createdAt.toDate() : null,
+      updatedAt: doc.data().updatedAt ? doc.data().updatedAt.toDate() : null
+    }));
+    
+    console.log(`Found ${projects.length} recent projects`);
+    res.status(200).json({ projects });
+    
+  } catch (err) {
+    console.error('Error fetching recent projects:', err);
+    res.status(500).json({ message: 'Failed to fetch recent projects', details: err.message });
+  }
+});
+
+// API endpoint to get user details
+app.get('/api/users/:userId', authenticateUser, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log(`Fetching user details for user ID: ${userId}`);
+    
+    const userDoc = await db.collection('users').doc(userId).get();
+    
+    if (!userDoc.exists) {
+      console.log(`User with ID ${userId} not found`);
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const userData = userDoc.data();
+    
+    // Remove sensitive information
+    const { password, ...safeUserData } = userData;
+    
+    console.log(`Returning user data for ID: ${userId}`);
+    res.status(200).json({
+      id: userDoc.id,
+      ...safeUserData
+    });
+    
+  } catch (err) {
+    console.error(`Error fetching user ${req.params.userId}:`, err);
+    res.status(500).json({ message: 'Failed to fetch user', details: err.message });
   }
 });
 
