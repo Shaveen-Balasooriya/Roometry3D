@@ -242,8 +242,10 @@
 .form-actions {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-top: 2.5rem;
   gap: 1rem;
+  width: 100%;
 }
 
 .button-primary, .button-secondary {
@@ -260,6 +262,14 @@
   color: white;
   border: none;
   min-width: 150px;
+}
+
+.form-action-left {
+  margin-right: auto;
+}
+
+.form-action-right {
+  margin-left: auto;
 }
 
 .button-primary:hover:not(:disabled) {
@@ -320,13 +330,17 @@ button:disabled {
   }
   
   .form-actions {
-    flex-direction: column-reverse;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
     gap: 1rem;
   }
   
   .button-primary,
   .button-secondary {
-    width: 100%;
+    width: auto;
   }
   
   .form-section-title,
@@ -400,6 +414,17 @@ button:disabled {
   .form-field textarea,
   .form-field select {
     padding: 0.65rem;
+    font-size: 0.95rem;
+  }
+  
+  .form-actions {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  
+  .button-primary, .button-secondary {
+    padding: 0.7rem 1.2rem;
     font-size: 0.95rem;
   }
 }

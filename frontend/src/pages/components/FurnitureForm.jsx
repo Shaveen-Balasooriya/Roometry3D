@@ -13,7 +13,7 @@ const initialState = {
   width: '',
   length: '',
   wallMountable: false,
-  objFile: null,
+  modelFile: null, // Changed from objFile to modelFile
   textures: [],
 };
 
@@ -32,7 +32,7 @@ const categories = [
 export default function FurnitureForm({ initialData = null, onChange, onUpdateSuccess }) {
   const [form, setForm] = useState(initialState);
   const [errors, setErrors] = useState({});
-  const [isObjDragging, setIsObjDragging] = useState(false);
+  const [isModelDragging, setIsModelDragging] = useState(false); // Changed from isObjDragging
   const [isTextureDragging, setIsTextureDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [popup, setPopup] = useState({ open: false, type: 'success', message: '' });
@@ -46,7 +46,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
         height: initialData.height?.toString() || '',
         width: initialData.width?.toString() || '',
         length: initialData.length?.toString() || '',
-        objFile: null,
+        modelFile: null, // Changed from objFile
         textures: [],
       };
       setForm(dataForState);
@@ -90,14 +90,14 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
     } else if (type === 'file') {
       e.preventDefault();
 
-      if (name === 'objFile') {
+      if (name === 'modelFile') { // Changed from objFile
         const file = files[0];
-        if (file && file.name.toLowerCase().endsWith('.obj')) {
+        if (file && (file.name.toLowerCase().endsWith('.glb'))) { // Changed to check for .glb files
           newValue = file;
-          delete fieldErrors.objFile;
+          delete fieldErrors.modelFile; // Changed from objFile
         } else if (file) {
-          newValue = form.objFile;
-          fieldErrors.objFile = 'Invalid file type. Please select a .obj file.';
+          newValue = form.modelFile; // Changed from objFile
+          fieldErrors.modelFile = 'Invalid file type. Please select a .glb file.'; // Changed error message
         } else {
           newValue = null;
         }
@@ -121,8 +121,8 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
     setErrors(fieldErrors);
   }, [errors, form, onChange]);
 
-  const handleObjDragOver = (e) => { e.preventDefault(); setIsObjDragging(true); };
-  const handleObjDragLeave = () => { setIsObjDragging(false); };
+  const handleModelDragOver = (e) => { e.preventDefault(); setIsModelDragging(true); }; // Changed from handleObjDragOver
+  const handleModelDragLeave = () => { setIsModelDragging(false); }; // Changed from handleObjDragLeave
 
   const handleTextureDragOver = (e) => { e.preventDefault(); setIsTextureDragging(true); };
   const handleTextureDragLeave = () => { setIsTextureDragging(false); };
@@ -132,14 +132,14 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
     let updatedForm = { ...form };
     let fieldErrors = { ...errors };
 
-    if (fieldName === 'objFile') {
-      setIsObjDragging(false);
+    if (fieldName === 'modelFile') { // Changed from objFile
+      setIsModelDragging(false); // Changed from isObjDragging
       const file = e.dataTransfer.files[0];
-      if (file && file.name.toLowerCase().endsWith('.obj')) {
-        updatedForm = { ...form, objFile: file };
-        delete fieldErrors.objFile;
+      if (file && file.name.toLowerCase().endsWith('.glb')) { // Changed to check for .glb files
+        updatedForm = { ...form, modelFile: file }; // Changed from objFile
+        delete fieldErrors.modelFile; // Changed from objFile
       } else if (file) {
-        fieldErrors.objFile = 'Invalid file type. Please drop a .obj file.';
+        fieldErrors.modelFile = 'Invalid file type. Please drop a .glb file.'; // Changed error message
       }
     } else if (fieldName === 'textures') {
       setIsTextureDragging(false);
@@ -155,14 +155,14 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
     setErrors(fieldErrors);
   };
 
-  const removeObjFile = useCallback((e) => {
+  const removeModelFile = useCallback((e) => { // Changed from removeObjFile
     e.stopPropagation();
-    const updatedFormState = { ...form, objFile: null };
+    const updatedFormState = { ...form, modelFile: null }; // Changed from objFile
     setForm(updatedFormState);
     onChange(updatedFormState);
     setErrors(prevErrors => {
       const newErrors = { ...prevErrors };
-      delete newErrors.objFile;
+      delete newErrors.modelFile; // Changed from objFile
       return newErrors;
     });
   }, [form, onChange]);
@@ -183,7 +183,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
         height: initialData.height?.toString() || '',
         width: initialData.width?.toString() || '',
         length: initialData.length?.toString() || '',
-        objFile: null,
+        modelFile: null, // Changed from objFile
         textures: [],
       };
       setForm(dataForState);
@@ -209,7 +209,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
 
     const fieldErrors = {};
     Object.entries(form).forEach(([key, value]) => {
-      if (key !== 'objFile' && key !== 'textures' && key !== 'wallMountable' && key !== 'id' && key !== 'createdAt' && key !== 'objFileUrl' && key !== 'textureUrls' && key !== 'modelEndpoint') {
+      if (key !== 'modelFile' && key !== 'textures' && key !== 'wallMountable' && key !== 'id' && key !== 'createdAt' && key !== 'objFileUrl' && key !== 'textureUrls' && key !== 'modelEndpoint') {
         const error = validateField(key, value);
         if (error) {
           fieldErrors[key] = error;
@@ -217,8 +217,8 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
       }
     });
 
-    if (!initialData && !form.objFile) {
-      fieldErrors.objFile = '3D model is required';
+    if (!initialData && !form.modelFile) { // Changed from objFile
+      fieldErrors.modelFile = '3D model is required'; // Changed from objFile
     }
 
     setErrors(fieldErrors);
@@ -227,13 +227,13 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
       try {
         const formData = new FormData();
         Object.entries(form).forEach(([key, value]) => {
-          if (key !== 'objFile' && key !== 'textures' && key !== 'id' && key !== 'createdAt' && key !== 'objFileUrl' && key !== 'textureUrls' && key !== 'modelEndpoint') {
+          if (key !== 'modelFile' && key !== 'textures' && key !== 'id' && key !== 'createdAt' && key !== 'objFileUrl' && key !== 'textureUrls' && key !== 'modelEndpoint') {
             formData.append(key, value);
           }
         });
 
-        if (form.objFile instanceof File) {
-          formData.append('objFile', form.objFile);
+        if (form.modelFile instanceof File) { // Changed from objFile
+          formData.append('modelFile', form.modelFile); // Changed from objFile
         }
         if (form.textures && form.textures.length > 0) {
           form.textures.forEach((file) => {
@@ -244,7 +244,7 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
         }
 
         const isUpdate = !!initialData;
-        const url = isUpdate ? `${API_URL}/api/furniture/${initialData.id}` : '${API_URL}/api/furniture';
+        const url = isUpdate ? `${API_URL}/api/furniture/${initialData.id}` : `${API_URL}/api/furniture`;
         const method = isUpdate ? 'PUT' : 'POST';
 
         console.log(`Submitting ${method} request to ${url}`);
@@ -467,41 +467,41 @@ export default function FurnitureForm({ initialData = null, onChange, onUpdateSu
 
           <div className="form-section-title">3D Model & Textures</div>
           <div className="form-group">
-            <label htmlFor="objFileInput">3D Model (.obj) {isUpdateMode && '(Leave blank to keep existing)'}</label>
+            <label htmlFor="modelFileInput">3D Model (.glb) {isUpdateMode && '(Leave blank to keep existing)'}</label>
             <div
-              id="objFileDropArea"
-              className={`file-input-wrapper ${isObjDragging ? 'dragging' : ''} ${errors.objFile ? 'error' : ''}`}
-              onDragEnter={handleObjDragOver}
-              onDragOver={handleObjDragOver}
-              onDragLeave={handleObjDragLeave}
-              onDrop={(e) => handleDrop(e, 'objFile')}
+              id="modelFileDropArea"
+              className={`file-input-wrapper ${isModelDragging ? 'dragging' : ''} ${errors.modelFile ? 'error' : ''}`}
+              onDragEnter={handleModelDragOver}
+              onDragOver={handleModelDragOver}
+              onDragLeave={handleModelDragLeave}
+              onDrop={(e) => handleDrop(e, 'modelFile')}
             >
               <input
-                id="objFileInput"
-                name="objFile"
+                id="modelFileInput"
+                name="modelFile"
                 type="file"
-                accept=".obj"
+                accept=".glb"
                 onChange={handleChange}
                 className="file-input-native"
-                aria-describedby="objFileDropArea"
+                aria-describedby="modelFileDropArea"
               />
               <div className="file-input-display">
-                {form.objFile ? (
+                {form.modelFile ? (
                   <div className="file-info">
-                    <span className="file-name">{form.objFile.name}</span>
+                    <span className="file-name">{form.modelFile.name}</span>
                     <span className="file-size">
-                      ({(form.objFile.size / 1024).toFixed(1)} KB)
-                      <button type="button" onClick={removeObjFile} className="remove-file-btn" title="Remove file">&times;</button>
+                      ({(form.modelFile.size / 1024).toFixed(1)} KB)
+                      <button type="button" onClick={removeModelFile} className="remove-file-btn" title="Remove file">&times;</button>
                     </span>
                   </div>
                 ) : (
                   <div className="file-placeholder">
-                    <span>{isUpdateMode ? 'Drop new .obj or click to replace' : 'Drop .obj file or click to browse'}</span>
+                    <span>{isUpdateMode ? 'Drop new .glb or click to replace' : 'Drop .glb file or click to browse'}</span>
                   </div>
                 )}
               </div>
             </div>
-            {errors.objFile && <div className="error-message">{errors.objFile}</div>}
+            {errors.modelFile && <div className="error-message">{errors.modelFile}</div>}
           </div>
 
           <div className="form-group">

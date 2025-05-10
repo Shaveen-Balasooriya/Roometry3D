@@ -267,6 +267,16 @@ export default function Navbar() {
               >
                 Furniture Catalogue
               </Link>
+              <Link
+                to="/room-scaper"
+                className={
+                  location.pathname === "/room-scaper"
+                    ? "active"
+                    : ""
+                }
+              >
+                Room Scaper
+              </Link>
             </>
           )}
 
@@ -302,6 +312,14 @@ export default function Navbar() {
                 }
               >
                 Manage Furniture
+              </Link>
+              <Link
+                to="/room-management"
+                className={
+                  location.pathname === "/room-management" ? "active" : ""
+                }
+              >
+                Manage Room
               </Link>
               <Link
                 to="/add-user"

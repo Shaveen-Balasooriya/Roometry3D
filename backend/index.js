@@ -3,34 +3,104 @@ const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
-const functions = require('firebase-functions');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
+console.log('Starting backend server...');
+
+let functions;
+try {
+  // Try to import firebase-functions, but make it optional for local development
+  console.log('Attempting to load firebase-functions...');
+  functions = require('firebase-functions');
+  console.log('firebase-functions loaded successfully');
+} catch (error) {
+  console.log('Running in development mode without firebase-functions:', error.message);
+  functions = { https: { onRequest: (app) => app } };
+}
+
+console.log('Initializing Express app...');
 const app = express();
 
 // Load CORS configuration from file
-const corsConfig = require('./cors-config.json');
+try {
+  console.log('Loading CORS configuration...');
+  const corsConfig = require('./cors-config.json');
+  console.log('CORS config loaded:', JSON.stringify(corsConfig[0].origin));
 
-// Apply CORS configuration
-app.use(cors({
-  origin: corsConfig[0].origin,
-  methods: corsConfig[0].methods,
-  allowedHeaders: corsConfig[0].allowedHeaders,
-  credentials: corsConfig[0].credentials,
-  maxAge: corsConfig[0].maxAge
-}));
+  // Apply CORS configuration
+  app.use(cors({
+    origin: corsConfig[0].origin,
+    methods: corsConfig[0].methods,
+    allowedHeaders: corsConfig[0].allowedHeaders,
+    credentials: corsConfig[0].credentials,
+    maxAge: corsConfig[0].maxAge
+  }));
+  console.log('CORS middleware applied');
+} catch (error) {
+  console.error('Error setting up CORS:', error);
+  // Fallback to a basic CORS configuration
+  app.use(cors({ origin: '*' }));
+  console.log('Fallback CORS middleware applied');
+}
 
-app.use(express.json());
+// Middleware for JSON parsing with increased limits
+console.log('Setting up middleware...');
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+console.log('Express middleware configured');
 
-// --- Replace Firebase client SDK with Admin SDK ---
+// --- Firebase Admin SDK Setup ---
+console.log('Setting up Firebase Admin SDK...');
 const admin = require('firebase-admin');
-const serviceAccount = require('./serviceAccountKey.json');
+let serviceAccount;
+
+try {
+  // Try to load serviceAccountKey.json, but provide a fallback for CI/CD environments
+  console.log('Loading Firebase service account key...');
+  serviceAccount = require('./serviceAccountKey.json');
+  console.log('Service account key loaded successfully');
+} catch (error) {
+  console.warn('serviceAccountKey.json not found or invalid:', error.message);
+  console.log('Attempting to use environment variables for Firebase credentials...');
+  
+  if (!process.env.FIREBASE_PROJECT_ID) {
+    console.error('ERROR: No Firebase project ID found in environment variables');
+  }
+  
+  serviceAccount = {
+    type: process.env.FIREBASE_TYPE || 'service_account',
+    project_id: process.env.FIREBASE_PROJECT_ID,
+    private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+    private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    client_email: process.env.FIREBASE_CLIENT_EMAIL,
+    client_id: process.env.FIREBASE_CLIENT_ID,
+    auth_uri: process.env.FIREBASE_AUTH_URI || 'https://accounts.google.com/o/oauth2/auth',
+    token_uri: process.env.FIREBASE_TOKEN_URI || 'https://oauth2.googleapis.com/token',
+    auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_CERT_URL || 'https://www.googleapis.com/oauth2/v1/certs',
+    client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL
+  };
+  console.log('Using environment variables for Firebase credentials');
+}
 
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET, // e.g. 'your-bucket.appspot.com'
-  });
+  try {
+    console.log('Initializing Firebase Admin app...');
+    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET;
+    console.log('Using storage bucket:', storageBucket);
+    
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket: storageBucket, 
+    });
+    console.log('Firebase Admin SDK initialized successfully');
+  } catch (error) {
+    console.error('ERROR: Failed to initialize Firebase Admin SDK:', error);
+    process.exit(1); // Exit with error code if Firebase Admin can't initialize
+  }
 }
+
 const db = admin.firestore();
 const bucket = admin.storage().bucket();
 // --- End Admin SDK setup ---
@@ -38,8 +108,10 @@ const bucket = admin.storage().bucket();
 // Authentication Middleware
 const authenticateUser = async (req, res, next) => {
   try {
+    console.log('Authenticating request...');
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('No token provided in request');
       return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
 
@@ -90,265 +162,25 @@ const requireRole = (roles) => {
   };
 };
 
-// Verify a user's authentication status and get profile
-app.get('/api/auth/verify', authenticateUser, async (req, res) => {
-  try {
-    const uid = req.user.uid;
-    const userDoc = await db.collection('users').doc(uid).get();
-    
-    if (!userDoc.exists) {
-      return res.status(404).json({ message: 'User profile not found' });
-    }
-    
-    const userData = userDoc.data();
-    
-    res.json({
-      authenticated: true,
-      uid: uid,
-      email: req.user.email,
-      role: req.user.role || null,
-      name: userData.name,
-      userType: userData.userType,
-      lastLogin: userData.lastLogin ? userData.lastLogin.toDate() : null
-    });
-    
-    // Update last login time
-    await userDoc.ref.update({
-      lastLogin: admin.firestore.FieldValue.serverTimestamp()
-    });
-  } catch (error) {
-    console.error('Error verifying authentication:', error);
-    res.status(500).json({ message: 'Failed to verify authentication' });
+// Configure multer for file uploads
+const multerStorage = multer.memoryStorage();
+const upload = multer({
+  storage: multerStorage,
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB for GLB files
+    files: 10 // Allow up to 10 files
   }
 });
 
-// Self-register endpoint (no auth required)
-app.post('/api/auth/register', async (req, res) => {
-  console.log('Received self-registration request:', req.body);
-  try {
-    const { name, email, password } = req.body;
-    
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    // Check if user already exists
-    try {
-      const userRecord = await admin.auth().getUserByEmail(email);
-      if (userRecord) {
-        return res.status(400).json({ message: 'Email is already in use' });
-      }
-    } catch (error) {
-      // Error code auth/user-not-found means we can proceed with creation
-      if (error.code !== 'auth/user-not-found') {
-        throw error;
-      }
-    }
-
-    // Create the user in Firebase Authentication
-    const userRecord = await admin.auth().createUser({
-      email: email,
-      password: password,
-      displayName: name,
-      emailVerified: false
-    });
-
-    console.log('User created in Firebase Auth:', userRecord.uid);
-
-    // Set custom claims for role-based access (default to client)
-    await admin.auth().setCustomUserClaims(userRecord.uid, {
-      role: 'client'
-    });
-
-    // Store additional user data in Firestore
-    const userDocRef = db.collection('users').doc(userRecord.uid);
-    await userDocRef.set({
-      name: name,
-      email: email,
-      userType: 'client',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      lastLogin: null
-    });
-
-    console.log('User document created in Firestore');
-    
-    // Send verification email
-    const verificationLink = await admin.auth().generateEmailVerificationLink(email);
-    
-    // Return success response with user data (excluding sensitive info)
-    res.status(201).json({
-      message: 'User registered successfully. Please verify your email.',
-      user: {
-        id: userRecord.uid,
-        name,
-        email,
-        userType: 'client',
-        createdAt: new Date()
-      }
-    });
-  } catch (err) {
-    console.error('Detailed error registering user:', JSON.stringify(err, null, 2));
-    
-    if (err.code === 'auth/email-already-exists') {
-      return res.status(400).json({ message: 'Email already in use' });
-    } else if (err.code === 'auth/invalid-email') {
-      return res.status(400).json({ message: 'Invalid email format' });
-    } else if (err.code === 'auth/weak-password') {
-      return res.status(400).json({ message: 'Password is too weak' });
-    }
-    
-    res.status(500).json({ message: 'Failed to register user', details: err.message });
-  }
-});
-
-// Change a user's role (admin only)
-app.put('/api/users/:id/role', authenticateUser, requireRole(['admin']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { role } = req.body;
-    
-    if (!role || !['admin', 'designer', 'client'].includes(role)) {
-      return res.status(400).json({ message: 'Invalid role specified' });
-    }
-    
-    // Update role in custom claims
-    await admin.auth().setCustomUserClaims(id, { role });
-    
-    // Update role in Firestore
-    await db.collection('users').doc(id).update({
-      userType: role
-    });
-    
-    res.json({ message: 'User role updated successfully' });
-  } catch (error) {
-    console.error('Error updating user role:', error);
-    res.status(500).json({ message: 'Failed to update user role' });
-  }
-});
-
-// Reset a user's password (admin only)
-app.post('/api/users/:id/reset-password', authenticateUser, requireRole(['admin']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { temporaryPassword } = req.body;
-    
-    if (!temporaryPassword || temporaryPassword.length < 6) {
-      return res.status(400).json({ message: 'Invalid temporary password' });
-    }
-    
-    // Update user's password
-    await admin.auth().updateUser(id, {
-      password: temporaryPassword
-    });
-    
-    res.json({ message: 'Password reset successfully' });
-  } catch (error) {
-    console.error('Error resetting password:', error);
-    res.status(500).json({ message: 'Failed to reset password' });
-  }
-});
-
-// Apply authentication middleware to sensitive routes
+// Apply authentication middleware to routes AFTER defining the middleware
+app.use('/api/auth/verify', authenticateUser);
 app.use('/api/furniture', authenticateUser);
 app.use('/api/users', authenticateUser);
 app.use('/api/projects', authenticateUser);
-app.use('/api/count',authenticateUser);
-app.use('/api/cart',authenticateUser);
+app.use('/api/count', authenticateUser);
+app.use('/api/cart', authenticateUser);
+app.use('/api/rooms', authenticateUser);
 
-// User self-service profile endpoints
-app.post('/api/user/change-password', authenticateUser, async (req, res) => {
-  try {
-    const uid = req.user.uid;
-    const { currentPassword, newPassword } = req.body;
-    
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: 'Current password and new password are required' });
-    }
-    
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
-    }
-    
-    // Verify current password by attempting to get a new ID token
-    try {
-      // We can't directly verify the password on the backend, so we'll rely on Firebase Auth rules
-      // to prevent changing password unless the user is properly authenticated
-      await admin.auth().updateUser(uid, { password: newPassword });
-      res.json({ message: 'Password updated successfully' });
-    } catch (error) {
-      console.error('Error updating password:', error);
-      if (error.code === 'auth/requires-recent-login') {
-        return res.status(403).json({ 
-          message: 'This operation requires recent authentication. Please log in again before retrying.',
-          requiresReauth: true
-        });
-      }
-      throw error;
-    }
-  } catch (error) {
-    console.error('Password change error:', error);
-    res.status(500).json({ message: 'Failed to change password', details: error.message });
-  }
-});
-
-app.put('/api/user/profile', authenticateUser, async (req, res) => {
-  try {
-    const uid = req.user.uid;
-    const { name, photoURL } = req.body;
-    
-    const updates = {};
-    const authUpdates = {};
-    
-    if (name) {
-      updates.name = name;
-      authUpdates.displayName = name;
-    }
-    
-    if (photoURL) {
-      updates.photoURL = photoURL;
-      authUpdates.photoURL = photoURL;
-    }
-    
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ message: 'No valid fields provided for update' });
-    }
-    
-    // Update in Firebase Auth
-    if (Object.keys(authUpdates).length > 0) {
-      await admin.auth().updateUser(uid, authUpdates);
-    }
-    
-    // Update in Firestore
-    const userDocRef = db.collection('users').doc(uid);
-    await userDocRef.update({
-      ...updates,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    
-    res.json({ 
-      message: 'Profile updated successfully',
-      user: {
-        uid,
-        ...updates
-      }
-    });
-  } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({ message: 'Failed to update profile', details: error.message });
-  }
-});
-
-// Apply role-based access control to admin routes
-app.post('/api/furniture', requireRole(['admin']));
-app.put('/api/furniture/:id', requireRole(['admin', 'designer']));
-app.delete('/api/furniture/:id', requireRole(['admin']));
-app.post('/api/users', requireRole(['admin']));
-app.delete('/api/users/:id', requireRole(['admin']));
-app.get('/api/count/designers', requireRole(['admin']));
-app.get('/api/count/todayProjects',requireRole(['admin']));
-app.get('/api/count/totalProjcts',requireRole(['admin']));
-app.post('/api/cart/add',requireRole(['client','designer']))
-app.get('api/cart',requireRole(['client','designer']))
 // Helper function to extract storage path from signed URL
 const getStoragePathFromUrl = (url) => {
   if (!url) return null;
@@ -373,39 +205,37 @@ const getStoragePathFromUrl = (url) => {
   }
 };
 
-// Multer setup for file uploads (memory storage)
-const upload = multer({ storage: multer.memoryStorage() });
-
+// ===== FURNITURE API ROUTES =====
 app.post('/api/furniture', upload.fields([
-  { name: 'objFile', maxCount: 1 },
+  { name: 'modelFile', maxCount: 1 },
   { name: 'textures', maxCount: 10 }
 ]), async (req, res) => {
-  console.log('Received /api/furniture POST request'); // Log request received
-  console.log('Request Body:', req.body); // Log text fields
-  console.log('Request Files:', req.files); // Log file info
+  console.log('Received /api/furniture POST request'); 
+  console.log('Request Body:', req.body); 
+  console.log('Request Files:', req.files);
 
   try {
     const { name, category, description, price, quantity, height, width, length, wallMountable } = req.body;
     if (!name || !category || !description || !price || !quantity || !height || !width || !length) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    if (!req.files || !req.files.objFile || req.files.objFile.length === 0) {
-      return res.status(400).json({ error: 'OBJ file is required' });
+    if (!req.files || !req.files.modelFile || req.files.modelFile.length === 0) {
+      return res.status(400).json({ error: 'Model file is required' });
     }
 
     console.log('Validation passed. Starting file uploads...');
 
-    // --- Upload OBJ file to Firebase Storage using Admin SDK ---
-    const objFile = req.files.objFile[0];
-    const objFileName = `furniture/models/${uuidv4()}_${objFile.originalname}`;
+    // --- Upload model file to Firebase Storage using Admin SDK ---
+    const modelFile = req.files.modelFile[0]; // Changed from objFile to modelFile
+    const objFileName = `furniture/models/${uuidv4()}_${modelFile.originalname}`; // Keeping the storage path naming convention
     const objFileUpload = bucket.file(objFileName);
-    await objFileUpload.save(objFile.buffer, { contentType: objFile.mimetype });
+    await objFileUpload.save(modelFile.buffer, { contentType: modelFile.mimetype });
     const [objFileUrl] = await objFileUpload.getSignedUrl({
       action: 'read',
       expires: '03-01-2030', // Set a far future expiration or use your own logic
     });
-    console.log(`OBJ uploaded successfully: ${objFileUrl}`);
-    // --- End OBJ upload ---
+    console.log(`Model uploaded successfully: ${objFileUrl}`); // Updated log message
+    // --- End model file upload ---
 
     // --- Upload texture files (if any) using Admin SDK ---
     let textureUrls = [];
@@ -454,7 +284,7 @@ app.post('/api/furniture', upload.fields([
 });
 
 app.put('/api/furniture/:id', upload.fields([
-  { name: 'objFile', maxCount: 1 },
+  { name: 'modelFile', maxCount: 1 }, // Changed from objFile to modelFile to match frontend
   { name: 'textures', maxCount: 10 }
 ]), async (req, res) => {
   const { id } = req.params;
@@ -488,15 +318,15 @@ app.put('/api/furniture/:id', upload.fields([
     let newTextureUrls = existingData.textureUrls || [];
     const deletePromises = [];
 
-    if (req.files && req.files.objFile && req.files.objFile.length > 0) {
-      console.log('New OBJ file provided. Uploading...');
-      const objFile = req.files.objFile[0];
-      const objFileName = `furniture/models/${uuidv4()}_${objFile.originalname}`;
+    if (req.files && req.files.modelFile && req.files.modelFile.length > 0) { // Changed from objFile to modelFile
+      console.log('New model file provided. Uploading...');
+      const modelFile = req.files.modelFile[0]; // Changed from objFile to modelFile
+      const objFileName = `furniture/models/${uuidv4()}_${modelFile.originalname}`;
       const objFileUpload = bucket.file(objFileName);
-      await objFileUpload.save(objFile.buffer, { contentType: objFile.mimetype });
+      await objFileUpload.save(modelFile.buffer, { contentType: modelFile.mimetype });
       const [signedUrl] = await objFileUpload.getSignedUrl({ action: 'read', expires: '03-01-2030' });
       newObjFileUrl = signedUrl;
-      console.log(`New OBJ uploaded: ${newObjFileUrl}`);
+      console.log(`New model file uploaded: ${newObjFileUrl}`); // Updated log message
 
       const oldObjPath = getStoragePathFromUrl(existingData.objFileUrl);
       if (oldObjPath) {
@@ -652,155 +482,6 @@ app.delete('/api/furniture/:id', async (req, res) => {
   }
 });
 
-app.put('/api/furniture/:id/textures', upload.array('textures', 10), async (req, res) => {
-  const { id } = req.params;
-  console.log(`Received PUT request to add textures for furniture ID: ${id}`);
-
-  try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ message: 'No texture files provided' });
-    }
-
-    const docRef = db.collection('furniture').doc(id);
-    const doc = await docRef.get();
-
-    if (!doc.exists) {
-      return res.status(404).json({ message: 'Furniture item not found' });
-    }
-
-    const existingData = doc.data();
-    const existingTextures = existingData.textureUrls || [];
-
-    // Upload new textures
-    const newTextureUrls = [];
-    for (const texture of req.files) {
-      const textureName = `furniture/textures/${uuidv4()}_${texture.originalname}`;
-      const textureUpload = bucket.file(textureName);
-      await textureUpload.save(texture.buffer, { contentType: texture.mimetype });
-      const [signedUrl] = await textureUpload.getSignedUrl({ 
-        action: 'read', 
-        expires: '03-01-2030' 
-      });
-      newTextureUrls.push(signedUrl);
-      console.log(`New texture uploaded: ${signedUrl}`);
-    }
-
-    // Combine existing and new textures
-    const updatedTextures = [...existingTextures, ...newTextureUrls];
-    
-    // Update Firestore
-    await docRef.update({
-      textureUrls: updatedTextures,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    res.status(200).json({ 
-      success: true,
-      newTextureUrls,
-      textureUrls: updatedTextures
-    });
-
-  } catch (err) {
-    console.error(`Error adding textures to furniture item ${id}:`, err);
-    res.status(500).json({ 
-      message: 'Failed to add textures', 
-      details: err.message 
-    });
-  }
-});
-
-app.delete('/api/furniture/:id/textures/delete', async (req, res) => {
-  const { id } = req.params;
-  const { textureUrl } = req.body;
-  
-  console.log(`Received DELETE request for texture on furniture ID: ${id}`);
-  
-  if (!textureUrl) {
-    return res.status(400).json({ message: 'No texture URL provided' });
-  }
-  
-  try {
-    // Get the furniture document
-    const docRef = db.collection('furniture').doc(id);
-    const doc = await docRef.get();
-    
-    if (!doc.exists) {
-      return res.status(404).json({ message: 'Furniture item not found' });
-    }
-    
-    const furnitureData = doc.data();
-    const existingTextures = furnitureData.textureUrls || [];
-    
-    // Check if the URL exists in the textures array
-    if (!existingTextures.includes(textureUrl)) {
-      return res.status(404).json({ message: 'Texture not found on this furniture item' });
-    }
-    
-    // Check that we won't delete the last texture
-    if (existingTextures.length <= 1) {
-      return res.status(400).json({ message: 'Cannot delete the last texture. At least one texture is required.' });
-    }
-    
-    // Extract the filename from the URL to delete from storage
-    // The URL format from your example looks like:
-    // https://storage.googleapis.com/roometry-3d.firebasestorage.app/furniture/textures/{uuid}_{filename}
-    const textureFilePath = textureUrl.split('?')[0].split('/furniture/textures/')[1];
-    
-    if (textureFilePath) {
-      try {
-        // Delete the file from storage
-        const fileRef = bucket.file(`furniture/textures/${textureFilePath}`);
-        await fileRef.delete();
-        console.log(`Deleted texture file: ${textureFilePath}`);
-      } catch (err) {
-        console.warn(`Unable to delete texture file from storage: ${err.message}`);
-        // Continue even if file delete fails, as we still want to update the database
-      }
-    }
-    
-    // Update the document by removing the texture URL
-    const updatedTextures = existingTextures.filter(url => url !== textureUrl);
-    
-    await docRef.update({
-      textureUrls: updatedTextures,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    
-    res.status(200).json({
-      success: true,
-      message: 'Texture deleted successfully',
-      textureUrls: updatedTextures
-    });
-    
-  } catch (err) {
-    console.error(`Error deleting texture from furniture item ${id}:`, err);
-    res.status(500).json({
-      message: 'Failed to delete texture',
-      details: err.message
-    });
-  }
-});
-
-// app.get('/api/furniture', async (req, res) => {
-//   try {
-//     const furnitureCol = db.collection('furniture');
-//     const snapshot = await furnitureCol.get();
-//     const items = snapshot.docs.map(doc => {
-//       const data = doc.data();
-//       const { objFileUrl, ...rest } = data;
-//       return {
-//         id: doc.id,
-//         ...rest,
-//         modelEndpoint: `/api/furniture/${doc.id}/model`
-//       };
-//     });
-//     res.json(items);
-//   } catch (err) {
-//     console.error('Error fetching furniture:', err);
-//     res.status(500).json({ error: 'Failed to fetch furniture', details: err.message });
-//   }
-// });
-
 app.get('/api/furniture', async (req, res) => {
   try {
     const { category } = req.query;
@@ -830,459 +511,16 @@ app.get('/api/furniture', async (req, res) => {
   }
 });
 
-// Update existing user creation endpoint
-app.post('/api/users', async (req, res) => {
-  console.log('Received user creation request:', req.body);
-  try {
-    const { name, email, password, userType } = req.body;
-    
-    if (!name || !email || !password || !userType) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    // Validate userType
-    if (!['admin', 'client', 'designer'].includes(userType)) {
-      return res.status(400).json({ message: 'Invalid user type' });
-    }
-
-    // Create the user in Firebase Authentication
-    const userRecord = await admin.auth().createUser({
-      email: email,
-      password: password,
-      displayName: name,
-    });
-
-    console.log('User created in Firebase Auth:', userRecord.uid);
-
-    // Set custom claims for role-based access
-    await admin.auth().setCustomUserClaims(userRecord.uid, {
-      role: userType
-    });
-
-    // Store additional user data in Firestore
-    const userDocRef = db.collection('users').doc(userRecord.uid);
-    await userDocRef.set({
-      name: name,
-      email: email,
-      userType: userType,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      lastLogin: null
-    });
-
-    console.log('User document created in Firestore');
-    
-    // Return success response with user data
-    res.status(201).json({
-      id: userRecord.uid,
-      name,
-      email,
-      userType,
-      createdAt: new Date()
-    });
-  } catch (err) {
-    // Error handling code remains the same
-    console.error('Detailed error creating user:', JSON.stringify(err, null, 2));
-    
-    if (err.code === 'auth/email-already-exists') {
-      return res.status(400).json({ message: 'Email already in use' });
-    } else if (err.code === 'auth/invalid-email') {
-      return res.status(400).json({ message: 'Invalid email format' });
-    } else if (err.code === 'auth/weak-password') {
-      return res.status(400).json({ message: 'Password is too weak' });
-    }
-    
-    res.status(500).json({ message: 'Failed to create user', details: err.message });
-  }
-});
-
-// Get all users (for dashboard)
-app.get('/api/users', async (req, res) => {
-  try {
-    const snapshot = await db.collection('users').get();
-    const users = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        name: data.name,
-        email: data.email,
-        userType: data.userType,
-        createdAt: data.createdAt || null,
-      };
-    });
-    res.json(users);
-  } catch (err) {
-    console.error('Error fetching users:', err);
-    res.status(500).json({ error: 'Failed to fetch users', details: err.message });
-  }
-});
-
-// Get a single user by ID
-app.get('/api/users/:id', async (req, res) => {
-  try {
-    const doc = await db.collection('users').doc(req.params.id).get();
-    if (!doc.exists) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    const data = doc.data();
-    res.json({
-      id: doc.id,
-      name: data.name,
-      email: data.email,
-      userType: data.userType,
-      createdAt: data.createdAt || null,
-    });
-  } catch (err) {
-    console.error('Error fetching user:', err);
-    res.status(500).json({ message: 'Failed to fetch user', details: err.message });
-  }
-});
-
-// Update user by ID (name and/or password)
-app.put('/api/users/:id', async (req, res) => {
-  const { id } = req.params;
-  const { name, password } = req.body;
-  try {
-    const docRef = db.collection('users').doc(id);
-    const doc = await docRef.get();
-    if (!doc.exists) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    // Update displayName in Firebase Auth if name is changed
-    if (name) {
-      await admin.auth().updateUser(id, { displayName: name });
-      await docRef.update({ name });
-    }
-    // Only update password if provided
-    if (password && password.length >= 6) {
-      await admin.auth().updateUser(id, { password });
-    }
-    res.json({ message: 'User updated successfully' });
-  } catch (err) {
-    console.error('Error updating user:', err);
-    res.status(500).json({ message: 'Failed to update user', details: err.message });
-  }
-});
-
-// Delete a user by ID
-app.delete('/api/users/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    // Delete from Firebase Auth
-    await admin.auth().deleteUser(id).catch(() => { /* If not found in Auth, ignore */ });
-    // Delete from Firestore
-    await db.collection('users').doc(id).delete();
-    res.status(200).json({ message: 'User deleted successfully' });
-  } catch (err) {
-    console.error('Error deleting user:', err);
-    res.status(500).json({ message: 'Failed to delete user', details: err.message });
-  }
-});
-
-// Set up multer for file uploads
-const storage = multer.memoryStorage();
-const uploadProject = multer({ storage });
-
-// Create a new project
-app.post('/api/projects', uploadProject.single('objFile'), async (req, res) => {
-  try {
-    const { name, description, clientId, designerId, status = 'draft' } = req.body;
-    
-    if (!name || !description || !clientId || !designerId) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-    
-    // Create project document in Firestore
-    const projectRef = db.collection('projects').doc();
-    const projectId = projectRef.id;
-    
-    let objFileUrl = null;
-    
-    // Handle OBJ file upload if present
-    if (req.file) {
-      const objFileName = `projects/${projectId}/model.obj`;
-      const objFileUpload = bucket.file(objFileName);
-      
-      await objFileUpload.save(req.file.buffer, {
-        metadata: {
-          contentType: 'application/octet-stream',
-        }
-      });
-      
-      // Get signed URL for the file (valid for 7 days)
-      const [url] = await objFileUpload.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
-      
-      objFileUrl = url;
-    }
-    
-    // Store project data
-    await projectRef.set({
-      name,
-      description,
-      clientId,
-      designerId,
-      status,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      objFileUrl
-    });
-    
-    // Add project reference to client's projects
-    const clientProjectRef = db.collection('user_projects').doc(clientId);
-    await clientProjectRef.set({
-      projects: admin.firestore.FieldValue.arrayUnion(projectId)
-    }, { merge: true });
-    
-    // Add project reference to designer's projects
-    const designerProjectRef = db.collection('user_projects').doc(designerId);
-    await designerProjectRef.set({
-      projects: admin.firestore.FieldValue.arrayUnion(projectId)
-    }, { merge: true });
-    
-    res.status(201).json({
-      id: projectId,
-      name,
-      description,
-      clientId,
-      designerId,
-      status,
-      objFileUrl,
-      createdAt: new Date()
-    });
-  } catch (err) {
-    console.error('Error creating project:', err);
-    res.status(500).json({ message: 'Failed to create project', details: err.message });
-  }
-});
-
-// Get all projects for a user
-app.get('/api/users/:userId/projects', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    
-    // Get user's project references
-    const userProjectsDoc = await db.collection('user_projects').doc(userId).get();
-    
-    if (!userProjectsDoc.exists || !userProjectsDoc.data().projects) {
-      return res.json([]);
-    }
-    
-    const projectIds = userProjectsDoc.data().projects;
-    
-    // Get full project details
-    const projectPromises = projectIds.map(async (projectId) => {
-      const projectDoc = await db.collection('projects').doc(projectId).get();
-      if (!projectDoc.exists) return null;
-      
-      const projectData = projectDoc.data();
-      return {
-        id: projectDoc.id,
-        ...projectData,
-        createdAt: projectData.createdAt?.toDate(),
-        updatedAt: projectData.updatedAt?.toDate()
-      };
-    });
-    
-    const projects = (await Promise.all(projectPromises)).filter(Boolean);
-    
-    res.json(projects);
-  } catch (err) {
-    console.error('Error fetching user projects:', err);
-    res.status(500).json({ message: 'Failed to fetch projects', details: err.message });
-  }
-});
-
-// Get project by ID
-app.get('/api/projects/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const doc = await db.collection('projects').doc(id).get();
-    if (!doc.exists) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
-    
-    const projectData = doc.data();
-    
-    res.json({
-      id: doc.id,
-      ...projectData,
-      createdAt: projectData.createdAt?.toDate(),
-      updatedAt: projectData.updatedAt?.toDate()
-    });
-  } catch (err) {
-    console.error('Error fetching project:', err);
-    res.status(500).json({ message: 'Failed to fetch project', details: err.message });
-  }
-});
-
-// Update a project
-app.put('/api/projects/:id', uploadProject.single('objFile'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, description, status } = req.body;
-    
-    const projectRef = db.collection('projects').doc(id);
-    const doc = await projectRef.get();
-    
-    if (!doc.exists) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
-    
-    const updateData = {
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    };
-    
-    if (name) updateData.name = name;
-    if (description) updateData.description = description;
-    if (status) updateData.status = status;
-    
-    // Handle OBJ file update if present
-    if (req.file) {
-      const objFileName = `projects/${id}/model.obj`;
-      const objFileUpload = bucket.file(objFileName);
-      
-      await objFileUpload.save(req.file.buffer, {
-        metadata: {
-          contentType: 'application/octet-stream',
-        }
-      });
-      
-      // Get signed URL for the file (valid for 7 days)
-      const [url] = await objFileUpload.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
-      
-      updateData.objFileUrl = url;
-    }
-    
-    await projectRef.update(updateData);
-    
-    res.json({ message: 'Project updated successfully' });
-  } catch (err) {
-    console.error('Error updating project:', err);
-    res.status(500).json({ message: 'Failed to update project', details: err.message });
-  }
-});
-
-// Delete a project
-app.delete('/api/projects/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Check if project exists
-    const projectRef = db.collection('projects').doc(id);
-    const doc = await projectRef.get();
-    
-    if (!doc.exists) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
-    
-    // Get project data
-    const projectData = doc.data();
-    
-    // Remove from user_projects collections
-    if (projectData.clientId) {
-      await db.collection('user_projects').doc(projectData.clientId).update({
-        projects: admin.firestore.FieldValue.arrayRemove(id)
-      });
-    }
-    
-    if (projectData.designerId) {
-      await db.collection('user_projects').doc(projectData.designerId).update({
-        projects: admin.firestore.FieldValue.arrayRemove(id)
-      });
-    }
-    
-    // Delete 3D model file if exists
-    if (projectData.objFileUrl) {
-      try {
-        const objFileName = `projects/${id}/model.obj`;
-        await bucket.file(objFileName).delete();
-      } catch (fileErr) {
-        console.error('Error deleting project file:', fileErr);
-        // Continue with deletion even if file delete fails
-      }
-    }
-    
-    // Delete project document
-    await projectRef.delete();
-    
-    res.json({ message: 'Project deleted successfully' });
-  } catch (err) {
-    console.error('Error deleting project:', err);
-    res.status(500).json({ message: 'Failed to delete project', details: err.message });
-  }
-});
-
-// Project model endpoint - serve the 3D model file
-app.get('/api/projects/:projectId/model', authenticateUser, async (req, res) => {
-  try {
-    const userId = req.user.uid;
-    const projectId = req.params.projectId;
-    
-    // Get project data to verify access
-    const projectDoc = await db.collection('projects').doc(projectId).get();
-    
-    if (!projectDoc.exists) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
-    
-    const projectData = projectDoc.data();
-    
-    // Check if user has access to this project
-    const userRole = req.user.role;
-    const isAdmin = userRole === 'admin';
-    const isDesigner = userRole === 'designer' && projectData.designerId === userId;
-    const isClient = userRole === 'client' && projectData.clientId === userId;
-    
-    if (!isAdmin && !isDesigner && !isClient) {
-      return res.status(403).json({ message: 'Access denied to this project' });
-    }
-    
-    // Get the model file from Firebase Storage
-    const file = bucket.file(`projects/${projectId}/model.obj`);
-    
-    // Check if file exists
-    const [exists] = await file.exists();
-    if (!exists) {
-      return res.status(404).json({ message: 'Model file not found' });
-    }
-
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
-    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    
-    // Stream the file
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="model-${projectId}.obj"`);
-    
-    file.createReadStream()
-      .on('error', (error) => {
-        console.error('Error streaming model file:', error);
-        if (!res.headersSent) {
-          res.status(500).json({ message: 'Error streaming model file' });
-        }
-      })
-      .pipe(res);
-    
-  } catch (error) {
-    console.error('Error serving model file:', error);
-    res.status(500).json({ message: 'Failed to retrieve model file', details: error.message });
-  }
-});
-
+// ===== METRICS API ROUTES =====
 // API to get total number of projects
-app.get('/api/count/totalProjcts', async (req, res) => {
+app.get('/api/count/totalProjects', async (req, res) => {
   try {
+    console.log('Fetching total projects count...');
     const projectsCol = db.collection('projects');
     const snapshot = await projectsCol.count().get();
     const totalProjects = snapshot.data().count;
     
+    console.log(`Found ${totalProjects} total projects`);
     res.json({ count: totalProjects });
   } catch (err) {
     console.error('Error fetching total projects count:', err);
@@ -1293,6 +531,7 @@ app.get('/api/count/totalProjcts', async (req, res) => {
 // API to get count of projects added today
 app.get('/api/count/todayProjects', async (req, res) => {
   try {
+    console.log('Fetching today\'s projects count...');
     // Get today's date at midnight (start of day)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1303,6 +542,7 @@ app.get('/api/count/todayProjects', async (req, res) => {
       .where('createdAt', '>=', today)
       .get();
     
+    console.log(`Found ${snapshot.size} projects created today`);
     res.json({ count: snapshot.size });
   } catch (err) {
     console.error('Error fetching today\'s projects count:', err);
@@ -1313,11 +553,13 @@ app.get('/api/count/todayProjects', async (req, res) => {
 // API to get count of designers
 app.get('/api/count/designers', async (req, res) => {
   try {
+    console.log('Fetching designers count...');
     const usersCol = db.collection('users');
     const snapshot = await usersCol
       .where('userType', '==', 'designer')
       .get();
     
+    console.log(`Found ${snapshot.size} designers`);
     res.json({ count: snapshot.size });
   } catch (err) {
     console.error('Error fetching designers count:', err);
@@ -1325,10 +567,8 @@ app.get('/api/count/designers', async (req, res) => {
   }
 });
 
-
-
 // API endpoint for adding items to cart
-app.post('/api/cart/add', async (req, res) => {
+app.post('/api/cart/add', authenticateUser, async (req, res) => {
   try {
     // Get user ID from the authenticated request
     const userId = req.user?.uid || req.user?.sub;
@@ -1376,23 +616,23 @@ app.post('/api/cart/add', async (req, res) => {
         // Add new item with full furniture details, ensuring no undefined values
         const cartItem = {
           furnitureId,
-          // quantity,
+          quantity,
           textureUrl: textureUrl || null, // Use null instead of undefined
           dateAdded: new Date().toISOString(),
           // Store full furniture details with null fallbacks for any undefined values
-          // name: furnitureData.name || "",
-          // price: furnitureData.price || 0,
-          // category: furnitureData.category || "",
+          name: furnitureData.name || "",
+          price: furnitureData.price || 0,
+          category: furnitureData.category || "",
           dimensions: {
             height: furnitureData.height || 0,
             width: furnitureData.width || 0,
             length: furnitureData.length || 0
           },
-          // wallMountable: furnitureData.wallMountable || false,
+          wallMountable: furnitureData.wallMountable || false,
           // Only store the URL, not the actual file
-          // modelEndpoint: furnitureData.modelEndpoint || null,
+          modelEndpoint: furnitureData.modelEndpoint || null,
           // Preserve the original texture URL list
-          // availableTextures: furnitureData.textureUrls || []
+          availableTextures: furnitureData.textureUrls || []
         };
         
         cartItems.push(cartItem);
@@ -1422,7 +662,7 @@ app.post('/api/cart/add', async (req, res) => {
 });
 
 // API endpoint to retrieve the cart
-app.get('/api/cart', async (req, res) => {
+app.get('/api/cart', authenticateUser, async (req, res) => {
   try {
     const userId = req.user?.uid || req.user?.sub;
     if (!userId) {
@@ -1445,181 +685,10 @@ app.get('/api/cart', async (req, res) => {
   }
 });
 
-// API endpoint for uploading room data
-app.post('/api/rooms/upload', authenticateUser, uploadProject.fields([
-  { name: 'model', maxCount: 1 },
-  { name: 'associatedFiles', maxCount: 10 }, 
-  { name: 'wallTextures', maxCount: 10 },
-  { name: 'floorTextures', maxCount: 10 }
-]), async (req, res) => {
-  try {
-    const userId = req.user?.uid;
-    if (!userId) {
-      return res.status(401).json({ message: 'User not authenticated' });
-    }
-
-    // Extract room details from the request body
-    const { name, description, category, componentTags } = req.body;
-    
-    if (!name || !description || !category) {
-      return res.status(400).json({ message: 'Missing required room details' });
-    }
-
-    if (!req.files.model || req.files.model.length === 0) {
-      return res.status(400).json({ message: 'Missing required model file' });
-    }
-
-    // Generate a unique room ID
-    const roomId = uuidv4();
-    const storageBasePath = `rooms/${roomId}`;
-    const downloadUrls = {};
-
-    // 1. Upload the 3D model file
-    const modelFile = req.files.model[0];
-    const modelFileExt = modelFile.originalname.split('.').pop().toLowerCase();
-    const modelStoragePath = `${storageBasePath}/model.${modelFileExt}`;
-    const modelRef = bucket.file(modelStoragePath);
-    
-    await modelRef.save(modelFile.buffer, {
-      metadata: { contentType: modelFile.mimetype }
-    });
-    
-    const [modelUrl] = await modelRef.getSignedUrl({
-      action: 'read',
-      expires: '03-01-2500' // Long expiry for demonstration
-    });
-    
-    downloadUrls.model = modelUrl;
-
-    // 2. Upload any associated files if provided
-    const associatedFileUrls = [];
-    if (req.files.associatedFiles && req.files.associatedFiles.length > 0) {
-      for (const file of req.files.associatedFiles) {
-        const filePath = `${storageBasePath}/associated/${file.originalname}`;
-        const fileRef = bucket.file(filePath);
-        
-        await fileRef.save(file.buffer, {
-          metadata: { contentType: file.mimetype }
-        });
-        
-        const [fileUrl] = await fileRef.getSignedUrl({
-          action: 'read',
-          expires: '03-01-2500'
-        });
-        
-        associatedFileUrls.push({ 
-          name: file.originalname, 
-          url: fileUrl 
-        });
-      }
-    }
-    
-    downloadUrls.associatedFiles = associatedFileUrls;
-
-    // 3. Upload wall textures if provided
-    const wallTextureUrls = [];
-    if (req.files.wallTextures && req.files.wallTextures.length > 0) {
-      for (const texture of req.files.wallTextures) {
-        const texturePath = `${storageBasePath}/textures/wall/${texture.originalname}`;
-        const textureRef = bucket.file(texturePath);
-        
-        await textureRef.save(texture.buffer, {
-          metadata: { contentType: texture.mimetype }
-        });
-        
-        const [textureUrl] = await textureRef.getSignedUrl({
-          action: 'read',
-          expires: '03-01-2500'
-        });
-        
-        wallTextureUrls.push({ 
-          name: texture.originalname, 
-          url: textureUrl
-        });
-      }
-    }
-    
-    downloadUrls.wallTextures = wallTextureUrls;
-
-    // 4. Upload floor textures if provided
-    const floorTextureUrls = [];
-    if (req.files.floorTextures && req.files.floorTextures.length > 0) {
-      for (const texture of req.files.floorTextures) {
-        const texturePath = `${storageBasePath}/textures/floor/${texture.originalname}`;
-        const textureRef = bucket.file(texturePath);
-        
-        await textureRef.save(texture.buffer, {
-          metadata: { contentType: texture.mimetype }
-        });
-        
-        const [textureUrl] = await textureRef.getSignedUrl({
-          action: 'read',
-          expires: '03-01-2500'
-        });
-        
-        floorTextureUrls.push({ 
-          name: texture.originalname, 
-          url: textureUrl
-        });
-      }
-    }
-    
-    downloadUrls.floorTextures = floorTextureUrls;
-
-    // Parse the componentTags if it's sent as a JSON string
-    let parsedComponentTags = {};
-    try {
-      if (typeof componentTags === 'string') {
-        parsedComponentTags = JSON.parse(componentTags);
-      } else if (componentTags) {
-        parsedComponentTags = componentTags;
-      }
-    } catch (error) {
-      console.error('Error parsing componentTags:', error);
-    }
-
-    // 5. Create the room metadata record in Firestore
-    const roomMetadata = {
-      id: roomId,
-      name,
-      description,
-      category,
-      componentTags: parsedComponentTags,
-      files: downloadUrls,
-      createdBy: userId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    };
-
-    // Add the room document to Firestore
-    const roomDocRef = await db.collection('rooms').doc(roomId).set(roomMetadata);
-
-    res.status(201).json({
-      message: 'Room uploaded successfully',
-      roomId,
-      name,
-      description,
-      category,
-      files: downloadUrls
-    });
-
-  } catch (err) {
-    console.error('Error uploading room:', err);
-    res.status(500).json({ 
-      message: 'Failed to upload room', 
-      details: err.message 
-    });
-  }
+// Start the server in development mode
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Backend server listening on port ${PORT}`);
+  console.log(`Server is running at http://localhost:${PORT}`);
 });
-
-if (process.env.NODE_ENV === 'development') {
-  // Running locally
-  const PORT = process.env.PORT || 3001;
-  app.listen(PORT, () => {
-    console.log(`Backend listening on port ${PORT}`);
-  });
-} else {
-  // Running on Firebase
-  exports.api = functions.https.onRequest(app);
-}
 
