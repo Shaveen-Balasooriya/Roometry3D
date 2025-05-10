@@ -267,6 +267,16 @@ export default function Navbar() {
               >
                 Furniture Catalogue
               </Link>
+              <Link
+                to="/room-scaper"
+                className={
+                  location.pathname === "/room-scaper"
+                    ? "active"
+                    : ""
+                }
+              >
+                Room Scaper
+              </Link>
             </>
           )}
 

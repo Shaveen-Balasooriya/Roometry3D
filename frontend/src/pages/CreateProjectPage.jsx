@@ -10,8 +10,8 @@ export default function CreateProjectPage() {
   const navigate = useNavigate();
 
   const handleProjectCreated = (result) => {
-    // Navigate to the projects list after successful creation
-    navigate('/my-projects');
+    // Navigate to room scaper after successful creation
+    navigate(`/room-scaper`, { state: { projectId: result.id } });
   };
 
   const handleCancel = () => {

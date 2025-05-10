@@ -9,99 +9,100 @@ export default function TextureApplier({
   floorTextures = [],
   onApplyWallTexture,
   onApplyFloorTexture,
-  activeWallTexture,
-  activeFloorTexture
+  activeWallTexture, // This prop will receive the currently active wall texture URL
+  activeFloorTexture // This prop will receive the currently active floor texture URL
 }) {
-  // Keep track of active textures
+  // Local state to track selection for UI feedback, synced with props
   const [selectedWallTexture, setSelectedWallTexture] = useState(null);
   const [selectedFloorTexture, setSelectedFloorTexture] = useState(null);
 
-  // Update local state when props change
+  // Update local state when props change (e.g. parent component sets an active texture)
   useEffect(() => {
-    if (activeWallTexture) setSelectedWallTexture(activeWallTexture);
+    setSelectedWallTexture(activeWallTexture);
   }, [activeWallTexture]);
 
   useEffect(() => {
-    if (activeFloorTexture) setSelectedFloorTexture(activeFloorTexture);
+    setSelectedFloorTexture(activeFloorTexture);
   }, [activeFloorTexture]);
 
   // Handle wall texture selection
-  const handleWallTextureSelect = (texture) => {
-    setSelectedWallTexture(texture);
-    if (onApplyWallTexture) onApplyWallTexture(texture);
+  const handleWallTextureSelect = (textureUrl) => {
+    if (onApplyWallTexture) onApplyWallTexture(textureUrl);
   };
 
   // Handle floor texture selection
-  const handleFloorTextureSelect = (texture) => {
-    setSelectedFloorTexture(texture);
-    if (onApplyFloorTexture) onApplyFloorTexture(texture);
+  const handleFloorTextureSelect = (textureUrl) => {
+    if (onApplyFloorTexture) onApplyFloorTexture(textureUrl);
   };
 
   return (
     <div className="texture-applier-container">
       {/* Wall textures section */}
-      <div className="texture-section">
-        <h3>Wall Textures</h3>
-        <div className="texture-grid">
-          {wallTextures.length > 0 ? (
-            wallTextures.map((texture, index) => (
+      {wallTextures.length > 0 && (
+        <div className="texture-section">
+          <h3>Wall Textures</h3>
+          <div className="texture-grid">
+            {wallTextures.map((textureUrl, index) => (
               <div 
-                key={`wall-${index}`}
-                className={`texture-card ${texture === selectedWallTexture ? 'active' : ''}`}
-                onClick={() => handleWallTextureSelect(texture)}
+                key={`wall-${textureUrl}-${index}`} // Use URL in key for better stability
+                className={`texture-card ${textureUrl === selectedWallTexture ? 'active' : ''}`}
+                onClick={() => handleWallTextureSelect(textureUrl)}
+                title={textureUrl.substring(textureUrl.lastIndexOf('/') + 1)} // Show filename as tooltip
               >
                 <div className="texture-preview">
                   <img 
-                    src={URL.createObjectURL(texture)} 
+                    src={textureUrl} // Directly use the URL
                     alt={`Wall texture ${index + 1}`} 
-                    onLoad={(e) => URL.revokeObjectURL(e.target.src)}
                   />
-                  {texture === selectedWallTexture && (
+                  {textureUrl === selectedWallTexture && (
                     <div className="active-badge">Applied</div>
                   )}
                 </div>
-                <div className="texture-name">{texture.name}</div>
+                <div className="texture-name">
+                  {decodeURIComponent(textureUrl.substring(textureUrl.lastIndexOf('/') + 1).split('?')[0])}
+                </div>
               </div>
-            ))
-          ) : (
-            <div className="no-textures-message">
-              No wall textures available. Please upload some in Step 2.
-            </div>
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Floor textures section */}
-      <div className="texture-section">
-        <h3>Floor Textures</h3>
-        <div className="texture-grid">
-          {floorTextures.length > 0 ? (
-            floorTextures.map((texture, index) => (
+      {floorTextures.length > 0 && (
+        <div className="texture-section">
+          <h3>Floor Textures</h3>
+          <div className="texture-grid">
+            {floorTextures.map((textureUrl, index) => (
               <div 
-                key={`floor-${index}`}
-                className={`texture-card ${texture === selectedFloorTexture ? 'active' : ''}`}
-                onClick={() => handleFloorTextureSelect(texture)}
+                key={`floor-${textureUrl}-${index}`} // Use URL in key
+                className={`texture-card ${textureUrl === selectedFloorTexture ? 'active' : ''}`}
+                onClick={() => handleFloorTextureSelect(textureUrl)}
+                title={textureUrl.substring(textureUrl.lastIndexOf('/') + 1)} // Show filename as tooltip
               >
                 <div className="texture-preview">
                   <img 
-                    src={URL.createObjectURL(texture)} 
-                    alt={`Floor texture ${index + 1}`} 
-                    onLoad={(e) => URL.revokeObjectURL(e.target.src)}
+                    src={textureUrl} // Directly use the URL
+                    alt={`Floor texture ${index + 1}`}
                   />
-                  {texture === selectedFloorTexture && (
+                  {textureUrl === selectedFloorTexture && (
                     <div className="active-badge">Applied</div>
                   )}
                 </div>
-                <div className="texture-name">{texture.name}</div>
+                <div className="texture-name">
+                  {decodeURIComponent(textureUrl.substring(textureUrl.lastIndexOf('/') + 1).split('?')[0])}
+                </div>
               </div>
-            ))
-          ) : (
-            <div className="no-textures-message">
-              No floor textures available. Please upload some in Step 2.
-            </div>
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+      
+      {wallTextures.length === 0 && floorTextures.length === 0 && (
+        <div className="no-textures-message-global">
+          <p>No textures available for this room.</p>
+          <p className="small-text">Textures can be uploaded during the room creation process.</p>
+        </div>
+      )}
     </div>
   );
 }

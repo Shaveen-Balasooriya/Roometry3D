@@ -23,7 +23,9 @@ import EditProjectPage from "./pages/EditProjectPage";
 import CustomerDesignerFurnitureCataloguePage from "./pages/CustomerDesignerFurnitureCataloguePage";
 import CartPage from "./pages/CartPage";
 import Breadcrumb from "./components/Breadcrumb";
-import UploadRoomPage from "./pages/UploadRoomPage"; // Added import for the new page
+import UploadRoomPage from "./pages/UploadRoomPage";
+import RoomScaper from "./pages/RoomScaper";
+import WorkEnvironment from "./pages/WorkEnvironment"; // Added new work environment page
 
 
 // Unauthorized page component
@@ -73,6 +75,9 @@ export default function App() {
                   path="/customer-designer-furniture-catalogue"
                   element={<CustomerDesignerFurnitureCataloguePage />}
                 />
+                <Route path="/room-scaper" element={<RoomScaper />} />
+                <Route path="/work-environment/:roomId" element={<WorkEnvironment />} />
+                <Route path="/work-environment" element={<WorkEnvironment />} />
                 <Route path="/cart" element={<CartPage />} />
               </Route>
 
