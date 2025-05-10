@@ -1,41 +1,91 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../../services/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import Loading from '../../components/Loading';
 import Popup from '../../components/Popup';
 
 import './ProjectForm.css';
 
-export default function ProjectForm({ onSuccess, onCancel, initialData = {} }) {
-  const [formData, setFormData] = useState({
+export default function ProjectForm({ onSuccess, onCancel, initialData = {}, editMode = false }) {
+  const [form, setForm] = useState({
     name: initialData.name || '',
     description: initialData.description || '',
-    type: initialData.type || 'living'
+    clientId: initialData.clientId || '',
+    designerId: initialData.designerId || '',
+    status: initialData.status || 'draft'
   });
   
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [serverError, setServerError] = useState(null);
   const navigate = useNavigate();
   const [popup, setPopup] = useState({ open: false, type: 'error', message: '' });
   const [clients, setClients] = useState([]);
   const [designers, setDesigners] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isObjDragging, setIsObjDragging] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    
     if (!auth.currentUser) {
       navigate('/login');
+      return;
     }
     
-    fetchUsers();
-  }, []);
+    const loadUsers = async () => {
+      if (!isMounted) return;
+      
+      try {
+        setIsLoading(true);
+        
+        // Fetch clients
+        const clientsQuery = query(collection(db, 'users'), where('role', '==', 'client'));
+        const clientsSnapshot = await getDocs(clientsQuery);
+        if (!isMounted) return;
+        
+        const clientsData = clientsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        if (isMounted) setClients(clientsData);
+        
+        // Fetch designers
+        const designersQuery = query(collection(db, 'users'), where('role', '==', 'designer'));
+        const designersSnapshot = await getDocs(designersQuery);
+        if (!isMounted) return;
+        
+        const designersData = designersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        if (isMounted) setDesigners(designersData);
+        
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        if (isMounted) {
+          setPopup({
+            open: true,
+            type: 'error',
+            message: `Error loading users: ${error.message}`
+          });
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    
+    loadUsers();
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate]);
 
   // Load initial data if in edit mode
   useEffect(() => {
-    if (initialData) {
+    if (initialData && editMode) {
       setForm({
         name: initialData.name || '',
         description: initialData.description || '',
@@ -44,87 +94,77 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {} }) {
         status: initialData.status || 'draft'
       });
     }
-  }, [initialData]);
+  }, [initialData, editMode]);
+
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Fetch clients
+      const clientsQuery = query(collection(db, 'users'), where('role', '==', 'client'));
+      const clientsSnapshot = await getDocs(clientsQuery);
+      const clientsData = clientsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setClients(clientsData);
+      
+      // Fetch designers
+      const designersQuery = query(collection(db, 'users'), where('role', '==', 'designer'));
+      const designersSnapshot = await getDocs(designersQuery);
+      const designersData = designersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setDesigners(designersData);
+      
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setPopup({
+        open: true,
+        type: 'error',
+        message: `Error loading users: ${error.message}`
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
-    const { name, value, type, files } = e.target;
+    const { name, value } = e.target;
 
-    if (e.key === 'Enter') {
+    // Prevent form submission on Enter for certain fields
+    if (e.key === 'Enter' && e.target.type !== 'textarea') {
       e.preventDefault();
     }
 
-    if (type === 'file' && name === 'objFile') {
-      const file = files[0];
-      if (file && file.name.toLowerCase().endsWith('.obj')) {
-        setObjFile(file);
-        if (errors.objFile) {
-          setErrors({ ...errors, objFile: '' });
-        }
-      } else if (file) {
-        setErrors({ ...errors, objFile: 'Invalid file type. Please select a .obj file.' });
-      }
-    } else {
-      setForm({ ...form, [name]: value });
-      if (errors[name]) {
-        setErrors({ ...errors, [name]: '' });
-      }
-    }
-  };
-  
-  const handleObjDragOver = (e) => { 
-    e.preventDefault(); 
-    setIsObjDragging(true);
-  };
-  
-  const handleObjDragLeave = () => { 
-    setIsObjDragging(false); 
-  };
-  
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsObjDragging(false);
+    // Update form state with new value
+    setForm(prevForm => ({
+      ...prevForm,
+      [name]: value
+    }));
     
-    const file = e.dataTransfer.files[0];
-    if (file && file.name.toLowerCase().endsWith('.obj')) {
-      setObjFile(file);
-      if (errors.objFile) {
-        setErrors({ ...errors, objFile: '' });
-      }
-    } else if (file) {
-      setErrors({ ...errors, objFile: 'Invalid file type. Please drop a .obj file.' });
+    // Clear error for this field if it exists
+    if (errors[name]) {
+      setErrors(prevErrors => ({
+        ...prevErrors,
+        [name]: ''
+      }));
     }
-  };
-
-  const removeObjFile = (e) => {
-    e.stopPropagation();
-    setObjFile(null);
-    setErrors(prevErrors => {
-      const newErrors = { ...prevErrors };
-      delete newErrors.objFile;
-      return newErrors;
-    });
   };
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name.trim()) {
+    if (!form.name.trim()) {
       newErrors.name = 'Project name is required';
     }
     
-    if (!formData.description.trim()) {
+    if (!form.description.trim()) {
       newErrors.description = 'Project description is required';
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
   };
 
   const handleClearForm = () => {
@@ -135,7 +175,6 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {} }) {
       designerId: '',
       status: 'draft'
     });
-    setObjFile(null);
     setErrors({});
   };
 
@@ -157,13 +196,14 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {} }) {
       
       // Create project data object
       const projectData = {
-        name: formData.name,
-        description: formData.description,
-        type: formData.type,
-        userId: user.uid,
-        userEmail: user.email,
+        name: form.name,
+        description: form.description,
+        clientId: form.clientId || null,
+        designerId: form.designerId || null,
+        status: form.status,
+        createdBy: user.uid,
         createdAt: serverTimestamp(),
-        status: 'draft'
+        updatedAt: serverTimestamp()
       };
       
       // Save project to Firestore
@@ -177,6 +217,11 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {} }) {
     } catch (error) {
       console.error('Error creating project:', error);
       setServerError(error.message || 'Failed to create project. Please try again.');
+      setPopup({
+        open: true,
+        type: 'error',
+        message: `Error: ${error.message || 'Failed to create project'}`
+      });
       setIsSubmitting(false);
     }
   };
@@ -200,7 +245,7 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {} }) {
               id="name"
               name="name"
               type="text"
-              value={form.name}
+              value={form.name || ''}
               onChange={handleChange}
               className={errors.name ? 'error' : ''}
               placeholder="Enter project name"
@@ -233,7 +278,7 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {} }) {
           <textarea
             id="description"
             name="description"
-            value={form.description}
+            value={form.description || ''}
             onChange={handleChange}
             className={errors.description ? 'error' : ''}
             placeholder="Enter project description"
@@ -249,14 +294,14 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {} }) {
             <select
               id="clientId"
               name="clientId"
-              value={form.clientId}
+              value={form.clientId || ''}
               onChange={handleChange}
               className={errors.clientId ? 'error' : ''}
             >
               <option value="">Select a client</option>
               {clients.map(client => (
                 <option key={client.id} value={client.id}>
-                  {client.name} ({client.email})
+                  {client.name || client.displayName || client.email} {client.email && `(${client.email})`}
                 </option>
               ))}
             </select>
@@ -268,14 +313,14 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {} }) {
             <select
               id="designerId"
               name="designerId"
-              value={form.designerId}
+              value={form.designerId || ''}
               onChange={handleChange}
               className={errors.designerId ? 'error' : ''}
             >
               <option value="">Select a designer</option>
               {designers.map(designer => (
                 <option key={designer.id} value={designer.id}>
-                  {designer.name} ({designer.email})
+                  {designer.name || designer.displayName || designer.email} {designer.email && `(${designer.email})`}
                 </option>
               ))}
             </select>
@@ -283,68 +328,27 @@ export default function ProjectForm({ onSuccess, onCancel, initialData = {} }) {
           </div>
         </div>
         
-        <div className="form-section-title">3D Model</div>
-        
-        <div className="form-group">
-          <label htmlFor="objFileInput">
-            {editMode ? '3D Model File (.obj) (optional)' : '3D Model File (.obj)'}
-          </label>
-          <div
-            id="objFileDropArea"
-            className={`file-input-wrapper ${isObjDragging ? 'dragging' : ''} ${errors.objFile ? 'error' : ''}`}
-            onDragEnter={handleObjDragOver}
-            onDragOver={handleObjDragOver}
-            onDragLeave={handleObjDragLeave}
-            onDrop={handleDrop}
-          >
-            <input
-              id="objFileInput"
-              name="objFile"
-              type="file"
-              onChange={handleChange}
-              className="file-input-native"
-              accept=".obj"
-              aria-describedby="objFileDropArea"
-            />
-            <div className="file-input-display">
-              {objFile ? (
-                <div className="file-info">
-                  <span className="file-name">{objFile.name}</span>
-                  <span className="file-size">
-                    ({(objFile.size / 1024).toFixed(1)} KB)
-                    <button type="button" onClick={removeObjFile} className="remove-file-btn" title="Remove file">&times;</button>
-                  </span>
-                </div>
-              ) : (
-                <div className="file-placeholder">
-                  <span>{editMode ? 'Drop new .obj or click to replace' : 'Drop .obj file or click to browse'}</span>
-                </div>
-              )}
-            </div>
-          </div>
-          {errors.objFile && <div className="error-message">{errors.objFile}</div>}
-          {initialData?.objFileUrl && (
-            <div className="file-preview">
-              <p>Current file: <a href={initialData.objFileUrl} target="_blank" rel="noopener noreferrer">View model</a></p>
-            </div>
-          )}
-        </div>
+        {/* No 3D Model section required */}
         
         <div className="form-actions">
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={handleClearForm}
-          >
-            Clear Form
-          </button>
-          <button
-            type="submit"
-            className="button-primary"
-            disabled={isSubmitting || Object.keys(errors).length > 0}
-          >
-            {isSubmitting ? <Loading size={20} /> : (editMode ? 'Update Project' : 'Create Project')}
-          </button>
+          <div className="form-action-left">
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={onCancel || handleClearForm}
+            >
+              {onCancel ? 'Cancel' : 'Clear Form'}
+            </button>
+          </div>
+          <div className="form-action-right">
+            <button
+              type="submit"
+              className="button-primary"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loading size={20} /> : (editMode ? 'Update Project' : 'Create Project')}
+            </button>
+          </div>
         </div>
       </form>
     </>

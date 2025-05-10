@@ -1,7 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import ProjectForm from './components/ProjectForm';
 
 export default function CreateProjectPage() {
@@ -10,8 +8,6 @@ export default function CreateProjectPage() {
   const handleProjectCreated = (result) => {
     // Navigate to room scaper after successful creation
     navigate(`/room-scaper`, { state: { projectId: result.id } });
-    // console.log('Project created successfully:', result);
-    // navigate('/my-projects');
   };
 
   const handleCancel = () => {
@@ -38,7 +34,7 @@ export default function CreateProjectPage() {
           fontSize: '2.1rem',
           fontWeight: 700,
           textAlign: 'center'
-        }}>Add Project</h2>
+        }}>Create New Project</h2>
         
         <div
           style={{
@@ -53,12 +49,11 @@ export default function CreateProjectPage() {
           }}
         >
           <ProjectForm 
-            onSuccess={handleProjectCreated} 
+            onSuccess={handleProjectCreated}
+            onCancel={handleCancel}
           />
-
         </div>
       </main>
-  
     </div>
   );
 }
