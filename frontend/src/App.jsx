@@ -25,8 +25,8 @@ import CartPage from "./pages/CartPage";
 import Breadcrumb from "./components/Breadcrumb";
 import UploadRoomPage from "./pages/UploadRoomPage";
 import RoomScaper from "./pages/RoomScaper";
-import WorkEnvironment from "./pages/WorkEnvironment"; // Added new work environment page
-
+import WorkEnvironment from "./pages/WorkEnvironment"; // Added new work 
+import RoomManagementPage from "./pages/RoomManagementPage";
 
 // Unauthorized page component
 function Unauthorized() {
@@ -62,10 +62,8 @@ export default function App() {
                 <Route path="/change-password" element={<ChangePasswordPage />} />
               </Route>
 
-
               {/* Routes accessible to designers and client */}
               <Route element={<AuthGuard allowedRoles={["client", "designer"]} />}>
-                {/* Project routes - accessible to all authenticated users */}
                 <Route path="/" element={<ClientDesignerHomePage />} />
                 <Route path="/my-projects" element={<MyProjectsPage />} />
                 <Route path="/create-project" element={<CreateProjectPage />} />
@@ -90,11 +88,13 @@ export default function App() {
 
               {/* Routes accessible only to admin */}
               <Route element={<AuthGuard allowedRoles={["admin"]} />}>
-                <Route path="/" element={<HomePage />} />
+                <Route path="/admin" element={<HomePage />} /> {/* FIX: Added /admin route for admin homepage */}
                 <Route path="/add-user" element={<UserManagementPage />} />
                 <Route path="/users-dashboard" element={<UsersDashboardPage />} />
                 <Route path="/edit-user/:id" element={<EditUserPage />} />
                 <Route path="/upload-room" element={<UploadRoomPage />} />
+                <Route path="/room-management" element={<RoomManagementPage />} />
+                
               </Route>
 
               {/* Unauthorized route */}

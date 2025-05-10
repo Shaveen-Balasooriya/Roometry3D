@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './RoomUploadForm.css'; // We will create this CSS file next
 
 const MAX_MODEL_SIZE_MB = 250;

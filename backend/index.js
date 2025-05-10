@@ -254,7 +254,7 @@ app.use('/api/users', authenticateUser);
 app.use('/api/projects', authenticateUser);
 app.use('/api/count',authenticateUser);
 app.use('/api/cart',authenticateUser);
-
+app.use('/api/rooms',authenticateUser);
 // User self-service profile endpoints
 app.post('/api/user/change-password', authenticateUser, async (req, res) => {
   try {
@@ -349,6 +349,11 @@ app.get('/api/count/todayProjects',requireRole(['admin']));
 app.get('/api/count/totalProjcts',requireRole(['admin']));
 app.post('/api/cart/add',requireRole(['client','designer']))
 app.get('api/cart',requireRole(['client','designer']))
+app.delete('/api/rooms/:id', authenticateUser)
+app.get('/api/rooms/:id/textures/floor', authenticateUser)
+app.get('/api/rooms/:id/textures/wall', authenticateUser)
+app.get('/api/rooms/:id/model', authenticateUser)
+app.get('/api/rooms', authenticateUser)
 // Helper function to extract storage path from signed URL
 const getStoragePathFromUrl = (url) => {
   if (!url) return null;
@@ -1483,6 +1488,513 @@ app.get('/api/cart', async (req, res) => {
       error: 'Failed to fetch cart', 
       details: err.message 
     });
+  }
+});
+
+// API endpoint to fetch all rooms or filter by category
+app.get('/api/rooms', async (req, res) => {
+  try {
+    const { category } = req.query;
+    let roomsCol = db.collection('rooms');
+    
+    // Apply category filter if provided
+    if (category && category !== 'All') {
+      roomsCol = roomsCol.where('category', '==', category);
+    }
+    
+    const snapshot = await roomsCol.get();
+    
+    const rooms = snapshot.docs.map(doc => {
+      const data = doc.data();
+      // Extract only the needed fields and create endpoint URLs
+      return {
+        id: doc.id,
+        category: data.category || '',
+        description: data.description || '',
+        createdAt: data.createdAt ? data.createdAt.toDate() : null,
+        modelName: data.model?.name || '',
+        modelEndpoint: `/api/rooms/${doc.id}/model`,
+        // Add textures endpoints if needed
+        wallTextureEndpoint: `/api/rooms/${doc.id}/textures/wall`,
+        floorTextureEndpoint: `/api/rooms/${doc.id}/textures/floor`
+      };
+    });
+    
+    res.json(rooms);
+  } catch (err) {
+    console.error('Error fetching rooms:', err);
+    res.status(500).json({ error: 'Failed to fetch rooms', details: err.message });
+  }
+});
+
+// Update this endpoint to improve model file retrieval
+app.get('/api/rooms/:id/model', async (req, res) => {
+  try {
+    console.log(`Request received for room model: ${req.params.id}`);
+    const doc = await db.collection('rooms').doc(req.params.id).get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    
+    const data = doc.data();
+    
+    // Print full model data structure for debugging
+    console.log(`Room data structure for ${req.params.id}:`, JSON.stringify(data, null, 2));
+    
+    // Try several places where the model URL might be stored
+    let modelUrl = null;
+    
+    // Option 1: Direct model.url structure
+    if (data.model && data.model.url) {
+      console.log("Found model URL in data.model.url");
+      modelUrl = data.model.url;
+    } 
+    // Option 2: Nested in files.model.url
+    else if (data.files && data.files.model && data.files.model.url) {
+      console.log("Found model URL in data.files.model.url");
+      modelUrl = data.files.model.url;
+    }
+    // Option 3: Direct URL in modelUrl field
+    else if (data.modelUrl) {
+      console.log("Found model URL in data.modelUrl");
+      modelUrl = data.modelUrl;
+    }
+    // Option 4: Check for GLB file in files
+    else if (data.files) {
+      console.log("Searching for model in files structure...");
+      // Search recursively for any field ending with .glb or containing model/gltf
+      const findModelUrl = (obj) => {
+        if (!obj) return null;
+        if (typeof obj === 'string') {
+          if (obj.endsWith('.glb') || obj.endsWith('.gltf') || 
+              obj.includes('/model/') || obj.includes('gltf')) {
+            return obj;
+          }
+        } 
+        if (typeof obj === 'object') {
+          for (const key in obj) {
+            const result = findModelUrl(obj[key]);
+            if (result) return result;
+          }
+        }
+        return null;
+      };
+      
+      modelUrl = findModelUrl(data.files);
+      if (modelUrl) console.log("Found model URL in files structure:", modelUrl);
+    }
+    
+    if (!modelUrl) {
+      console.log("No model URL found in any expected location");
+      return res.status(404).json({ error: 'Model file not found' });
+    }
+    
+    console.log(`Attempting to fetch model from URL: ${modelUrl}`);
+    
+    // Try to get the file directly from the URL
+    try {
+      // For Firebase Storage URLs, fetch the file directly
+      const response = await fetch(modelUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch model: ${response.status} ${response.statusText}`);
+      }
+      
+      // Get file type from URL
+      const isGlb = modelUrl.toLowerCase().endsWith('.glb');
+      const isGltf = modelUrl.toLowerCase().endsWith('.gltf');
+      
+      // Stream the file to the client with appropriate content type
+      const contentType = isGlb ? 'model/gltf-binary' : 
+                        isGltf ? 'model/gltf+json' : 
+                        'application/octet-stream';
+      
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      
+      // Pipe the response body to the client
+      response.body.pipe(res);
+      
+    } catch (fetchError) {
+      console.error(`Error fetching from URL: ${modelUrl}`, fetchError);
+      
+      // Fallback to storage path method
+      let storagePath;
+      try {
+        storagePath = getStoragePathFromUrl(modelUrl);
+        console.log(`Attempting with storage path: ${storagePath}`);
+        
+        if (!storagePath) {
+          return res.status(500).json({ message: 'Could not determine storage path from URL' });
+        }
+        
+        const file = bucket.file(storagePath);
+        const [exists] = await file.exists();
+        
+        if (!exists) {
+          console.log(`File does not exist at path: ${storagePath}`);
+          return res.status(404).json({ message: 'Model file not found in storage' });
+        }
+        
+        file.createReadStream()
+          .on('error', (err) => {
+            console.error(`Error streaming file ${storagePath}:`, err);
+            if (!res.headersSent) {
+              res.status(500).json({ message: 'Failed to stream model file', details: err.message });
+            } else {
+              res.end();
+            }
+          })
+          .pipe(res);
+      } catch (pathError) {
+        console.error(`Error with storage path: ${storagePath}`, pathError);
+        res.status(500).json({ message: 'Error processing file path', details: pathError.message });
+      }
+    }
+  } catch (err) {
+    console.error(`Error fetching model for room ${req.params.id}:`, err);
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Failed to fetch model file', details: err.message });
+    }
+  }
+});
+
+// Update the wall textures endpoint
+app.get('/api/rooms/:id/textures/wall', async (req, res) => {
+  try {
+    console.log(`Request received for wall textures: ${req.params.id}`);
+    const doc = await db.collection('rooms').doc(req.params.id).get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    
+    const data = doc.data();
+    console.log(`Room data retrieved for wall textures:`, { 
+      id: doc.id,
+      hasWallTextures: !!(data.wallTextures || data.files?.wallTextures || []) 
+    });
+    
+    // Check available paths for textures based on your data structure
+    let wallTextures = data.wallTextures || [];
+    
+    // If no direct wallTextures field, try different possible paths in the data
+    if (!wallTextures.length && data.files && data.files.wallTextures) {
+      wallTextures = data.files.wallTextures;
+    }
+    
+    if (!wallTextures.length) {
+      // Create textures array from structure in your example
+      if (data.appliedTextures && data.appliedTextures.wall) {
+        // Find which texture is active based on the applied texture name
+        const appliedTexture = data.appliedTextures.wall;
+        
+        // Check for separate wall textures field
+        if (data.files && Array.isArray(data.files.wallTextures)) {
+          wallTextures = data.files.wallTextures;
+        } else {
+          // Manually search through all textures based on your document structure
+          const textures = [];
+          
+          // Look for specific wall texture URLs in the document
+          for (const key in data) {
+            if (typeof data[key] === 'object' && data[key] !== null) {
+              if (Array.isArray(data[key])) {
+                data[key].forEach(item => {
+                  if (item && item.name && item.name.includes('wall') && item.url) {
+                    textures.push({
+                      name: item.name,
+                      url: item.url,
+                      isActive: item.name === appliedTexture
+                    });
+                  }
+                });
+              } else if (key === 'wallTextures' || key.includes('wall')) {
+                for (const textureKey in data[key]) {
+                  if (data[key][textureKey].url) {
+                    textures.push({
+                      name: data[key][textureKey].name || `wall_texture_${textureKey}`,
+                      url: data[key][textureKey].url,
+                      isActive: data[key][textureKey].name === appliedTexture
+                    });
+                  }
+                }
+              }
+            }
+          }
+          
+          if (textures.length) {
+            wallTextures = textures;
+          }
+        }
+      }
+    }
+    
+    // Create mock textures as a last resort
+    if (!wallTextures.length) {
+      // If we couldn't find wall textures, at least try to use any URLs we found with "wall" in the name
+      const searchForWallTextures = (obj, results = []) => {
+        if (!obj || typeof obj !== 'object') return results;
+        
+        if (obj.url && obj.name && 
+            (obj.name.toLowerCase().includes('wall') ||
+             (obj.url && obj.url.toLowerCase().includes('wall')))) {
+          results.push({
+            name: obj.name || 'Wall Texture',
+            url: obj.url,
+            isActive: true
+          });
+        }
+        
+        for (const key in obj) {
+          if (obj[key] && typeof obj[key] === 'object') {
+            searchForWallTextures(obj[key], results);
+          }
+        }
+        
+        return results;
+      };
+      
+      wallTextures = searchForWallTextures(data);
+      
+      // Still no textures? Create mock data based on any image URLs we can find
+      if (!wallTextures.length && data.model && data.model.url) {
+        // Use the model URL to generate texture URL patterns
+        const modelUrl = data.model.url;
+        const baseUrl = modelUrl.substring(0, modelUrl.lastIndexOf('/'));
+        const roomId = req.params.id;
+        
+        console.log(`No wall textures found. Creating mock data using baseUrl: ${baseUrl}`);
+        
+        wallTextures = [
+          {
+            name: "red_brick_diff_1k.jpg",
+            url: `${baseUrl}/../textures/wall/red_brick_diff_1k.jpg`,
+            isActive: true
+          },
+          {
+            name: "beige_wall_001_diff_2k.jpg",
+            url: `${baseUrl}/../textures/wall/beige_wall_001_diff_2k.jpg`,
+            isActive: false
+          }
+        ];
+      }
+    }
+    
+    console.log(`Returning ${wallTextures.length} wall textures`);
+    res.json(wallTextures);
+    
+  } catch (err) {
+    console.error(`Error fetching wall textures for room ${req.params.id}:`, err);
+    res.status(500).json({ message: 'Failed to fetch wall textures', details: err.message });
+  }
+});
+
+// Update the floor textures endpoint
+app.get('/api/rooms/:id/textures/floor', async (req, res) => {
+  try {
+    console.log(`Request received for floor textures: ${req.params.id}`);
+    const doc = await db.collection('rooms').doc(req.params.id).get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    
+    const data = doc.data();
+    console.log(`Room data retrieved for floor textures:`, { 
+      id: doc.id,
+      hasFloorTextures: !!(data.floorTextures || data.files?.floorTextures || []) 
+    });
+    
+    // Check available paths for textures based on your data structure
+    let floorTextures = data.floorTextures || [];
+    
+    // If no direct floorTextures field, try different possible paths in the data
+    if (!floorTextures.length && data.files && data.files.floorTextures) {
+      floorTextures = data.files.floorTextures;
+    }
+    
+    if (!floorTextures.length) {
+      // Create textures array from structure in your example
+      if (data.appliedTextures && data.appliedTextures.floor) {
+        // Find which texture is active based on the applied texture name
+        const appliedTexture = data.appliedTextures.floor;
+        
+        // Check for separate floor textures field
+        if (data.files && Array.isArray(data.files.floorTextures)) {
+          floorTextures = data.files.floorTextures;
+        } else {
+          // Manually search through all textures based on your document structure
+          const textures = [];
+          
+          // Look for specific floor texture URLs in the document
+          for (const key in data) {
+            if (typeof data[key] === 'object' && data[key] !== null) {
+              if (Array.isArray(data[key])) {
+                data[key].forEach(item => {
+                  if (item && item.name && item.name.includes('floor') && item.url) {
+                    textures.push({
+                      name: item.name,
+                      url: item.url,
+                      isActive: item.name === appliedTexture
+                    });
+                  }
+                });
+              } else if (key === 'floorTextures' || key.includes('floor')) {
+                for (const textureKey in data[key]) {
+                  if (data[key][textureKey].url) {
+                    textures.push({
+                      name: data[key][textureKey].name || `floor_texture_${textureKey}`,
+                      url: data[key][textureKey].url,
+                      isActive: data[key][textureKey].name === appliedTexture
+                    });
+                  }
+                }
+              }
+            }
+          }
+          
+          if (textures.length) {
+            floorTextures = textures;
+          }
+        }
+      }
+    }
+    
+    // Create mock textures as a last resort
+    if (!floorTextures.length) {
+      // If we couldn't find floor textures, at least try to use any URLs we found with "floor" in the name
+      const searchForFloorTextures = (obj, results = []) => {
+        if (!obj || typeof obj !== 'object') return results;
+        
+        if (obj.url && obj.name && 
+            (obj.name.toLowerCase().includes('floor') ||
+             (obj.url && obj.url.toLowerCase().includes('floor')))) {
+          results.push({
+            name: obj.name || 'Floor Texture',
+            url: obj.url,
+            isActive: true
+          });
+        }
+        
+        for (const key in obj) {
+          if (obj[key] && typeof obj[key] === 'object') {
+            searchForFloorTextures(obj[key], results);
+          }
+        }
+        
+        return results;
+      };
+      
+      floorTextures = searchForFloorTextures(data);
+      
+      // Still no textures? Create mock data based on any image URLs we can find
+      if (!floorTextures.length && data.model && data.model.url) {
+        // Use the model URL to generate texture URL patterns
+        const modelUrl = data.model.url;
+        const baseUrl = modelUrl.substring(0, modelUrl.lastIndexOf('/'));
+        const roomId = req.params.id;
+        
+        console.log(`No floor textures found. Creating mock data using baseUrl: ${baseUrl}`);
+        
+        floorTextures = [
+          {
+            name: "wood_planks_diff_2k.jpg",
+            url: `${baseUrl}/../textures/floor/wood_planks_diff_2k.jpg`,
+            isActive: true
+          },
+          {
+            name: "oak_veneer_01_diff_2k.jpg",
+            url: `${baseUrl}/../textures/floor/oak_veneer_01_diff_2k.jpg`,
+            isActive: false
+          }
+        ];
+      }
+    }
+    
+    console.log(`Returning ${floorTextures.length} floor textures`);
+    res.json(floorTextures);
+    
+  } catch (err) {
+    console.error(`Error fetching floor textures for room ${req.params.id}:`, err);
+    res.status(500).json({ message: 'Failed to fetch floor textures', details: err.message });
+  }
+});
+
+// API endpoint to delete a room
+app.delete('/api/rooms/:id', async (req, res) => {
+  const { id } = req.params;
+  console.log(`Received DELETE request for room ID: ${id}`);
+
+  try {
+    const docRef = db.collection('rooms').doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      console.log(`Room with ID: ${id} not found.`);
+      return res.status(404).json({ message: 'Room not found' });
+    }
+
+    const data = doc.data();
+    const deletePromises = [];
+
+    // Helper function to extract paths from arrays of objects with URLs
+    const extractStoragePaths = (items) => {
+      if (!items || !Array.isArray(items)) return [];
+      return items
+        .map(item => item.url ? getStoragePathFromUrl(item.url) : null)
+        .filter(path => path !== null);
+    };
+
+    // Delete model file
+    if (data.model?.url) {
+      const modelPath = getStoragePathFromUrl(data.model.url);
+      if (modelPath) {
+        console.log(`Attempting to delete model file from Storage: ${modelPath}`);
+        deletePromises.push(bucket.file(modelPath).delete().catch(err => {
+          console.error(`Failed to delete model file ${modelPath}:`, err.message);
+        }));
+      }
+    }
+
+    // Delete wall textures
+    const wallTexturePaths = extractStoragePaths(data.wallTextures);
+    wallTexturePaths.forEach(path => {
+      console.log(`Attempting to delete wall texture file from Storage: ${path}`);
+      deletePromises.push(bucket.file(path).delete().catch(err => {
+        console.error(`Failed to delete wall texture file ${path}:`, err.message);
+      }));
+    });
+
+    // Delete floor textures
+    const floorTexturePaths = extractStoragePaths(data.floorTextures);
+    floorTexturePaths.forEach(path => {
+      console.log(`Attempting to delete floor texture file from Storage: ${path}`);
+      deletePromises.push(bucket.file(path).delete().catch(err => {
+        console.error(`Failed to delete floor texture file ${path}:`, err.message);
+      }));
+    });
+
+    // Delete associated files if any
+    if (data.files?.associatedFiles && Array.isArray(data.files.associatedFiles)) {
+      const associatedFilePaths = extractStoragePaths(data.files.associatedFiles);
+      associatedFilePaths.forEach(path => {
+        console.log(`Attempting to delete associated file from Storage: ${path}`);
+        deletePromises.push(bucket.file(path).delete().catch(err => {
+          console.error(`Failed to delete associated file ${path}:`, err.message);
+        }));
+      });
+    }
+
+    await Promise.all(deletePromises);
+    console.log('Attempted deletion of associated storage files.');
+
+    console.log(`Attempting to delete Firestore document: ${id}`);
+    await docRef.delete();
+    console.log(`Successfully deleted Firestore document: ${id}`);
+
+    res.status(200).json({ message: 'Room deleted successfully' });
+
+  } catch (err) {
+    console.error(`Error deleting room ${id}:`, err);
+    res.status(500).json({ message: 'Failed to delete room', details: err.message });
   }
 });
 

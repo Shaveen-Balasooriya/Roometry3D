@@ -26,7 +26,7 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl }) {
   const [object, setObject] = useState(null);
   const [error, setError] = useState(null);
   const loaderRef = useRef(new OBJLoader());
-  const API_URL = import.meta.env.VITE_BACKEND_URL;
+
   useEffect(() => {
     let currentMaterial = null;
     let cancelled = false;
@@ -173,7 +173,7 @@ export default function ProjectModelViewer({ projectId, texturePath = null, hasC
   const [isContextLost, setIsContextLost] = useState(false);
   const [forceUpdateKey, setForceUpdateKey] = useState(0);
   const canvasRef = useRef();
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
   // Monitor WebGL context to handle browser issues
   useEffect(() => {
     const canvasElement = canvasRef.current;

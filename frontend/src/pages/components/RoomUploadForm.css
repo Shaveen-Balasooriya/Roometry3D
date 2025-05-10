@@ -1,26 +1,71 @@
-/* Room Upload Form Styles - Enhanced for better UI/UX */
+
 .room-upload-form {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  height: 100%; /* Allow form to fill its container */
+  height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Form section styling matching FurniturePreview */
+.form-section {
+  background: #FFFFFF;
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid #E2E8F0;
+  border-bottom: 2px solid #66B2B8;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.form-section::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 60px;
+  height: 2px;
+  background-color: #ECC94B;
+}
+
+.form-section-header {
+  color: #00474C;
+  position: relative;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #66B2B8;
+}
+
+.form-section-header::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 60px;
+  height: 2px;
+  background-color: #ECC94B;
+}
+
+.form-section-header h2 {
+  margin-left: 0;
+  margin-right: 0;
+  text-align: left;
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0;
 }
 
 /* Step Highlighting */
 .active-step {
   position: relative;
-  animation: highlight-pulse 2s ease-in-out infinite;
-  border-radius: var(--border-radius);
+  border-radius: 4px;
+  padding: 1rem;
+  background-color: #F7FAFC;
+  border-left: 3px solid #ECC94B;
 }
 
 .completed-step label {
-  color: #4CAF50; /* Green color for completed steps */
-}
-
-@keyframes highlight-pulse {
-  0%, 100% { background-color: rgba(41, 98, 255, 0.03); }
-  50% { background-color: rgba(41, 98, 255, 0.1); }
+  color: #38A169;
 }
 
 /* Ribbon Mode Styles - Horizontal layout */
@@ -28,11 +73,12 @@
   flex-direction: row;
   align-items: flex-start;
   gap: 1.5rem;
-  flex-wrap: wrap; /* Allow wrapping on smaller screens */
-  height: auto; /* Auto height in ribbon mode */
-  padding: 0.5rem;
-  background-color: #f8f9fa; /* Light background for the ribbon */
-  border-radius: var(--border-radius);
+  flex-wrap: wrap;
+  height: auto;
+  padding: 1rem;
+  background-color: #FFFFFF;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
 }
 
 .ribbon-section {
@@ -41,49 +87,23 @@
   gap: 0.5rem;
   position: relative;
   padding: 0.75rem;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   min-width: 180px;
+  border: 1px solid #E2E8F0;
 }
 
 .ribbon-mode .ribbon-section {
   margin-right: 1rem;
-  background-color: white; /* White background for each section */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Subtle shadow */
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  border-left: 3px solid #ECC94B;
 }
 
-.ribbon-mode .model-upload-section,
-.ribbon-mode .texture-upload-section {
-  min-width: 220px;
-}
-
-.ribbon-mode .texture-application-section {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  border-top: none; /* Remove border that's in vertical mode */
-  margin-top: 0;
-  padding-top: 0;
-}
-
-.ribbon-mode .texture-select {
-  min-width: 180px;
-  max-width: 250px;
-}
-
-.ribbon-mode .button-primary {
-  margin-top: 0;
-  height: 38px; /* Match height with select */
-  padding: 0 1.5rem;
-  white-space: nowrap;
-}
-
-.ribbon-mode label {
-  font-size: 0.85rem;
-  margin-bottom: 0.25rem;
-  font-weight: 500;
-  color: #455a64;
+.ribbon-section-title {
+  color: #00474C;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
 }
 
 /* Button icons enhancement */
@@ -92,83 +112,56 @@
   font-size: 0.9rem;
 }
 
-/* Texture dropdown and list styles */
-.texture-dropdown {
-  position: relative;
-}
-
-.texture-list.dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 250px;
-  max-height: 200px;
-  overflow-y: auto;
-  background: white;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.texture-list-toggle {
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-  margin-top: 0.5rem;
-  display: flex;
-  align-items: center;
-  color: #455a64;
-  transition: all 0.2s ease;
-}
-
-.texture-list-toggle:hover {
-  background-color: #f1f1f1;
-  border-color: #b0bec5;
-}
-
 /* File selection styles */
 .file-selected {
-  background-color: #e3f2fd !important; /* Light blue background for selected files */
-  border-color: #2196f3 !important;
-  color: #0d47a1 !important;
+  background-color: #E6FFFA !important;
+  border-color: #66B2B8 !important;
+  color: #00474C !important;
 }
 
 .files-selected {
-  background-color: #e8f5e9 !important; /* Light green background for multiple selected files */
-  border-color: #4caf50 !important;
-  color: #1b5e20 !important;
+  background-color: #E6FFFA !important;
+  border-color: #66B2B8 !important;
+  color: #00474C !important;
 }
 
-/* Original Form Styles - Enhanced for better readability */
+.file-selected::after,
+.files-selected::after {
+  content: "✓";
+  margin-left: 0.5rem;
+  color: #38A169;
+  font-weight: bold;
+}
+
+/* Original Form Styles */
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-group label {
-  font-weight: 500;
-  color: #37474f;
+  font-weight: 600;
+  color: #00474C;
   font-size: 0.95rem;
+}
+
+.label-icon {
+  margin-right: 6px;
+  color: #66B2B8;
 }
 
 .file-input-button {
   padding: 0.75rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
   background-color: #fff;
   cursor: pointer;
   text-align: left;
   transition: all 0.2s ease-in-out;
   font-size: 0.95rem;
-  color: #455a64;
+  color: #718096;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -180,10 +173,10 @@
 
 .file-input-button:hover:not(:disabled),
 .file-input-button:focus:not(:disabled) {
-  border-color: #2962ff;
-  box-shadow: 0 0 0 2px rgba(41, 98, 255, 0.2);
+  border-color: #66B2B8;
+  box-shadow: 0 0 0 2px rgba(102, 178, 184, 0.15);
   outline: none;
-  background-color: #fafafa;
+  color: #00474C;
 }
 
 .file-input-button:disabled {
@@ -193,7 +186,7 @@
 }
 
 .error-message {
-  color: #d32f2f; /* Red color for errors */
+  color: #9B2C2C;
   font-size: 0.8rem;
   margin: 0.25rem 0 0;
   display: flex;
@@ -204,21 +197,24 @@
 
 .file-info {
   font-size: 0.85rem;
-  color: #546e7a;
-  margin-top: 0.25rem;
-  word-break: break-all;
+  color: #718096;
+  margin-top: 0.5rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  background-color: #F7FAFC;
+  padding: 0.5rem;
+  border-radius: 4px;
+  border-left: 2px solid #66B2B8;
 }
 
 .file-info.small {
   font-size: 0.75rem;
-  color: #607d8b;
+  color: #A0AEC0;
 }
 
 .file-count-badge {
-  background-color: #4caf50;
+  background-color: #66B2B8;
   color: white;
   border-radius: 12px;
   padding: 0.1rem 0.4rem;
@@ -228,24 +224,23 @@
 
 .file-name {
   font-weight: 500;
+  word-break: break-all;
 }
 
 .texture-list {
   list-style: none;
   padding: 0;
   margin-top: 0.5rem;
-  max-height: 150px; /* Limit height and make scrollable if needed */
+  max-height: 150px;
   overflow-y: auto;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  padding: 0.5rem 0;
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
 }
 
 .texture-list li {
   font-size: 0.85rem;
   padding: 0.35rem 0.75rem;
-  border-bottom: 1px solid #e0e0e0;
-  word-break: break-all;
+  border-bottom: 1px solid #EDF2F7;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -256,79 +251,94 @@
 }
 
 .texture-list li:hover {
-  background-color: #f5f5f5;
+  background-color: #F7FAFC;
 }
 
 .texture-application-section {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid #E2E8F0;
 }
 
 .texture-application-section h3 {
   font-size: 1.1rem;
   margin-bottom: 0.75rem;
-  color: #2962ff;
-  font-weight: 500;
+  color: #00474C;
+  font-weight: 600;
+  position: relative;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #66B2B8;
+}
+
+.texture-application-section h3::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background-color: #ECC94B;
 }
 
 .texture-application-section select {
   width: 100%;
   padding: 0.6rem 0.5rem;
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  border: 1px solid #E2E8F0;
   font-size: 0.95rem;
   background-color: white;
-  color: #37474f;
+  color: #4A5568;
   transition: border-color 0.2s ease;
   cursor: pointer;
-  appearance: none; /* Remove default browser arrow */
-  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23455A64%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23718096' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.7rem top 50%;
-  background-size: 0.65rem auto;
+  background-position: calc(100% - 0.8rem) center;
+  background-size: 12px;
   padding-right: 1.8rem;
 }
 
 .texture-application-section select:hover:not(:disabled) {
-  border-color: #2962ff;
+  border-color: #66B2B8;
 }
 
 .texture-application-section select:focus {
-  border-color: #2962ff;
-  box-shadow: 0 0 0 2px rgba(41, 98, 255, 0.2);
+  border-color: #66B2B8;
+  box-shadow: 0 0 0 2px rgba(102, 178, 184, 0.15);
   outline: none;
 }
 
 .texture-application-section select:disabled {
-  background-color: #f5f5f5;
+  background-color: #F7FAFC;
   cursor: not-allowed;
   opacity: 0.7;
 }
 
-.texture-application-section .button-primary,
 .button-primary {
-  margin-top: 1rem;
-  width: 100%;
   padding: 0.75rem;
-  background-color: #2962ff;
   color: white;
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.1s ease;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.95rem;
+  background-color: #006A71;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-left: 3px solid #ECC94B; /* Add gold accent to match buttons in other components */
 }
 
-.texture-application-section .button-primary:hover:not(:disabled),
 .button-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  background-color: #00474C;
 }
 
-.texture-application-section .button-primary:disabled,
 .button-primary:disabled {
-  background-color: #90a4ae;
+  background-color: #A0AEC0;
   cursor: not-allowed;
   transform: none;
   opacity: 0.7;
@@ -347,54 +357,36 @@
   font-weight: bold;
 }
 
-/* New remove button styling */
+/* Button: danger + remove button styling */
 .button-danger,
 .remove-button {
-  background-color: #f44336;
-  color: white;
-  border: none;
-  border-radius: var(--border-radius);
+  background-color: #FFFFFF;
+  color: #9B2C2C;
+  border: 1px solid #9B2C2C;
+  border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.1s ease;
-  font-weight: 500;
+  transition: all 0.2s ease;
+  font-weight: 600;
   font-size: 0.95rem;
   padding: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  margin-top: 0.5rem; /* Add space between buttons */
-}
-
-/* Ribbon mode specific style for remove button */
-.ribbon-mode .remove-button {
-  margin-top: 0;
-  height: 38px;
-  padding: 0 1.5rem;
-  white-space: nowrap;
-}
-
-.texture-action-buttons {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-
-/* For ribbon mode, buttons side-by-side */
-.ribbon-mode .texture-action-buttons {
-  flex-direction: row;
-  gap: 0.5rem;
 }
 
 .button-danger:hover:not(:disabled),
 .remove-button:hover:not(:disabled) {
-  background-color: #d32f2f; /* Darker red */
-  transform: translateY(-1px);
+  background-color: #FFF5F5;
+  color: #C53030;
+  transform: translateY(-2px);
 }
 
 .button-danger:disabled,
 .remove-button:disabled {
-  background-color: #b0bec5;
+  background-color: #F7FAFC;
+  color: #A0AEC0;
+  border-color: #CBD5E0;
   cursor: not-allowed;
   transform: none;
   opacity: 0.7;
@@ -405,50 +397,30 @@
   font-weight: bold;
 }
 
-/* Currently applied texture info */
-.currently-applied {
-  margin-top: 0.75rem;
-  padding: 0.5rem;
-  background-color: #e8f5e9;
-  border-radius: var(--border-radius);
-  border-left: 3px solid #4caf50;
+.texture-action-buttons {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
 
-.currently-applied p {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #2e7d32;
-}
-
-.applied-texture-name {
-  font-weight: 600;
-  background-color: rgba(76, 175, 80, 0.15);
-  padding: 0.15rem 0.4rem;
-  border-radius: 4px;
-}
-
-/* Secondary Button Styling */
-.secondary-button {
-  background-color: #f1f1f1 !important;
-  border: 1px solid #cfd8dc !important;
-  color: #37474f !important;
-}
-
-.secondary-button:hover:not(:disabled) {
-  background-color: #e0e0e0 !important;
-  border-color: #b0bec5 !important;
+/* For ribbon mode, buttons side-by-side */
+.ribbon-mode .texture-action-buttons {
+  flex-direction: row;
+  gap: 0.5rem;
 }
 
 /* Help Text and Tips Styling */
 .help-text {
   font-size: 0.85rem;
-  color: #607d8b;
+  color: #718096;
   margin: 0.5rem 0;
   line-height: 1.4;
-  background-color: #f5f7fa;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--border-radius);
-  border-left: 3px solid #2962ff;
+  background-color: #F7FAFC;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border-left: 3px solid #66B2B8;
 }
 
 .help-tip {
@@ -456,17 +428,41 @@
   align-items: flex-start;
   gap: 0.5rem;
   padding: 0.75rem;
-  background-color: #fff3e0; /* Light orange background */
-  border-radius: var(--border-radius);
+  background-color: #FFFBEB;
+  border-radius: 4px;
   margin-top: 0.5rem;
   font-size: 0.9rem;
-  color: #e65100; /* Dark orange text */
-  border: 1px solid #ffe0b2; /* Light orange border */
+  color: #744210;
+  border: 1px solid #F6E05E;
   line-height: 1.4;
+  border-left: 3px solid #ECC94B;
 }
 
 .tip-icon {
   font-size: 1.2rem;
+  color: #ECC94B;
+}
+
+/* Currently applied texture info */
+.currently-applied {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: #E6FFFA;
+  border-radius: 4px;
+  border-left: 3px solid #66B2B8;
+}
+
+.currently-applied p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #00474C;
+}
+
+.applied-texture-name {
+  font-weight: 600;
+  background-color: rgba(102, 178, 184, 0.15);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
 }
 
 /* Touch-friendly adjustments for mobile */
@@ -481,205 +477,28 @@
     width: 100%;
     max-width: none;
     margin-right: 0;
-  }
-  
-  .ribbon-mode .texture-application-section {
-    flex-direction: column;
-    gap: 0.75rem;
-    align-items: stretch;
-  }
-  
-  .ribbon-mode .texture-select {
-    max-width: none;
-    width: 100%;
-  }
-  
-  .ribbon-mode .button-primary,
-  .ribbon-mode .remove-button {
-    width: 100%;
-    height: auto;
-    padding: 0.75rem;
-    margin-top: 0.5rem;
-  }
-  
-  .file-input-button {
-    padding: 0.85rem 1rem; /* Larger touch target */
-  }
-  
-  .texture-list.dropdown {
-    width: 100%;
-    left: 0;
-    right: 0;
-  }
-  
-  .texture-action-buttons {
-    flex-direction: column;
+    margin-bottom: 1rem;
   }
   
   .ribbon-mode .texture-action-buttons {
     flex-direction: column;
+    gap: 0.75rem;
   }
 }
 
-/* Additional style for texture-info in the component badge */
-.texture-info {
-  font-size: 0.8rem;
-  margin-left: 0.5rem;
-  opacity: 0.8;
-  font-style: italic;
-  max-width: 140px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  background-color: rgba(41, 98, 255, 0.05);
-  padding: 0.1rem 0.3rem;
-  border-radius: 3px;
-}
-
-/* Component Tagging Section */
-.component-tagging-section {
-  background-color: #f0f7ff;
-  border: 1px solid #d1e3ff;
-  animation: highlight-pulse 2s ease-in-out;
-}
-
-.component-tagging-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.selected-component {
-  background-color: rgba(41, 98, 255, 0.08);
-  padding: 0.5rem;
-  border-radius: var(--border-radius);
-  border-left: 3px solid var(--primary-color);
-}
-
-.tag-select {
-  padding: 0.5rem;
-  border-radius: var(--border-radius);
-  border: 1px solid #c0d7f7;
-  background-color: white;
-  font-size: 0.9rem;
-  width: 100%;
-  cursor: pointer;
-}
-
-.tag-select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(41, 98, 255, 0.2);
-}
-
-.tag-select-vertical {
-  padding: 0.75rem;
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
-  width: 100%;
-  font-size: 0.95rem;
-  cursor: pointer;
-  margin-bottom: 0.5rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.section-icon {
-  font-size: 1.2rem;
-}
-
-/* Texture Badge */
-.texture-badge {
-  display: flex;
-  align-items: center;
-  background-color: #e8f5e9;
-  border-radius: 20px;
-  padding: 0.2rem 0.5rem;
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
-  color: #2e7d32;
-  width: fit-content;
-}
-
-.texture-count {
-  background-color: #4caf50;
-  color: white;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  margin-right: 0.5rem;
-  font-size: 0.75rem;
-}
-
-/* Preview Section in Step 3 */
-.preview-section {
-  background-color: #f3e5f5;
-  border: 1px solid #e1bee7;
-}
-
-.preview-info {
-  font-size: 0.85rem;
-  color: #6a1b9a;
-  padding: 0.5rem;
-  background-color: rgba(106, 27, 154, 0.08);
-  border-radius: var(--border-radius);
-}
-
-/* Help Tips Panel styles */
-.help-tips-panel {
-  background-color: #fff8e1;
-  border: 1px solid #ffe082;
-  border-radius: var(--border-radius);
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  animation: fadeIn 0.5s ease-out;
-}
-
-.tips-heading {
-  font-size: 1.1rem;
-  margin: 0 0 1rem 0;
-  color: #f57c00;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.tip-icon {
-  font-size: 1.2rem;
-}
-
-.tips-list {
-  margin: 0;
-  padding-left: 1.5rem;
-}
-
-.tips-list li {
-  margin-bottom: 0.75rem;
-  color: #5d4037;
-  font-size: 0.9rem;
-}
-
-.tips-list li strong {
-  color: #e65100;
-}
-
-/* Animation for fading in content */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
+@media (max-width: 480px) {
+  .form-group label {
+    font-size: 0.9rem;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  
+  .file-input-button {
+    font-size: 0.9rem;
+    padding: 0.65rem 0.9rem;
+  }
+  
+  .button-primary,
+  .remove-button {
+    font-size: 0.9rem;
+    padding: 0.65rem;
   }
 }

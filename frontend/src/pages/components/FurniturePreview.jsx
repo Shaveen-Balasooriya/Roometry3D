@@ -1,19 +1,16 @@
 import React, { useRef, useEffect, useState, useMemo, Suspense, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, Bounds } from '@react-three/drei';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
+import { OrbitControls, Environment, Bounds, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import Loading from '../../components/Loading';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { auth } from '../../services/firebase';
-import { getUserRole } from '../../services/firebase'; // Added import for getUserRole
 import './FurniturePreview.css';
 const API_URL = import.meta.env.VITE_BACKEND_URL;
 
 // ModelLoader component
-const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimensions }) {
+const ModelLoader = React.memo(function ModelLoader({ modelBlob, textureUrl, dimensions }) {
   const [object, setObject] = useState(null);
-  const loaderRef = useRef(new OBJLoader());
   const { width: rawWidth = 1, height: rawHeight = 1, length: rawLength = 1 } = dimensions || {};
   const targetWidth = Math.max(Number(rawWidth) || 0, 0.001);
   const targetHeight = Math.max(Number(rawHeight) || 0, 0.001);
@@ -22,20 +19,37 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
   useEffect(() => {
     let currentMaterial = null;
     let cancelled = false;
+    let objectUrl = null;
+    
     setObject(null);
 
-    if (!objBlob) {
+    if (!modelBlob) {
       return;
     }
 
-    async function loadObjFromBlob() {
+    async function loadGLBFromBlob() {
       try {
-        const objText = await objBlob.text();
+        // Create a blob URL for the GLB file
+        objectUrl = URL.createObjectURL(modelBlob);
         if (cancelled) return;
 
-        const parsedObj = loaderRef.current.parse(objText);
+        // Load the GLB model using useGLTF
+        const { scene } = await new Promise((resolve, reject) => {
+          useGLTF.load(
+            objectUrl,
+            (gltf) => resolve(gltf),
+            undefined,
+            (error) => reject(error)
+          );
+        });
 
-        const box = new THREE.Box3().setFromObject(parsedObj);
+        if (cancelled) return;
+
+        // Clone the scene to avoid mutating the cached original
+        const modelScene = scene.clone();
+
+        // Calculate bounding box and size
+        const box = new THREE.Box3().setFromObject(modelScene);
         const originalSize = box.getSize(new THREE.Vector3());
         const originalCenter = box.getCenter(new THREE.Vector3());
 
@@ -43,14 +57,20 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
         const originalHeight = Math.max(originalSize.y, 0.001);
         const originalLength = Math.max(originalSize.z, 0.001);
 
+        // Calculate scale factors to match target dimensions
         const scaleX = targetWidth / originalWidth;
         const scaleY = targetHeight / originalHeight;
         const scaleZ = targetLength / originalLength;
 
-        const scaledBox = new THREE.Box3().setFromObject(parsedObj);
+        // Apply scaling to the model
+        modelScene.scale.set(scaleX, scaleY, scaleZ);
+
+        // Recalculate bounding box after scaling
+        const scaledBox = new THREE.Box3().setFromObject(modelScene);
         const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
 
-        parsedObj.position.sub(scaledCenter);
+        // Center the model
+        modelScene.position.sub(scaledCenter);
 
         const applyMaterial = (material) => {
           if (cancelled) return;
@@ -60,13 +80,14 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
           }
           currentMaterial = material;
 
-          parsedObj.traverse(child => {
+          modelScene.traverse(child => {
             if (child.isMesh) {
               child.material = material;
               child.material.needsUpdate = true;
             }
           });
-          setObject(parsedObj);
+          
+          setObject(modelScene);
         };
 
         if (textureUrl) {
@@ -79,10 +100,10 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
               mapTexture.encoding = THREE.sRGBEncoding;
               mapTexture.needsUpdate = true;
               applyMaterial(new THREE.MeshStandardMaterial({
-                  map: mapTexture,
-                  side: THREE.DoubleSide,
-                  metalness: 0.1,
-                  roughness: 0.8
+                map: mapTexture,
+                side: THREE.DoubleSide,
+                metalness: 0.1,
+                roughness: 0.8
               }));
             },
             undefined,
@@ -90,40 +111,43 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
               if (cancelled) return;
               console.error('Error loading texture:', err);
               applyMaterial(new THREE.MeshStandardMaterial({
-                  color: '#999999',
-                  side: THREE.DoubleSide,
-                  metalness: 0.1,
-                  roughness: 0.8
+                color: '#999999',
+                side: THREE.DoubleSide,
+                metalness: 0.1,
+                roughness: 0.8
               }));
             }
           );
         } else {
+          // If no texture URL, use a plain material
           applyMaterial(new THREE.MeshStandardMaterial({
-              color: '#999999',
-              side: THREE.DoubleSide,
-              metalness: 0.1,
-              roughness: 0.8
+            color: '#999999',
+            side: THREE.DoubleSide,
+            metalness: 0.1,
+            roughness: 0.8
           }));
         }
-
       } catch (error) {
         if (!cancelled) {
-          console.error("Error processing OBJ blob:", error);
+          console.error("Error processing GLB blob:", error);
           setObject(null);
         }
       }
     }
 
-    loadObjFromBlob();
+    loadGLBFromBlob();
 
     return () => {
       cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
       if (currentMaterial) {
         if (currentMaterial.map) currentMaterial.map.dispose();
         currentMaterial.dispose();
       }
     };
-  }, [objBlob, textureUrl, targetWidth, targetHeight, targetLength]);
+  }, [modelBlob, textureUrl, targetWidth, targetHeight, targetLength]);
 
   return object ? <primitive object={object} /> : null;
 });
@@ -132,35 +156,17 @@ const ModelLoader = React.memo(function ModelLoader({ objBlob, textureUrl, dimen
 export default function FurniturePreview({ objFile, textures, dimensions, initialObjUrl = null, initialTextureUrls = [], furnitureId, isEditMode = false }) {
   const [selectedTextureIndex, setSelectedTextureIndex] = useState(0);
   const [localTextureUrls, setLocalTextureUrls] = useState([]);
-  const [initialObjBlob, setInitialObjBlob] = useState(null);
-  const [isLoadingInitialObj, setIsLoadingInitialObj] = useState(false);
+  const [initialModelBlob, setInitialModelBlob] = useState(null);
+  const [isLoadingInitialModel, setIsLoadingInitialModel] = useState(false);
   const [isUploadingTextures, setIsUploadingTextures] = useState(false);
   const [isDeletingTexture, setIsDeletingTexture] = useState(false);
   const [combinedTextureUrls, setCombinedTextureUrls] = useState([]);
-  const [userRole, setUserRole] = useState(null); // Added state for user role
   const prevLocalUrlsRef = useRef([]);
   const canvasRef = useRef();
   const [isContextLost, setIsContextLost] = useState(false);
   const [forceUpdateKey, setForceUpdateKey] = useState(0);
   const fileInputRef = useRef(null);
   const isUpdateMode = initialObjUrl || initialTextureUrls.length > 0;
-
-
-  // Effect to fetch user role
-  useEffect(() => {
-    async function fetchUserRole() {
-      try {
-        const role = await getUserRole();
-        setUserRole(role);
-      } catch (error) {
-        console.error("Error fetching user role:", error);
-      }
-    }
-    
-    fetchUserRole();
-  }, []);
-
-  // Effect to create/revoke URLs for user-uploaded textures
 
   useEffect(() => {
     const validTextures = textures?.filter(t => t instanceof Blob) || [];
@@ -187,26 +193,19 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
     };
   }, [textures]);
 
-
   // Effect to combine local and initial texture URLs
-  // FIXED: Only run when dependencies actually change
   useEffect(() => {
-    // Use whichever textures are available
     const texturesToUse = localTextureUrls.length > 0 
       ? [...localTextureUrls] 
       : [...initialTextureUrls];
     
-    // Prevent infinite loop - only update if the combined URLs actually change
     if (JSON.stringify(texturesToUse) !== JSON.stringify(combinedTextureUrls)) {
       setCombinedTextureUrls(texturesToUse);
     }
-    
-    // Don't adjust selectedTextureIndex here - let the user control it
   }, [localTextureUrls, initialTextureUrls]);
 
-  // Safety check for selectedTextureIndex - runs when combinedTextureUrls changes
+  // Safety check for selectedTextureIndex
   useEffect(() => {
-    // If the selected index is out of bounds, reset it to a valid value
     if (combinedTextureUrls.length > 0 && selectedTextureIndex >= combinedTextureUrls.length) {
       setSelectedTextureIndex(0);
     }
@@ -215,10 +214,10 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
   useEffect(() => {
     let isActive = true;
     if (initialObjUrl && !objFile) {
-      setIsLoadingInitialObj(true);
-      setInitialObjBlob(null);
+      setIsLoadingInitialModel(true);
+      setInitialModelBlob(null);
       
-      const fetchInitialObj = async () => {
+      const fetchInitialModel = async () => {
         try {
           const user = auth.currentUser;
           if (!user) {
@@ -233,32 +232,32 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
             }
           });
           
-          if (!response.ok) throw new Error('Failed to fetch initial OBJ file');
+          if (!response.ok) throw new Error('Failed to fetch initial model file');
           const blob = await response.blob();
           if (isActive) {
-            setInitialObjBlob(blob);
+            setInitialModelBlob(blob);
           }
         } catch (err) {
           if (isActive) {
-            console.error("Error fetching initial OBJ blob:", err);
-            setInitialObjBlob(null);
+            console.error("Error fetching initial model blob:", err);
+            setInitialModelBlob(null);
           }
         } finally {
           if (isActive) {
-            setIsLoadingInitialObj(false);
+            setIsLoadingInitialModel(false);
           }
         }
       };
       
-      fetchInitialObj();
+      fetchInitialModel();
     } else {
-      setInitialObjBlob(null);
-      setIsLoadingInitialObj(false);
+      setInitialModelBlob(null);
+      setIsLoadingInitialModel(false);
     }
     return () => { isActive = false; };
   }, [initialObjUrl, objFile]);
 
-  const displayObjBlob = objFile instanceof Blob ? objFile : initialObjBlob;
+  const displayModelBlob = objFile instanceof Blob ? objFile : initialModelBlob;
 
   const currentTextureUrl = useMemo(() => {
     return combinedTextureUrls.length > 0 ? 
@@ -272,11 +271,8 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
     length: Number(dimensions?.length) || 1,
   }), [dimensions]);
 
-  const showLoading = isLoadingInitialObj && !objFile;
-  const canPreview = !!displayObjBlob;
-
-  // Check if user can manage textures (only non-designer users can)
-  const canManageTextures = userRole !== 'designer';
+  const showLoading = isLoadingInitialModel && !objFile;
+  const canPreview = !!displayModelBlob;
 
   useEffect(() => {
     const canvasElement = canvasRef.current;
@@ -323,9 +319,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
         formData.append('textures', file);
       });
       
-      // Send the textures to the server
       const response = await fetch(`${API_URL}/api/furniture/${furnitureId}/textures`, {
-
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${idToken}`
@@ -390,9 +384,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
       
       const idToken = await user.getIdToken();
       
-      // Send the delete request to the server
       const response = await fetch(`${API_URL}/api/furniture/${furnitureId}/textures/delete`, {
-
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${idToken}`,
@@ -528,7 +520,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
               }>
                 <Bounds fit clip observe margin={1.5}>
                   <ModelLoader
-                    objBlob={displayObjBlob}
+                    modelBlob={displayModelBlob}
                     textureUrl={currentTextureUrl}
                     dimensions={numericDimensions}
                   />
@@ -618,7 +610,7 @@ export default function FurniturePreview({ objFile, textures, dimensions, initia
         <div className="texture-controls">
           <div className="texture-controls-header">
             <h3>Available Textures{combinedTextureUrls.length > 0 ? ` (${combinedTextureUrls.length})` : ''}</h3>
-            {isUpdateMode && furnitureId && canManageTextures && (
+            {isUpdateMode && furnitureId && (
               <div className="texture-control-buttons">
                 <button 
                   className="add-texture-button"
