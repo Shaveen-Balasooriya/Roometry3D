@@ -1,102 +1,241 @@
-import React, { useState, useEffect, Suspense, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment } from '@react-three/drei';
+import { auth, db, storage } from '../services/firebase';
+import { collection, getDocs, query, where, doc, getDoc, limit } from 'firebase/firestore';
+import { ref, getDownloadURL } from 'firebase/storage';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Environment, OrbitControls } from '@react-three/drei';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import * as THREE from 'three';
 import { useLoader } from '@react-three/fiber';
-import { auth, db } from '../services/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import './RoomScaper.css';
 
-// Simple model loader component
-function RoomModel({ modelUrl, onLoaded }) {
-  const actualModelUrl = typeof modelUrl === 'object' && modelUrl?.url ? 
-    modelUrl.url : 
-    modelUrl;
-  
-  // Use a ref to track if we've called onLoaded already
+// Custom 3D Model Preview Component
+function RoomModelPreview({ modelUrl, onLoaded }) {
   const loadedRef = useRef(false);
+  const modelUrlRef = useRef(modelUrl);
+  const wallMaterialsRef = useRef(new Map());
+  const cameraRef = useRef();
+  const modelRef = useRef();
   
-  // Call onLoaded when component mounts to ensure loading state is visible immediately
-  useEffect(() => {
-    // Don't mark as complete yet - this is just to ensure loading indicator shows up
-    return () => {
-      // Cleanup if unmounted before loaded
-      if (!loadedRef.current && onLoaded) {
+  console.log("Attempting to load model from URL:", modelUrl);
+  
+  // Use standard GLTFLoader without custom manager to avoid "Proto is not a constructor" error
+  const gltf = useLoader(GLTFLoader, modelUrl, undefined, (xhr) => {
+    if (xhr.loaded && xhr.total) {
+      const progress = Math.floor((xhr.loaded / xhr.total) * 100);
+      console.log(`Loading model: ${progress}% complete`);
+      if (progress === 100 && !loadedRef.current && onLoaded) {
+        loadedRef.current = true;
+        console.log("Model load progress complete, calling onLoaded");
         onLoaded();
       }
-    };
-  }, [onLoaded]);
+    }
+  });
   
-  const gltf = useLoader(GLTFLoader, actualModelUrl, undefined, 
-    (xhr) => {
-      if (xhr.loaded && xhr.total) {
-        const progress = Math.floor((xhr.loaded / xhr.total) * 100);
-        if (progress === 100 && !loadedRef.current) {
-          loadedRef.current = true;
-          if (onLoaded) onLoaded();
-        }
-      }
-    });
+  // Identify what might be walls based on naming or position
+  const identifyWalls = (object) => {
+    // These patterns help identify walls in common 3D models
+    const wallPatterns = [/wall/i, /partition/i, /divider/i];
+    
+    // Check if the object name contains any wall patterns
+    const nameIsWall = wallPatterns.some(pattern => pattern.test(object.name));
+    
+    // Check if object is flat and vertical (typical wall characteristics)
+    let isVerticalSurface = false;
+    
+    if (object.geometry) {
+      // Get bounding box dimensions
+      const bbox = new THREE.Box3().setFromObject(object);
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+      
+      // If one dimension is much smaller than the others and it's vertical, it might be a wall
+      const minDim = Math.min(size.x, size.y, size.z);
+      const maxDim = Math.max(size.x, size.y, size.z);
+      
+      // Check if the height (y) is significant compared to other dimensions
+      isVerticalSurface = 
+        (minDim < maxDim * 0.1) && // One dimension is thin
+        (size.y > size.x * 0.6 || size.y > size.z * 0.6); // Significant height
+    }
+    
+    // If either naming or geometry suggests a wall, consider it a wall
+    return nameIsWall || isVerticalSurface;
+  };
   
+  // Create transparent material for see-through walls
+  const createTransparentMaterial = (originalMaterial) => {
+    // Clone the original material to preserve its properties
+    const transparentMaterial = originalMaterial.clone();
+    
+    // Set transparency properties
+    transparentMaterial.transparent = true;
+    transparentMaterial.opacity = 0.3;
+    transparentMaterial.depthWrite = false; // Prevents z-fighting
+    transparentMaterial.side = THREE.DoubleSide;
+    
+    // Store a reference to both materials
+    return transparentMaterial;
+  };
+  
+  // Configure the model when it loads
   useEffect(() => {
+    console.log("Model loaded:", gltf ? "success" : "loading");
+    
     if (gltf && gltf.scene && !loadedRef.current) {
       try {
-        // Set up model (center, scale)
+        console.log("Processing loaded model...");
+        
+        // Center and scale the model
         const box = new THREE.Box3().setFromObject(gltf.scene);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         
         const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 2 / (maxDim > 0 ? maxDim : 1);
+        const scale = 2.5 / (maxDim > 0 ? maxDim : 1); // Increased scale factor for closer view
         
         gltf.scene.position.x = -center.x * scale;
         gltf.scene.position.y = -center.y * scale;
         gltf.scene.position.z = -center.z * scale;
         gltf.scene.scale.set(scale, scale, scale);
         
-        // Add lighting to model
+        console.log("Model centered and scaled, dimensions:", size);
+        
+        // Store reference to model
+        modelRef.current = gltf.scene;
+        
+        // Process materials for walls
         gltf.scene.traverse((child) => {
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
+            
             if (child.material) {
               child.material.needsUpdate = true;
+              
+              // Check if this mesh is likely a wall
+              if (identifyWalls(child)) {
+                console.log("Wall identified:", child.name || "unnamed");
+                
+                // Handle array of materials
+                if (Array.isArray(child.material)) {
+                  const transparentMaterials = child.material.map(mat => createTransparentMaterial(mat));
+                  wallMaterialsRef.current.set(child.uuid, {
+                    original: [...child.material],
+                    transparent: transparentMaterials,
+                    mesh: child
+                  });
+                } 
+                // Handle single material
+                else {
+                  const transparentMaterial = createTransparentMaterial(child.material);
+                  wallMaterialsRef.current.set(child.uuid, {
+                    original: child.material,
+                    transparent: transparentMaterial,
+                    mesh: child
+                  });
+                }
+              }
             }
           }
         });
         
-        // Mark as loaded
-        loadedRef.current = true;
-        if (onLoaded) setTimeout(() => onLoaded(), 100); // Small delay to ensure render completes
+        if (onLoaded && !loadedRef.current) {
+          loadedRef.current = true;
+          console.log("Model processing complete, calling onLoaded");
+          setTimeout(() => onLoaded(), 100); // Small delay for render completion
+        }
       } catch (err) {
         console.error("Error processing model:", err);
-        if (onLoaded) onLoaded(); // Still mark as loaded to remove loading screen
+        if (onLoaded) onLoaded(); // Mark as loaded even on error
       }
     }
   }, [gltf, onLoaded]);
   
+  // Handle URL changes
+  useEffect(() => {
+    if (modelUrl !== modelUrlRef.current) {
+      console.log("Model URL changed from", modelUrlRef.current, "to", modelUrl);
+      modelUrlRef.current = modelUrl;
+      loadedRef.current = false;
+    }
+  }, [modelUrl]);
+  
+  // Add effect for camera-based wall transparency
+  useFrame((state) => {
+    if (!wallMaterialsRef.current.size || !modelRef.current) return;
+    
+    const camera = state.camera;
+    cameraRef.current = camera;
+    
+    // Get camera position relative to scene
+    const cameraPosition = camera.position.clone();
+    
+    // Update wall materials based on camera position
+    wallMaterialsRef.current.forEach((materialInfo, uuid) => {
+      const mesh = materialInfo.mesh;
+      
+      if (!mesh.visible) return;
+      
+      // Get mesh world position
+      const meshWorldPosition = new THREE.Vector3();
+      mesh.getWorldPosition(meshWorldPosition);
+      
+      // Calculate vector from camera to mesh center
+      const cameraToMesh = meshWorldPosition.clone().sub(cameraPosition);
+      
+      // Get mesh normal (simplified - assumes walls are axis-aligned)
+      const normal = new THREE.Vector3();
+      if (mesh.geometry.boundingBox) {
+        // Try to get face normal
+        normal.set(0, 0, 1); // Default
+      } else {
+        // Compute bounding box if needed
+        mesh.geometry.computeBoundingBox();
+        normal.set(0, 0, 1); // Default
+      }
+      
+      // If mesh normal is pointing generally toward camera, make it transparent
+      const dot = normal.dot(cameraToMesh);
+      
+      // Adjust this threshold to control when walls become transparent
+      const dotThreshold = 0;
+      
+      // If camera is within a certain distance, make walls transparent
+      const distanceThreshold = 3; // Adjust based on model scale
+      const distance = cameraPosition.distanceTo(meshWorldPosition);
+      
+      if (distance < distanceThreshold || dot < dotThreshold) {
+        // Wall is between camera and interior - make transparent
+        if (Array.isArray(mesh.material)) {
+          mesh.material = materialInfo.transparent;
+        } else {
+          mesh.material = materialInfo.transparent;
+        }
+      } else {
+        // Wall is not obstructing view - use original material
+        mesh.material = materialInfo.original;
+      }
+    });
+  });
+  
   if (!gltf || !gltf.scene) {
-    return <ModelFallback />; // Show fallback if model isn't loaded yet
+    console.log("No model loaded, showing placeholder");
+    return (
+      <mesh>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="lightgray" />
+      </mesh>
+    );
   }
   
+  console.log("Rendering model scene");
   return <primitive object={gltf.scene} castShadow receiveShadow />;
 }
 
-// Fallback displayed during loading
-function ModelFallback() {
-  return (
-    <mesh>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="lightgray" />
-    </mesh>
-  );
-}
-
-// Error boundary component
-class ErrorBoundary extends React.Component {
+// Error boundary for 3D rendering
+class ModelErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false };
@@ -108,54 +247,209 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback || <ModelFallback />;
+      // Return a valid THREE.js object when in a Canvas context
+      return (
+        <mesh>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color="red" />
+        </mesh>
+      );
     }
     return this.props.children;
   }
-}  // Main Room Scaper component
+}
+
+// Room Card Component
+function RoomCard({ room, onSelect, isLoading, onLoaded }) {
+  const { id, name, description, category, modelUrl } = room;
+  const [inView, setInView] = useState(false);
+  const previewRef = useRef(null);
+  
+  // Setup intersection observer for lazy loading
+  useEffect(() => {
+    let observer;
+    try {
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            setInView(true);
+            // Once in view, stop observing
+            if (previewRef.current) {
+              observer.unobserve(previewRef.current);
+            }
+          }
+        },
+        { threshold: 0.1, rootMargin: '100px' }
+      );
+      
+      if (previewRef.current) {
+        observer.observe(previewRef.current);
+      }
+    } catch (err) {
+      console.error("Error setting up intersection observer:", err);
+      // If observer fails, show content anyway
+      setInView(true);
+    }
+    
+    return () => {
+      if (observer && previewRef.current) {
+        observer.unobserve(previewRef.current);
+      }
+    };
+  }, []);
+  
+  // Display model path for debugging
+  useEffect(() => {
+    console.log(`Room ${id} - ${name} model URL:`, modelUrl);
+  }, [id, name, modelUrl]);
+  
+  return (
+    <div className="room-card">
+      <div className="room-preview-container" ref={previewRef}>
+        {modelUrl && inView ? (
+          <>
+            <Canvas shadows camera={{ position: [0, 0.3, 1.8], fov: 35 }}>
+              <color attach="background" args={["#f8f9fa"]} />
+              <ambientLight intensity={0.8} />
+              <directionalLight 
+                position={[5, 5, 5]} 
+                intensity={1} 
+                castShadow 
+                shadow-mapSize-width={1024} 
+                shadow-mapSize-height={1024}
+              />
+              <directionalLight position={[-5, 5, -5]} intensity={0.5} />
+              <Environment preset="apartment" />
+              
+              <ModelErrorBoundary>
+                <Suspense fallback={
+                  <mesh>
+                    <boxGeometry args={[1, 1, 1]} />
+                    <meshStandardMaterial color="lightgray" />
+                  </mesh>
+                }>
+                  <RoomModelPreview 
+                    modelUrl={modelUrl} 
+                    onLoaded={() => onLoaded && onLoaded(id)}
+                  />
+                </Suspense>
+              </ModelErrorBoundary>
+              
+              <OrbitControls 
+                enableZoom={true} 
+                autoRotate 
+                autoRotateSpeed={0.8}
+                maxPolarAngle={Math.PI / 2}
+                minDistance={1.2}
+                maxDistance={4}
+              />
+              
+              <mesh 
+                rotation={[-Math.PI / 2, 0, 0]} 
+                position={[0, -1, 0]} 
+                receiveShadow
+              >
+                <planeGeometry args={[10, 10]} />
+                <shadowMaterial opacity={0.2} />
+              </mesh>
+            </Canvas>
+            
+            {isLoading && (
+              <div className="model-loading-overlay">
+                <div className="spinner-container">
+                  <div className="loading-spinner"></div>
+                  <p>Loading room preview...</p>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="no-preview">
+            <p>No 3D Preview Available</p>
+            {room.modelPath && typeof room.modelPath === 'string' && (
+              <p className="model-path-info">
+                (Path: {room.modelPath.substring(0, 20) + '...'})
+              </p>
+            )}
+            {room.modelPath && typeof room.modelPath !== 'string' && (
+              <p className="model-path-info">
+                (File: {room.modelPath})
+              </p>
+            )}
+          </div>
+        )}
+        
+        {modelUrl && !inView && (
+          <div className="model-placeholder">
+            <div className="loading-spinner"></div>
+            <p>Loading preview...</p>
+          </div>
+        )}
+      </div>        <div className="room-card-body">
+          <div className="room-category-tag">{category || 'Uncategorized'}</div>
+          <h3 className="room-title">{name}</h3>
+          <p className="room-description">
+            {description && description.length > 120 
+              ? `${description.substring(0, 120)}...` 
+              : description || 'No description available.'}
+          </p>
+          <div className="room-card-footer">
+            <button 
+              className="room-select-button" 
+              onClick={() => onSelect(room)}
+              disabled={isLoading}
+            >
+              Select Room
+            </button>
+          </div>
+        </div>
+    </div>
+  );
+}
+
+// Loading Component
+function LoadingSpinner({ message = "Loading..." }) {
+  return (
+    <div className="loading-container">
+      <div className="loading-spinner-large"></div>
+      <h2>Loading Room Templates</h2>
+      <p>{message}</p>
+    </div>
+  );
+}
+
+// Main RoomScaper Component
 function RoomScaper() {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [loadingStates, setLoadingStates] = useState({});
+  const [categories, setCategories] = useState(['All']);
   const [projectData, setProjectData] = useState(null);
   
-  // Get project ID from location state if available
-  const location = useLocation();
   const navigate = useNavigate();
+  const location = useLocation();
   const projectId = location.state?.projectId;
   
-  // Sample room for testing if needed
-  const sampleRoom = {
-    id: 'sample-room-1',
-    name: 'Sample Test Room',
-    description: 'This is a sample room for testing purposes.',
-    category: 'Test Room',
-    modelUrl: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/BoxTextured/glTF/BoxTextured.gltf'
-  };
-  
-  // Fetch project data if projectId is available
+  // Fetch project data if project ID is available
   useEffect(() => {
     if (projectId) {
       const fetchProjectData = async () => {
         try {
-          const idToken = await auth.currentUser.getIdToken();
-          const response = await fetch(`/api/projects/${projectId}`, {
-            headers: {
-              'Authorization': `Bearer ${idToken}`
-            }
-          });
+          const projectRef = doc(db, 'projects', projectId);
+          const projectDoc = await getDoc(projectRef);
           
-          if (response.ok) {
-            const data = await response.json();
-            console.log('Found project data:', data);
-            setProjectData(data);
+          if (projectDoc.exists()) {
+            const data = projectDoc.data();
+            setProjectData({ id: projectDoc.id, ...data });
+            console.log('Project data loaded:', data);
           } else {
-            console.error('Failed to fetch project:', response.status);
+            console.warn('Project not found:', projectId);
           }
         } catch (error) {
           console.error('Error fetching project data:', error);
+          setError(`Failed to load project: ${error.message}`);
         }
       };
       
@@ -163,10 +457,129 @@ function RoomScaper() {
     }
   }, [projectId]);
   
-  // Mark a model as loaded
+  // Fetch rooms from Firestore
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        setLoading(true);
+        console.log("Fetching rooms from Firestore...");
+        
+        // Query rooms collection
+        const roomsRef = collection(db, 'rooms');
+        const roomsSnapshot = await getDocs(roomsRef);
+        
+        if (roomsSnapshot.empty) {
+          console.log('No rooms found in database');
+          setRooms([]);
+          setLoading(false);
+          return;
+        }
+        
+        console.log(`Found ${roomsSnapshot.size} rooms in database`);
+        
+        // Process room data
+        const loadingStateObj = {};
+        const categoriesSet = new Set(['All']);
+        
+        const roomPromises = roomsSnapshot.docs.map(async (doc) => {
+          const data = doc.data();
+          const roomId = doc.id;
+          
+          console.log(`Processing room ${roomId}:`, data);
+          
+          // Track loading state for this room
+          loadingStateObj[roomId] = true;
+          
+          // Add category to set of categories
+          if (data.category) {
+            categoriesSet.add(data.category);
+          }
+          
+          // Get model URL from Firebase Storage if path exists
+          let modelUrl = null;
+          let modelPath = null;
+          
+          // Check the different possible fields where the model path might be stored
+          const modelData = data.modelPath || data.modelUrl || data.model || 
+            (data.files && data.files.model) || null;
+            
+          console.log(`Room ${roomId} model path:`, modelData);
+          
+          // Handle different data structures for model path/url
+          if (modelData) {
+            try {
+              // Handle object with url property (which is what we're seeing in the logs)
+              if (typeof modelData === 'object' && modelData.url) {
+                modelUrl = modelData.url;
+                modelPath = modelData.name || 'model file';
+                console.log(`Using URL from object for room ${roomId}:`, modelUrl);
+              }
+              // Handle direct string URL
+              else if (typeof modelData === 'string') {
+                if (modelData.startsWith('http')) {
+                  modelUrl = modelData;
+                  modelPath = modelData;
+                  console.log(`Using direct string URL for room ${roomId}:`, modelUrl);
+                } else {
+                  // For paths, use Firebase Storage
+                  const modelRef = ref(storage, modelData);
+                  modelUrl = await getDownloadURL(modelRef);
+                  modelPath = modelData;
+                  console.log(`Generated download URL for room ${roomId}:`, modelUrl);
+                }
+              }
+            } catch (err) {
+              console.error(`Error getting download URL for room ${roomId}:`, err);
+              
+              // Only try alternative approach if modelData is a string
+              if (typeof modelData === 'string') {
+                try {
+                  // Sometimes the path might be stored with or without a leading slash
+                  const altPath = modelData.startsWith('/') ? modelData.substring(1) : `/${modelData}`;
+                  const modelRef = ref(storage, altPath);
+                  modelUrl = await getDownloadURL(modelRef);
+                  modelPath = altPath;
+                  console.log(`Generated download URL using alternate path for room ${roomId}:`, modelUrl);
+                } catch (altErr) {
+                  console.error(`Alternative approach also failed for room ${roomId}:`, altErr);
+                }
+              }
+            }
+          }
+          
+          return {
+            id: roomId,
+            name: data.name || 'Unnamed Room',
+            description: data.description || 'No description available',
+            category: data.category || 'Other',
+            modelUrl: modelUrl,
+            modelPath: modelPath,
+            modelData: modelData, // Store the original model data
+            createdAt: data.createdAt?.toDate() || new Date()
+          };
+        });
+        
+        const processedRooms = await Promise.all(roomPromises);
+        console.log("Processed rooms:", processedRooms);
+        
+        setRooms(processedRooms);
+        setLoadingStates(loadingStateObj);
+        setCategories(Array.from(categoriesSet));
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching rooms:', err);
+        setError('Failed to load room templates. Please try again later.');
+        setLoading(false);
+      }
+    };
+    
+    fetchRooms();
+  }, []);
+  
+  // Handle model loaded event
   const handleModelLoaded = (roomId) => {
-    console.log(`Model loaded for room ${roomId}`);
-    // Use a small delay to ensure the model has time to render before hiding loading screen
+    console.log(`Model for room ${roomId} loaded successfully`);
     setTimeout(() => {
       setLoadingStates(prev => ({
         ...prev,
@@ -175,251 +588,111 @@ function RoomScaper() {
     }, 300);
   };
   
-  // Fetch rooms data
-  useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get('/api/rooms', { withCredentials: true });
-        
-        let processedRooms = [];
-        
-        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-          // Create an initial loading states object
-          const initialLoadingStates = {};
-          
-          processedRooms = response.data.map(room => {
-            // Extract modelUrl from room data
-            let modelUrl = null;
-            if (room.modelUrl) {
-              modelUrl = room.modelUrl;
-            } else if (room.files && room.files.model) {
-              modelUrl = room.files.model;
-            }
-            
-            const roomId = room.id || `room-${Math.random().toString(36).substring(2, 9)}`;
-            
-            // Add to initial loading states
-            initialLoadingStates[roomId] = true;
-            
-            return {
-              id: roomId,
-              name: room.name || 'Unnamed Room',
-              description: room.description || 'No description available',
-              category: room.category || 'Other',
-              modelUrl: modelUrl
-            };
-          });
-          
-          // Set all loading states at once instead of individual updates
-          setLoadingStates(initialLoadingStates);
-        } else {
-          processedRooms = [sampleRoom];
-          setLoadingStates({ [sampleRoom.id]: true });
-        }
-        
-        setRooms(processedRooms);
-        setError(null);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching rooms:', err);
-        setRooms([sampleRoom]);
-        setLoadingStates({ [sampleRoom.id]: true });
-        setError('Failed to load rooms. Please try again later.');
-        setLoading(false);
-      }
-    };
+  // Handle room selection
+  const handleRoomSelect = (room) => {
+    console.log('Selected room:', room);
     
-    fetchRooms();
-  }, []);
-  
-  // Safety timeout to prevent infinite loading states
-  useEffect(() => {
-    const timeoutIds = [];
-    
-    // Clear any stuck loading states after 15 seconds
-    Object.keys(loadingStates).forEach(roomId => {
-      if (loadingStates[roomId]) {
-        const timeoutId = setTimeout(() => {
-          setLoadingStates(prev => ({
-            ...prev,
-            [roomId]: false
-          }));
-        }, 15000);
-        
-        timeoutIds.push(timeoutId);
-      }
-    });
-    
-    return () => {
-      timeoutIds.forEach(id => clearTimeout(id));
-    };
-  }, [loadingStates]);
-  
-  const handleWorkWithRoom = (room) => {
-    console.log(`Navigate to workspace for room: ${room.id}`);
-    
-    // Make a clean copy of room data, ensuring modelUrl is a string
-    const cleanRoomData = {
-      ...room,
-      modelUrl: typeof room.modelUrl === 'string' ? 
-        room.modelUrl : 
-        (room.modelUrl && typeof room.modelUrl === 'object' && room.modelUrl.url) ? 
-          room.modelUrl.url : 
-          null
-    };
-    
-    // Include the projectId if available
+    // Navigate to the work environment with the selected room
     navigate(`/work-environment/${room.id}`, {
       state: {
         roomId: room.id,
-        roomData: cleanRoomData,
+        roomData: room,
         projectId: projectId,
-        name: room.name || 'Room Preview',
-        modelUrl: cleanRoomData.modelUrl
+        projectData: projectData
       }
     });
   };
   
-  // Get unique categories
-  const categories = ['All', ...new Set(rooms.map(room => room.category).filter(Boolean))];
-  
-  // Filter rooms by category
-  const filteredRooms = selectedCategory === 'All' 
-    ? rooms 
+  // Filter rooms by selected category
+  const filteredRooms = selectedCategory === 'All'
+    ? rooms
     : rooms.filter(room => room.category === selectedCategory);
   
-  // Show loading indicator
+  // Show loading spinner while fetching data
   if (loading) {
     return (
-      <div className="page-content">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Loading rooms...</p>
+      <div className="room-scaper-container">
+        <div className="room-scaper-header">
+          <h1>Room Scaper</h1>
+          <p className="subtitle">Loading your room templates...</p>
         </div>
+        <LoadingSpinner message="Loading room templates..." />
       </div>
     );
   }
   
-  // Show error
+  // Show error message if something went wrong
   if (error) {
     return (
-      <div className="page-content">
+      <div className="room-scaper-container">
+        <div className="room-scaper-header">
+          <h1>Room Scaper</h1>
+          <p className="subtitle">There was a problem loading room templates</p>
+        </div>
         <div className="error-container">
-          {error}
+          <h3>Error</h3>
+          <p>{error}</p>
+          <button 
+            className="retry-button"
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
   }
-  
+
   return (
-    <div className="page-content">
+    <div className="room-scaper-container">
       <div className="room-scaper-header">
         <h1>Room Scaper</h1>
         <p className="subtitle">
-          Explore our collection of 3D room templates to create your perfect space.
-          Select a room and customize it to your liking.
+          Choose a room template to get started with your {projectData ? projectData.name : ''} project.
+          You can customize the room with furniture and décor in the next step.
         </p>
         
-        <div className="filter-container">
+        {/* Category filter buttons */}
+        <div className="category-filter">
           {categories.map(category => (
-            <button 
-              key={category} 
-              className={`btn ${selectedCategory === category ? "btn-primary" : "btn-outline"}`}
+            <button
+              key={category}
+              className={`category-button ${selectedCategory === category ? 'active' : ''}`}
               onClick={() => setSelectedCategory(category)}
             >
-              {category}
+              {category === 'All' ? 'All Rooms' : category}
             </button>
           ))}
         </div>
       </div>
       
+      {/* Room grid or empty state */}
       {filteredRooms.length === 0 ? (
         <div className="empty-rooms">
-          <h3>No rooms available</h3>
-          <p>{selectedCategory === 'All' ? 'Check back later for new room templates.' : `No rooms found in the '${selectedCategory}' category.`}</p>
+          <h3>No Room Templates Available</h3>
+          <p>
+            {selectedCategory === 'All' 
+              ? 'Check back later for new room templates.'
+              : `No rooms found in the '${selectedCategory}' category.`}
+          </p>
         </div>
       ) : (
-        <div className="room-grid">
-          {filteredRooms.map((room) => (
-            <div key={room.id} className="room-card">
-              <div className="room-preview-container">
-                {room.modelUrl ? (
-                  <>
-                    {/* Always show Canvas, but it might be covered by loading overlay */}
-                    <Canvas shadows camera={{ position: [0, 0.1, 0.9], fov: 35 }}>
-                      <color attach="background" args={["#f5f5f5"]} />
-                      <ambientLight intensity={1.3} />
-                      <directionalLight 
-                        position={[5, 5, 5]} 
-                        intensity={1.2} 
-                        castShadow 
-                      />
-                      <directionalLight position={[-5, 5, -5]} intensity={0.8} />
-                      <Environment preset="apartment" />
-                      
-                      <ErrorBoundary>
-                        <Suspense fallback={null}> {/* Hide fallback, use overlay instead */}
-                          <RoomModel 
-                            modelUrl={room.modelUrl} 
-                            onLoaded={() => handleModelLoaded(room.id)}
-                          />
-                        </Suspense>
-                      </ErrorBoundary>
-                      
-                      <OrbitControls 
-                        enableZoom={true} 
-                        autoRotate 
-                        autoRotateSpeed={1.5}
-                      />
-                      
-                      <mesh 
-                        rotation={[-Math.PI / 2, 0, 0]} 
-                        position={[0, -1, 0]} 
-                        receiveShadow
-                      >
-                        <planeGeometry args={[10, 10]} />
-                        <shadowMaterial opacity={0.2} />
-                      </mesh>
-                    </Canvas>
-                    
-                    {/* Loading overlay outside the Canvas */}
-                    {(loadingStates[room.id] === true) && (
-                      <div className="model-loading-overlay">
-                        <div className="spinner-container">
-                          <div className="loading-spinner"></div>
-                          <p>Loading model...</p>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', backgroundColor: '#e9ecef' }}>
-                    <p>No 3D Preview</p>
-                  </div>
-                )}
-              </div>
-              
-              <div className="room-card-body">
-                <h4 className="room-title">{room.name}</h4>
-                <p className="room-description">
-                  {room.description && room.description.length > 120 
-                    ? `${room.description.substring(0, 120)}...` 
-                    : room.description}
-                </p>
-                <div className="room-card-footer">
-                  <div className="room-category">Category: <strong>{room.category || 'N/A'}</strong></div>
-                  <button 
-                    className="btn btn-primary room-action-button" 
-                    onClick={() => handleWorkWithRoom(room)}
-                  >
-                    Work in 3D Space
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="rooms-count">
+            Showing {filteredRooms.length} {selectedCategory === 'All' ? 'rooms' : `${selectedCategory} rooms`}
+          </div>
+          <div className="rooms-grid">
+            {filteredRooms.map(room => (
+              <RoomCard
+                key={room.id}
+                room={room}
+                onSelect={handleRoomSelect}
+                isLoading={loadingStates[room.id]}
+                onLoaded={handleModelLoaded}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
