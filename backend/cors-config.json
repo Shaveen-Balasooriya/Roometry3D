@@ -2,7 +2,9 @@
   {
     "origin": [
       "http://localhost:5173",
-      "https://roometry-3d.web.app"
+      "http://127.0.0.1:5173",
+      "https://roometry3d.web.app",
+      "https://roometry3d.firebaseapp.com"
     ],
     "methods": [
       "GET",
@@ -13,10 +15,8 @@
     ],
     "allowedHeaders": [
       "Content-Type",
-      "Authorization",
-      "Accept"
+      "Authorization"
     ],
-    "credentials": true,
-    "maxAge": 86400
+    "maxAge": 3600
   }
 ]

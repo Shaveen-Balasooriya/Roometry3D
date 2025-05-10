@@ -42,7 +42,7 @@ export default function HomePage() {
         const [projectsTodayRes, designersRes, totalProjectsRes] = await Promise.all([
           fetch(`${API_URL}/api/count/todayProjects`, { headers }),
           fetch(`${API_URL}/api/count/designers`, { headers }),
-          fetch(`${API_URL}/api/count/totalProjcts`, { headers })
+          fetch(`${API_URL}/api/count/totalProjects`, { headers })
         ]);
 
         // Check for errors
