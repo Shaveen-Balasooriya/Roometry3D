@@ -401,6 +401,16 @@ function RoomCard({ room, onSelect, isLoading, onLoaded }) {
             >
               Select Room
             </button>
+            <button 
+              className="room-debug-button" 
+              onClick={(e) => {
+                e.stopPropagation();
+                window.handleDebugRoom(room);
+              }}
+              title="Debug room model"
+            >
+              Debug
+            </button>
           </div>
         </div>
     </div>
@@ -592,8 +602,31 @@ function RoomScaper() {
   const handleRoomSelect = (room) => {
     console.log('Selected room:', room);
     
-    // Navigate to the work environment with the selected room
-    navigate(`/work-environment/${room.id}`, {
+    // Ensure we have the model URL before navigating
+    if (!room.modelUrl) {
+      console.error('Room is missing modelUrl:', room);
+    }
+    
+    // Navigate to the room environment with the selected room and all necessary data
+    navigate(`/room-environment/${room.id}`, {
+      state: {
+        roomId: room.id,
+        roomData: {
+          ...room,
+          modelUrl: room.modelUrl  // Explicitly include the model URL
+        },
+        projectId: projectId,
+        projectData: projectData
+      }
+    });
+  };
+  
+  // Debug route for troubleshooting room issues
+  const handleDebugRoom = (room) => {
+    console.log('Debugging room:', room);
+    
+    // Navigate to the debug page with all room data
+    navigate(`/room-debug/${room.id}`, {
       state: {
         roomId: room.id,
         roomData: room,

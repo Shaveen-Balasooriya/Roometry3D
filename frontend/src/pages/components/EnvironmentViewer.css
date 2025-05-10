@@ -1,0 +1,163 @@
+.environment-viewer {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background-color: #f5f5f5;
+  overflow: hidden;
+}
+
+.canvas-loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.canvas-loading-indicator p {
+  margin-top: 1rem;
+  color: var(--text-color, #333);
+  font-size: 0.9rem;
+}
+
+.model-error {
+  background-color: rgba(255, 0, 0, 0.1);
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+  color: #d32f2f;
+  max-width: 300px;
+}
+
+.model-error h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+}
+
+.model-error p {
+  margin-bottom: 0;
+  font-size: 0.9rem;
+}
+
+.model-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.7);
+  z-index: 100;
+}
+
+.model-loading-overlay .loading-spinner {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 15px;
+  border: 4px solid rgba(0, 106, 113, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--primary-color, #006A71);
+  animation: spin 1s ease-in-out infinite;
+}
+
+.model-loading-overlay p {
+  font-size: 1.1rem;
+  color: #333;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.no-model-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  text-align: center;
+  padding: 2rem;
+}
+
+.camera-controls-help {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10;
+}
+
+.help-tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.help-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: rgba(0, 106, 113, 0.8);
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: help;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s;
+}
+
+.help-icon:hover {
+  background-color: var(--primary-color, #006A71);
+}
+
+.tooltip-content {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  bottom: 40px;
+  right: 0;
+  width: 220px;
+  padding: 1rem;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  transition: opacity 0.3s, visibility 0.3s;
+  transform: translateY(10px);
+  z-index: 100;
+}
+
+.help-tooltip:hover .tooltip-content {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tooltip-content h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: var(--text-color, #333);
+  font-size: 1rem;
+}
+
+.tooltip-content ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.tooltip-content li {
+  margin-bottom: 0.3rem;
+  font-size: 0.9rem;
+  color: #555;
+}

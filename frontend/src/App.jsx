@@ -27,6 +27,9 @@ import UploadRoomPage from "./pages/UploadRoomPage";
 import RoomScaper from "./pages/RoomScaper";
 import WorkEnvironment from "./pages/WorkEnvironment"; // Added new work 
 import RoomManagementPage from "./pages/RoomManagementPage";
+import RoomEnvironment from "./pages/RoomEnvironment";
+import RoomEnvironmentDebugger from "./pages/RoomEnvironmentDebugger";
+import TextureEnvironmentPage from "./pages/TextureEnvironmentPage";
 
 // Unauthorized page component
 function Unauthorized() {
@@ -99,6 +102,11 @@ export default function App() {
 
               {/* Unauthorized route */}
               <Route path="/unauthorized" element={<Unauthorized />} />
+
+              {/* New routes */}
+              <Route path="/room-environment/:roomId" element={<RoomEnvironment />} />
+              <Route path="/room-debug/:roomId" element={<RoomEnvironmentDebugger />} />
+              <Route path="/texture-environment/:roomId" element={<TextureEnvironmentPage />} />
             </Routes>
           </div>
         </main>
