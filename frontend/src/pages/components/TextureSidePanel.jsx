@@ -12,20 +12,20 @@ function TextureSidePanel({
   selectedFloorTexture, // This is the URL string of the selected texture
   onWallTextureSelect,
   onFloorTextureSelect,
-  onClose
-}) {
-  const [wallTextures, setWallTextures] = useState([]); // Array of texture objects {id, url, name, type}
+  onClose,
+  selectedFurniture, // The currently selected furniture item to apply textures to
+  onFurnitureTextureSelect, // Callback to apply texture to furniture
+  activeSectionIndex: initialSectionIndex,
+  setActiveSectionIndex: externalSetActiveSectionIndex
+}) {  const [wallTextures, setWallTextures] = useState([]); // Array of texture objects {id, url, name, type}
   const [floorTextures, setFloorTextures] = useState([]); // Array of texture objects
+  const [furnitureTextures, setFurnitureTextures] = useState([]); // Array of texture objects for furniture
   const [loadingWallTextures, setLoadingWallTextures] = useState(true);
   const [loadingFloorTextures, setLoadingFloorTextures] = useState(true);
+  const [loadingFurnitureTextures, setLoadingFurnitureTextures] = useState(true);
   const [error, setError] = useState(null);
   const [preloadedTextures, setPreloadedTextures] = useState(new Set());
-
-  // Find the selected texture objects based on the URL for UI highlighting
-  const selectedWallTextureObj = wallTextures.find(texture => texture.url === selectedWallTexture);
-  const selectedFloorTextureObj = floorTextures.find(texture => texture.url === selectedFloorTexture);
-
-  // Preload a texture image to ensure it's cached and ready for immediate use
+  const [activeSectionIndex, setActiveSectionIndex] = useState(initialSectionIndex || 0); // 0: Wall, 1: Floor, 2: Furniture  // Preload a texture image to ensure it's cached and ready for immediate use
   const preloadTexture = async (url) => {
     return new Promise((resolve, reject) => {
       if (preloadedTextures.has(url)) {
@@ -47,7 +47,35 @@ function TextureSidePanel({
       img.src = url;
     });
   };
+  // Define the handleSectionChange function for tabs
+  const handleSectionChange = (index) => {
+    setActiveSectionIndex(index);
+    if (externalSetActiveSectionIndex) {
+      externalSetActiveSectionIndex(index);
+    }
+  };
 
+  // Effect to handle external section index changes
+  useEffect(() => {
+    if (initialSectionIndex !== undefined && initialSectionIndex !== activeSectionIndex) {
+      setActiveSectionIndex(initialSectionIndex);
+    }
+  }, [initialSectionIndex, activeSectionIndex]);
+  
+  // If selected furniture changes, switch to the furniture tab
+  useEffect(() => {
+    if (selectedFurniture) {
+      handleSectionChange(2);
+    }
+  }, [selectedFurniture]);
+
+  // Find the selected texture objects based on the URL for UI highlighting
+  const selectedWallTextureObj = wallTextures.find(texture => texture.url === selectedWallTexture);
+  const selectedFloorTextureObj = floorTextures.find(texture => texture.url === selectedFloorTexture);
+  
+  // Find the selected furniture texture if there's a selected furniture
+  const selectedFurnitureTextureObj = selectedFurniture?.selectedTextureUrl ? 
+    furnitureTextures.find(texture => texture.url === selectedFurniture.selectedTextureUrl) : null;
   // Fetch textures from the database and preload their images
   useEffect(() => {
     const fetchAllTextures = async () => {
@@ -55,6 +83,7 @@ function TextureSidePanel({
         setError("Room ID is required to fetch textures.");
         setLoadingWallTextures(false);
         setLoadingFloorTextures(false);
+        setLoadingFurnitureTextures(false);
         return;
       }
       
@@ -70,15 +99,22 @@ function TextureSidePanel({
         const floorTexturesData = await TextureService.fetchTexturesForRoom(roomId, 'floor');
         console.log("TextureSidePanel: Fetched floor textures:", floorTexturesData);
         
+        // Fetch furniture textures metadata - use a generic 'furniture' type
+        setLoadingFurnitureTextures(true);
+        const furnitureTexturesData = await TextureService.fetchTexturesForRoom(roomId, 'furniture');
+        console.log("TextureSidePanel: Fetched furniture textures:", furnitureTexturesData);
+        
         // Update state with metadata so UI can start showing the texture options
         setWallTextures(wallTexturesData);
         setFloorTextures(floorTexturesData);
+        setFurnitureTextures(furnitureTexturesData);
         
         // Now preload all the texture images in parallel
         console.log("TextureSidePanel: Preloading all texture images...");
         const preloadPromises = [
           ...wallTexturesData.map(texture => preloadTexture(texture.url)),
-          ...floorTexturesData.map(texture => preloadTexture(texture.url))
+          ...floorTexturesData.map(texture => preloadTexture(texture.url)),
+          ...furnitureTexturesData.map(texture => preloadTexture(texture.url))
         ];
         
         // Wait for all textures to be preloaded
@@ -88,18 +124,19 @@ function TextureSidePanel({
         // Mark loading as complete
         setLoadingWallTextures(false);
         setLoadingFloorTextures(false);
+        setLoadingFurnitureTextures(false);
       } catch (err) {
         console.error('TextureSidePanel: Error fetching or preloading textures:', err);
         setError('Failed to load textures. Please try again.');
         setLoadingWallTextures(false);
         setLoadingFloorTextures(false);
+        setLoadingFurnitureTextures(false);
       }
     };
     
     fetchAllTextures();
-  }, [roomId]); 
-  
-  // Handle wall texture selection from TextureCategory/TextureItem
+  }, [roomId]);
+    // Handle wall texture selection from TextureCategory/TextureItem
   const handleWallTextureSelect = (texture) => { // texture is an object {id, url, name, type}
     console.log("TextureSidePanel: Wall texture selected by user:", texture);
     onWallTextureSelect(texture.url); // Pass the URL up to the parent
@@ -110,11 +147,24 @@ function TextureSidePanel({
     console.log("TextureSidePanel: Floor texture selected by user:", texture);
     onFloorTextureSelect(texture.url); // Pass the URL up to the parent
   };
-  
-  return (
+  // Handle furniture texture selection
+  const handleFurnitureTextureSelect = (texture) => {
+    if (!selectedFurniture || !onFurnitureTextureSelect) {
+      console.warn("TextureSidePanel: Can't apply furniture texture - no furniture selected or handler missing");
+      return;
+    }
+    
+    console.log("TextureSidePanel: Furniture texture selected for:", selectedFurniture);
+    console.log("- Selected texture:", texture);
+    console.log("- Furniture instanceId:", selectedFurniture.instanceId);
+    
+    // Call the handler to apply the texture
+    onFurnitureTextureSelect(selectedFurniture.instanceId, texture.url);
+  };
+    return (
     <div className="texture-side-panel">
       <div className="texture-panel-header">
-        <h2>Room Textures</h2>
+        <h2>Textures</h2>
         <button className="close-button" onClick={onClose}>×</button>
       </div>
       
@@ -125,22 +175,68 @@ function TextureSidePanel({
         </div>
       )}
       
+      {/* Texture type tabs */}      <div className="texture-tabs">
+        <button 
+          className={`texture-tab ${activeSectionIndex === 0 ? 'active' : ''}`} 
+          onClick={() => handleSectionChange(0)}
+        >
+          Wall
+        </button>
+        <button 
+          className={`texture-tab ${activeSectionIndex === 1 ? 'active' : ''}`} 
+          onClick={() => handleSectionChange(1)}
+        >
+          Floor
+        </button>
+        <button 
+          className={`texture-tab ${activeSectionIndex === 2 ? 'active' : ''}`}
+          onClick={() => handleSectionChange(2)}
+          disabled={!selectedFurniture}
+        >
+        >
+          Furniture
+        </button>
+      </div>
+      
       <div className="textures-container">
-        <TextureCategory
-          title="Wall Textures"
-          textures={wallTextures}
-          selectedTexture={selectedWallTextureObj}
-          onTextureSelect={handleWallTextureSelect}
-          loading={loadingWallTextures}
-        />
+        {/* Show different texture categories based on active tab */}
+        {activeSectionIndex === 0 && (
+          <TextureCategory
+            title="Wall Textures"
+            textures={wallTextures}
+            selectedTexture={selectedWallTextureObj}
+            onTextureSelect={handleWallTextureSelect}
+            loading={loadingWallTextures}
+          />
+        )}
         
-        <TextureCategory
-          title="Floor Textures"
-          textures={floorTextures}
-          selectedTexture={selectedFloorTextureObj}
-          onTextureSelect={handleFloorTextureSelect}
-          loading={loadingFloorTextures}
-        />
+        {activeSectionIndex === 1 && (
+          <TextureCategory
+            title="Floor Textures"
+            textures={floorTextures}
+            selectedTexture={selectedFloorTextureObj}
+            onTextureSelect={handleFloorTextureSelect}
+            loading={loadingFloorTextures}
+          />
+        )}
+        
+        {activeSectionIndex === 2 && (
+          <>
+            {selectedFurniture ? (
+              <TextureCategory
+                title="Furniture Textures"
+                textures={furnitureTextures}
+                selectedTexture={selectedFurnitureTextureObj}
+                onTextureSelect={handleFurnitureTextureSelect}
+                loading={loadingFurnitureTextures}
+              />
+            ) : (
+              <div className="no-furniture-selected">
+                <p>Select a furniture item to apply textures</p>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

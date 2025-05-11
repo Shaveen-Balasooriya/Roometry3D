@@ -40,10 +40,67 @@
   opacity: 1;
 }
 
+.texture-tabs {
+  display: flex;
+  background-color: #f0f0f0;
+  border-bottom: 1px solid #ddd;
+}
+
+.texture-tab {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 10px 15px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  font-weight: 500;
+  color: #555;
+}
+
+.texture-tab:hover {
+  background-color: rgba(0, 106, 113, 0.05);
+}
+
+.texture-tab.active {
+  color: var(--primary-color, #006A71);
+  background-color: white;
+}
+
+.texture-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--primary-color, #006A71);
+}
+
+.texture-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .textures-container {
   flex: 1;
   overflow-y: auto;
   padding: 15px;
+}
+
+.no-furniture-selected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: #888;
+}
+
+.no-furniture-selected p {
+  margin-bottom: 15px;
 }
 
 .texture-error-message {

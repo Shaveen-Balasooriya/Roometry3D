@@ -1,0 +1,362 @@
+import React, { useRef, useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { getLocalFallbackModelUrl } from '../../utils/furnitureUtils';
+
+const FurnitureModelPreview = ({ modelUrl }) => {
+  const containerRef = useRef(null);
+  const rendererRef = useRef(null);
+  const sceneRef = useRef(null);
+  const cameraRef = useRef(null);
+  const controlsRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const modelRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [autoRotate, setAutoRotate] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const fallbackModelUrl = getLocalFallbackModelUrl();
+
+  // Helper function to apply material to model
+  const applyMaterialToModel = (model, color = 0x6A7B76, roughness = 0.7, metalness = 0.3) => {
+    model.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        
+        // Create a new material with specified properties
+        child.material = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(color),
+          roughness: roughness,
+          metalness: metalness
+        });
+      }
+    });
+    return model;
+  };
+
+  useEffect(() => {
+    if (!containerRef.current || !modelUrl) return;
+
+    // Initialize Three.js scene
+    const container = containerRef.current;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    // Create scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0);
+    sceneRef.current = scene;
+
+    // Create camera
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+    camera.position.set(0, 1, 3);
+    cameraRef.current = camera;    // Create renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    rendererRef.current = renderer;
+
+    // Clean up any existing canvas
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
+    
+    // Add renderer canvas to container
+    container.appendChild(renderer.domElement);
+
+    // Add lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight2.position.set(-1, 1, -1);
+    scene.add(directionalLight2);
+
+    // Add controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+    controls.rotateSpeed = 0.5;
+    controls.enableZoom = false;
+    controls.autoRotate = autoRotate;
+    controls.autoRotateSpeed = 2;
+    controlsRef.current = controls;
+
+    // Load model
+    const loader = new GLTFLoader();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      loader.load(
+        modelUrl,
+        (gltf) => {
+          // Remove any existing model
+          if (modelRef.current) {
+            scene.remove(modelRef.current);
+          }
+
+          const model = gltf.scene;
+          modelRef.current = model;          // Center and scale the model
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          const scale = 1.5 / Math.max(size.x, size.y, size.z);
+
+          model.position.x = -center.x * scale;
+          model.position.y = -center.y * scale + size.y * scale * 0.5;
+          model.position.z = -center.z * scale;
+          model.scale.set(scale, scale, scale);
+
+          // Apply shadows
+          model.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+              
+              // Ensure materials render correctly
+              if (child.material) {
+                child.material.needsUpdate = true;
+              }
+            }
+          });
+
+          scene.add(model);
+          setLoading(false);
+        },
+        (xhr) => {
+          // Progress callback
+          const progress = (xhr.loaded / xhr.total) * 100;
+          console.log(`Loading model: ${Math.round(progress)}% loaded`);
+        },        (error) => {
+          console.error('Error loading model:', error);
+          setError('Failed to load 3D model');
+          setUsingFallback(true);
+          
+          // Create a fallback model directly instead of loading from file
+          try {
+            console.log("Creating fallback cube model");
+            
+            // Create a simple box geometry
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshStandardMaterial({
+              color: new THREE.Color(0x6A7B76),
+              roughness: 0.7,
+              metalness: 0.3
+            });
+            
+            // Create mesh and enable shadows
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            // Create a group to hold the mesh
+            const model = new THREE.Group();
+            model.add(mesh);
+            modelRef.current = model;
+            
+            // Position at center
+            model.position.set(0, 0.5, 0);
+            
+            // Add to scene
+            scene.add(model);
+            setLoading(false);
+          } catch (fallbackErr) {
+            console.error('Error creating fallback model:', fallbackErr);
+            setLoading(false);
+          }
+        }
+        }
+      );
+    } catch (err) {
+      console.error('Error in model loading setup:', err);
+      setError('Failed to initialize 3D viewer');
+      setLoading(false);
+    }
+
+    // Animation loop
+    const animate = () => {
+      if (!rendererRef.current) return;
+      animationFrameRef.current = requestAnimationFrame(animate);
+      if (controlsRef.current) controlsRef.current.update();
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
+    };
+    animate();
+
+    // Handle window resize
+    const handleResize = () => {
+      if (!containerRef.current || !rendererRef.current || !cameraRef.current) return;
+      
+      const container = containerRef.current;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      
+      cameraRef.current.aspect = width / height;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(width, height);
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
+        rendererRef.current = null;
+      }
+      if (controlsRef.current) {
+        controlsRef.current.dispose();
+        controlsRef.current = null;
+      }
+      sceneRef.current = null;
+      cameraRef.current = null;
+      modelRef.current = null;
+    };
+  }, [modelUrl, autoRotate]);
+
+  return (
+    <div 
+      style={{ 
+        width: '100%', 
+        height: '100%', 
+        minHeight: '150px',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        position: 'relative',
+        background: '#f0f0f0'
+      }}
+    >
+      {/* 3D viewer container */}
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'absolute',
+          top: 0,
+          left: 0
+        }}
+        onClick={() => setAutoRotate(!autoRotate)}
+      />
+      
+      {/* Rotation control button */}
+      <button
+        style={{
+          position: 'absolute',
+          bottom: '10px',
+          right: '10px',
+          backgroundColor: 'rgba(0, 106, 113, 0.7)',
+          color: 'white',
+          border: 'none',
+          borderRadius: '50%',
+          width: '30px',
+          height: '30px',
+          fontSize: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          zIndex: 15,
+          opacity: 0.7,
+          transition: 'opacity 0.2s'
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (controlsRef.current) {
+            controlsRef.current.autoRotate = !controlsRef.current.autoRotate;
+            setAutoRotate(controlsRef.current.autoRotate);
+          }
+        }}
+        onMouseOver={(e) => e.currentTarget.style.opacity = 1}
+        onFocus={(e) => e.currentTarget.style.opacity = 1}
+        onMouseOut={(e) => e.currentTarget.style.opacity = 0.7}
+        onBlur={(e) => e.currentTarget.style.opacity = 0.7}
+        title={autoRotate ? "Pause rotation" : "Start rotation"}
+      >
+        {autoRotate ? "⏸" : "⟳"}
+      </button>
+      
+      {/* Loading overlay */}
+      {loading && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(245, 245, 245, 0.7)',
+            zIndex: 10
+          }}
+        >
+          <div
+            style={{
+              textAlign: 'center',
+              color: '#006A71'
+            }}
+          >
+            <div className="loading-spinner" style={{ margin: '0 auto' }}></div>
+            <p style={{ fontSize: '0.8rem', marginTop: '10px' }}>Loading 3D Model...</p>
+          </div>
+        </div>
+      )}
+        {/* Error message */}
+      {error && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(245, 245, 245, 0.9)',
+            zIndex: 10
+          }}
+        >
+          <div
+            style={{
+              textAlign: 'center',
+              color: usingFallback ? '#f59e0b' : '#c62828',
+              padding: '10px'
+            }}
+          >
+            <p style={{ fontSize: '0.8rem' }}>
+              {usingFallback ? 'Using simplified 3D model' : 'Unable to load 3D model'}
+              <br />
+              <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>
+                {usingFallback 
+                  ? 'Original model unavailable' 
+                  : 'Check your internet connection'}
+              </span>
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default FurnitureModelPreview;
+
+// Define PropTypes
+FurnitureModelPreview.propTypes = {
+  modelUrl: PropTypes.string.isRequired
+};
