@@ -20,18 +20,24 @@ const FurnitureModel = ({ modelUrl, scale = 1 }) => {
   const fileType = getFileTypeFromUrl(modelUrl);
   console.log(`Displaying furniture preview: ${modelUrl} (${fileType})`);
   
-  // Wrap each model in its own ErrorBoundary to prevent cascading failures
-  return (
-    <ErrorBoundary fallback={<FallbackBox color="#cc3333" />}>
-      {fileType === 'obj' ? (
-        <ObjModel modelUrl={modelUrl} scale={scale} />
-      ) : fileType === 'gltf' || fileType === 'glb' ? (
-        <GltfModel modelUrl={modelUrl} scale={scale} />
-      ) : (
-        <FallbackBox color="#999999" />
-      )}
-    </ErrorBoundary>
-  );
+  // Add a try/catch at the component level
+  try {
+    // Wrap each model in its own ErrorBoundary to prevent cascading failures
+    return (
+      <ErrorBoundary fallback={<FallbackBox color="#cc3333" />}>
+        {fileType === 'obj' ? (
+          <ObjModel modelUrl={modelUrl} scale={scale} />
+        ) : fileType === 'gltf' || fileType === 'glb' ? (
+          <GltfModel modelUrl={modelUrl} scale={scale} />
+        ) : (
+          <FallbackBox color="#999999" />
+        )}
+      </ErrorBoundary>
+    );
+  } catch (error) {
+    console.error("Error in FurnitureModel component:", error);
+    return <FallbackBox color="#cc3333" />;
+  }
 };
 
 // Helper component to display loading state
@@ -52,7 +58,6 @@ const ObjModel = ({ modelUrl, scale = 1 }) => {
   
   // Use a ref to track if the component is mounted
   const isMounted = useRef(true);
-  
   useEffect(() => {
     // Set isMounted to false when component unmounts
     return () => {
@@ -61,51 +66,70 @@ const ObjModel = ({ modelUrl, scale = 1 }) => {
   }, []);
   
   // Use a suspense-compatible approach for loading
-  const obj = useLoader(
-    OBJLoader, 
-    modelUrl, 
-    undefined, 
-    (err) => {
-      console.error("Error loading OBJ model:", err);
-      if (isMounted.current) {
+  const handleObjLoadError = (err) => {
+    console.error("Error loading OBJ model:", err);
+    if (isMounted.current) {
+      // Check if it's a progress event with a large total size
+      if (err.type === 'progress' && err.total > 10000000) { // 10MB threshold
+        setError(new Error(`Model is too large (${Math.round(err.total / 1024 / 1024)}MB)`));
+      } else {
         setError(err);
       }
     }
-  );
+  };
   
-  // Apply materials and process the model when loaded
-  useEffect(() => {
-    if (obj && isMounted.current) {
-      try {
-        // Apply material to model
-        obj.traverse((child) => {
-          if (child.isMesh) {
-            child.material = new THREE.MeshStandardMaterial({
-              color: 0xcccccc,
-              roughness: 0.5,
-              metalness: 0.2,
-            });
-          }
+  try {
+    const obj = useLoader(
+      OBJLoader, 
+      modelUrl, 
+      (loader) => {
+        // Set timeout to 10 seconds for large files
+        loader.setRequestHeader({
+          timeout: 10000 // 10 seconds
         });
-        setModelLoaded(true);
-      } catch (err) {
-        console.error("Error processing OBJ model:", err);
-        setError(err);
+      }, 
+      handleObjLoadError
+    );
+    
+    // Apply materials and process the model when loaded
+    useEffect(() => {
+      if (obj && isMounted.current) {
+        try {
+          // Apply material to model
+          obj.traverse((child) => {
+            if (child.isMesh) {
+              child.material = new THREE.MeshStandardMaterial({
+                color: 0xcccccc,
+                roughness: 0.5,
+                metalness: 0.2,
+              });
+            }
+          });
+          setModelLoaded(true);
+        } catch (err) {
+          console.error("Error processing OBJ model:", err);
+          setError(err);
+        }
       }
-    }
-  }, [obj]);
+    }, [obj]);
 
-  if (error) return <FallbackBox color="orange" />;
-  if (!modelLoaded) return <ModelLoadingState />;
-  
-  // Scale the model appropriately
-  return <primitive object={obj} scale={scale} position={[0, -0.5, 0]} rotation={[0, Math.PI / 4, 0]} />;
+    if (error) return <FallbackBox color="orange" />;
+    if (!modelLoaded) return <ModelLoadingState />;
+    
+    // Scale the model appropriately
+    return <primitive object={obj} scale={scale} position={[0, -0.5, 0]} rotation={[0, Math.PI / 4, 0]} />;
+  } catch (error) {
+    console.error("Error in ObjModel useLoader:", error);
+    return <FallbackBox color="orange" />;
+  }
 };
 
 // Component for GLTF/GLB models
 const GltfModel = ({ modelUrl, scale = 1 }) => {
   const [modelLoaded, setModelLoaded] = useState(false);
   const [error, setError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [useFallback, setUseFallback] = useState(false);
   
   // Use a ref to track if the component is mounted
   const isMounted = useRef(true);
@@ -116,46 +140,90 @@ const GltfModel = ({ modelUrl, scale = 1 }) => {
       isMounted.current = false;
     };
   }, []);
-  
-  // Use a suspense-compatible approach for loading
-  const gltfResult = useLoader(
-    GLTFLoader, 
-    modelUrl, 
-    undefined, 
-    (err) => {
-      console.error("Error loading GLTF model:", err);
-      if (isMounted.current) {
+    // Use a suspense-compatible approach for loading
+  // Add a timeout and size check for the loader
+  const handleModelLoadError = (err) => {
+    console.error("Error loading GLTF model:", err);
+    if (isMounted.current) {
+      // Check if it's a network error (failed to fetch)
+      if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
+        console.warn('Network error loading model, using fallback');
+        setUseFallback(true);
+        setError(new Error('Network error: Failed to load model'));
+        return;
+      }
+      
+      // Check if it's a progress event with a large total size
+      if (err.type === 'progress' && err.total > 10000000) { // 10MB threshold
+        console.warn(`Model is too large (${Math.round(err.total / 1024 / 1024)}MB), using fallback`);
+        setUseFallback(true);
+        setError(new Error(`Model is too large (${Math.round(err.total / 1024 / 1024)}MB)`));
+      } else {
         setError(err);
       }
     }
-  );
+  };
   
-  useEffect(() => {
-    if (gltfResult && gltfResult.scene && isMounted.current) {
-      try {
-        // Center and prepare the model
-        gltfResult.scene.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
+  // When using fallback, don't try to load the actual model
+  if (useFallback) {
+    return <FallbackBox color="#999" message="Preview Unavailable" />;
+  }
+  
+  // Use a try-catch for the useLoader call
+  try {
+    const gltfResult = useLoader(
+      GLTFLoader, 
+      modelUrl, 
+      (loader) => {
+        // Set timeout to 15 seconds for large files
+        loader.setRequestHeader({
+          timeout: 15000 // 15 seconds
         });
-        setModelLoaded(true);
-      } catch (err) {
-        console.error("Error processing GLTF model:", err);
-        setError(err);
+        
+        // Add a retry mechanism for network errors
+        loader.setWithCredentials(true);
+      }, 
+      handleModelLoadError
+    );
+    
+    useEffect(() => {
+      if (gltfResult && gltfResult.scene && isMounted.current) {
+        try {
+          // Center and prepare the model
+          gltfResult.scene.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+              // Add a default material if none exists
+              if (!child.material) {
+                child.material = new THREE.MeshStandardMaterial({
+                  color: 0xcccccc,
+                  roughness: 0.5,
+                  metalness: 0.2,
+                });
+              }
+            }
+          });
+          setModelLoaded(true);
+        } catch (err) {
+          console.error("Error processing GLTF model:", err);
+          setError(err);
+        }
       }
-    }
-  }, [gltfResult]);
+    }, [gltfResult]);
 
-  if (error) return <FallbackBox color="orange" />;
-  if (!modelLoaded) return <ModelLoadingState />;
-  
-  return <primitive object={gltfResult.scene} scale={scale} position={[0, -0.5, 0]} rotation={[0, Math.PI / 4, 0]} />;
+    if (error) return <FallbackBox color="orange" />;
+    if (!modelLoaded) return <ModelLoadingState />;
+    
+    return <primitive object={gltfResult.scene} scale={scale} position={[0, -0.5, 0]} rotation={[0, Math.PI / 4, 0]} />;
+  } catch (error) {
+    console.error("Error in GltfModel useLoader:", error);
+    return <FallbackBox color="orange" />;
+  }
 };
 
 // Fallback component when model can't be loaded
-const FallbackBox = ({ color = "#bbbbbb" }) => {
+const FallbackBox = ({ color = "#bbbbbb", message = "Preview unavailable" }) => {
   return (
     <group>
       <mesh position={[0, 0, 0]}>
@@ -163,14 +231,9 @@ const FallbackBox = ({ color = "#bbbbbb" }) => {
         <meshStandardMaterial color={color} />
       </mesh>
       <Html position={[0, 1, 0]} center>
-        <div style={{ 
-          background: 'rgba(0,0,0,0.5)', 
-          color: 'white', 
-          padding: '2px 5px', 
-          borderRadius: '3px',
-          fontSize: '8px'
-        }}>
-          Preview unavailable
+        <div className="model-error">
+          <div className="model-error-icon">!</div>
+          <div>{message}</div>
         </div>
       </Html>
     </group>
@@ -285,12 +348,30 @@ function FurnitureCatalogSidebar({ onSelectFurniture, onClose }) {
               className="furniture-item"
               onClick={() => handleFurnitureSelect(item)}
             >              <div className="furniture-preview-container">
-                {item.objFileUrl || item.modelEndpoint ? (
-                  <ErrorBoundary fallback={<div className="model-error">Error loading model</div>}>
-                    <Canvas shadows dpr={[1, 2]} camera={{ position: [0, 0, 4], fov: 50 }}>
+                {(item.objFileUrl || item.modelEndpoint) ? (
+                  <ErrorBoundary fallback={
+                    <div className="model-error">
+                      <div className="model-error-icon">!</div>
+                      <div className="model-error-text">Preview unavailable</div>
+                    </div>
+                  }>
+                    <Canvas 
+                      shadows 
+                      dpr={[1, 2]} 
+                      camera={{ position: [0, 0, 4], fov: 50 }}
+                      onError={(e) => console.error('Canvas error:', e)}
+                    >
                       <ambientLight intensity={0.7} />
                       <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
-                      <Suspense fallback={null}>
+                      <directionalLight position={[-5, 5, -5]} intensity={0.5} />
+                      
+                      <Suspense fallback={
+                        <Html center>
+                          <div className="loading-preview">
+                            <div className="loading-spinner"></div>
+                          </div>
+                        </Html>
+                      }>
                         <FurnitureModel 
                           modelUrl={item.objFileUrl || item.modelEndpoint} 
                           scale={1} 
@@ -305,7 +386,10 @@ function FurnitureCatalogSidebar({ onSelectFurniture, onClose }) {
                     </Canvas>
                   </ErrorBoundary>
                 ) : (
-                  <div className="no-preview">No preview</div>
+                  <div className="no-preview">
+                    <span className="no-preview-icon">📷</span>
+                    <span>No preview available</span>
+                  </div>
                 )}
               </div>
               <div className="furniture-item-details">

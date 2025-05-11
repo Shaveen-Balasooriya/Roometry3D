@@ -193,7 +193,7 @@ function TextureSidePanel({
           onClick={() => handleSectionChange(2)}
           disabled={!selectedFurniture}
         >
-        >
+        
           Furniture
         </button>
       </div>

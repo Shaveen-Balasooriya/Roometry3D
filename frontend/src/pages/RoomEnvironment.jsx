@@ -14,11 +14,10 @@ function RoomEnvironment() {
   const [selectedWallTexture, setSelectedWallTexture] = useState(null);
   const [selectedFloorTexture, setSelectedFloorTexture] = useState(null);
   const [showTextureSidePanel, setShowTextureSidePanel] = useState(false);
-  const [showFurnitureSidebar, setShowFurnitureSidebar] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
+  const [showFurnitureSidebar, setShowFurnitureSidebar] = useState(true);  const [isLoading, setIsLoading] = useState(true);
   const [furnitureItems, setFurnitureItems] = useState([]);
   const [selectedFurnitureId, setSelectedFurnitureId] = useState(null);
-  const [activeSectionIndex, setActiveSectionIndex] = useState(0); // Used to control texture tab selection  const [activeSectionIndex, setActiveSectionIndex] = useState(0); // Used to control texture tab selection
+  const [activeSectionIndex, setActiveSectionIndex] = useState(0); // Used to control texture tab selection
   
   // Get room data from navigation state
   const { roomId: urlRoomId, roomData: navigationRoomData, projectId, projectData } = location.state || {};
@@ -276,7 +275,7 @@ function RoomEnvironment() {
               activeSectionIndex={activeSectionIndex}
               setActiveSectionIndex={setActiveSectionIndex}
             />
-            />
+  
           </div>
         )}
       </div>

@@ -1,13 +1,14 @@
 /* eslint-disable no-unused-vars */
 /* spell-checker: disable */
 /* stylelint-disable */
-import React, { useEffect, useState, useRef, Suspense, useCallback } from 'react';
+import React, { useEffect, useState, useRef, Suspense, useCallback, lazy } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, PerspectiveCamera, Html } from '@react-three/drei';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import * as THREE from 'three';
 import './EnvironmentViewer.css';
 import Loading from '../../components/Loading';
+import FurnitureControlsHelp from './FurnitureControlsHelp';
 
 // Component for displaying loading status inside the Canvas
 const LoadingIndicator = () => {
@@ -464,14 +465,62 @@ const TransparentWalls = () => {
   return null;
 };
 
+// Component to manage furniture items
+const Furniture = ({ 
+  furnitureItems, 
+  selectedFurnitureId, 
+  onSelectFurniture, 
+  onPositionChange 
+}) => {
+  // Import FurnitureModel dynamically to avoid circular dependencies
+  const [FurnitureModel, setFurnitureModel] = useState(null);
+  
+  useEffect(() => {
+    // Dynamic import of FurnitureModel
+    import('./FurnitureModel').then(module => {
+      setFurnitureModel(() => module.default);
+    }).catch(err => {
+      console.error("Failed to load FurnitureModel component:", err);
+    });
+  }, []);
+  
+  if (!furnitureItems || furnitureItems.length === 0 || !FurnitureModel) {
+    return null;
+  }
+  
+  return (
+    <>
+      {furnitureItems.map(item => (
+        <FurnitureModel
+          key={item.instanceId}
+          item={item}
+          selected={selectedFurnitureId === item.instanceId}
+          onSelect={onSelectFurniture}
+          onPositionChange={onPositionChange}
+        />
+      ))}
+    </>
+  );
+};
+
 // The main exported component
-export default function EnvironmentViewer({ modelUrl, selectedWallTexture, selectedFloorTexture, onModelLoaded }) {
+export default function EnvironmentViewer({ 
+  modelUrl, 
+  selectedWallTexture, 
+  selectedFloorTexture, 
+  furnitureItems = [], 
+  selectedFurnitureId, 
+  onSelectFurniture, 
+  onFurniturePositionChange, 
+  onModelLoaded 
+}) {
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const canvasRef = useRef(null);
   const modelUrlRef = useRef(modelUrl);
 
   useEffect(() => {
     console.log("EnvironmentViewer received modelUrl:", modelUrl);
+    console.log("Furniture items:", furnitureItems?.length || 0);
 
     if (!modelUrl) {
       console.error("No model URL provided to EnvironmentViewer");
@@ -487,7 +536,7 @@ export default function EnvironmentViewer({ modelUrl, selectedWallTexture, selec
       setIsModelLoaded(false);
       modelUrlRef.current = modelUrl;
     }
-  }, [modelUrl, onModelLoaded]);
+  }, [modelUrl, furnitureItems, onModelLoaded]);
 
   const handleModelLoaded = () => {
     console.log("Model loaded successfully");
@@ -503,8 +552,7 @@ export default function EnvironmentViewer({ modelUrl, selectedWallTexture, selec
           <p>This room does not have a 3D model to display.</p>
         </div>
       ) : (
-        <>
-          <Canvas
+        <>          <Canvas
             ref={canvasRef}
             shadows
             dpr={[1, 2]}
@@ -545,6 +593,16 @@ export default function EnvironmentViewer({ modelUrl, selectedWallTexture, selec
                 onLoaded={handleModelLoaded}
               />
               <TransparentWalls />
+              
+              {/* Render furniture items */}
+              {furnitureItems && furnitureItems.length > 0 && (
+                <Furniture 
+                  furnitureItems={furnitureItems}
+                  selectedFurnitureId={selectedFurnitureId}
+                  onSelectFurniture={onSelectFurniture}
+                  onPositionChange={onFurniturePositionChange}
+                />
+              )}
             </Suspense>
           </Canvas>
           
@@ -556,8 +614,7 @@ export default function EnvironmentViewer({ modelUrl, selectedWallTexture, selec
           )}
         </>
       )}
-            
-      <div className="camera-controls-help">
+              <div className="camera-controls-help">
         <div className="help-tooltip">
           <span className="help-icon">?</span>
           <div className="tooltip-content">
@@ -567,6 +624,17 @@ export default function EnvironmentViewer({ modelUrl, selectedWallTexture, selec
               <li><strong>Pan:</strong> Right-click + drag</li>
               <li><strong>Zoom:</strong> Scroll wheel</li>
             </ul>
+            
+            {furnitureItems && furnitureItems.length > 0 && (
+              <>
+                <h4>Furniture Controls</h4>
+                <ul>
+                  <li><strong>Select:</strong> Click on furniture</li>
+                  <li><strong>Move:</strong> Click and drag selected furniture</li>
+                  <li><strong>Rotate:</strong> Hold Shift while dragging</li>
+                </ul>
+              </>
+            )}
           </div>
         </div>
       </div>
